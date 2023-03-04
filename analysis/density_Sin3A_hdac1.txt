@@ -1,0 +1,2 @@
+density_custom_ranges={"SIN3A_PAH3":[(456,525,'SIN3A.0')],"SIN3A_HID":[(526,831,'SIN3A.0')],"SAP30_N-term":[(1,63,'SAP30.0')],"SAP30_ZFD":[(64,129,'SAP30.0')],"SAP30_SID":[(130,220,'SAP30.0')],"SUDS3_N-term":[(1,87,'SUDS3.0')],"SUDS3_dimerization":[(88,172,'SUDS3.0')],"SUDS3_SID":[(173,228,'SUDS3.0')],"SUDS3_C-term":[(229,328,'SUDS3.0')],"HDAC1_1-376":[(1,376,'HDAC1.0')],"HDAC1_C-term_377-482":[(377,482,'HDAC1.0')]}
+
