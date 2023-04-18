@@ -291,7 +291,8 @@ if __name__ == '__main__':
     # cluster_number = int(sys.argv[6])
     # location = [x for x in os.listdir(sys.argv[1]) if re.search(f'[AB]_gsm_clust{cluster_number}.rmf3', x)]
     # rmfs = [f'{sys.argv[1]}/{x}' for x in location]
-    
-    cluster_rmf_file = sys.argv[1]
 
-    get_all_data_cm(cluster_rmf_file,30)
+    cluster_rmf_file = sys.argv[1]
+    n_pool = int(sys.argv[2])
+
+    get_all_data_cm([cluster_rmf_file],n_pool)
