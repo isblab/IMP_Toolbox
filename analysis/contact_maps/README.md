@@ -1,6 +1,7 @@
 ### contact_map_all_pairs
 
-Parallelized version of contact map for all protein pairs. Default code for contact maps 
+Parallelized version of contact map for all protein pairs. Default code for contact maps.
+**NOTE** It assumes that the protein sequence is numbered 1....n. Fix the code if you are modeling the sequence starting from the middle (i.e. without N-terminus)
 
 
 ### cm
