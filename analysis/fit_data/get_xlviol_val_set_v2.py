@@ -39,10 +39,11 @@ class Particle:
             molecule=self.pname,
             residue_index=self.resid,
             resolution=1,
-        ).get_selected_particles()
+        ).get_selected_particles() #TODO crosscheck if all ambiguous beads are selected 
         for bead in sel0:
             self.coords.append(IMP.core.XYZ(bead))
 
+#TODO did we test that this script gives the same distances as in stat file or RMF for ambiguous crosslinks? 
 
 class Xlink:
     """
@@ -56,7 +57,7 @@ class Xlink:
         self.xl = xl_ln.strip()
         self.p1_xyz = []
         self.p2_xyz = []
-        self.min_distances = []
+        self.min_distances = [] #minimum distance from each model 
         self.violated = None
 
     def set_xl_coords(
@@ -108,7 +109,7 @@ def generate_logfile(all_xls):
     viol_count = 0
     violated_xl = []
     for xl in all_xls:
-        xl.set_violation_status(viol_threshold=threshold)
+        xl.set_violation_status(viol_threshold=threshold) #TODO suggestion not bug. Avoid global variables and pass from function instead
         if xl.violated:
             viol_count += 1
             violated_xl.append(xl)
@@ -126,7 +127,7 @@ def generate_logfile(all_xls):
                 logf.write(f"\t{lnk.xl}\n")
 
 
-all_xls: list[Xlink] = []
+all_xls: list[Xlink] = []  
 with open(xl_file, "r") as xlf:
     for ln in xlf.readlines():
         if not ln.startswith("Protein"):
