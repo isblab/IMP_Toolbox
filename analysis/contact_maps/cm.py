@@ -129,6 +129,8 @@ def foo_contact_maps_worker(path, molecule_pair, indices, residues, save_path, c
     overall_dist_matrix = np.zeros((n_fragments1, n_fragments2), dtype=float)
     overall_dist_matrix_adjusted = np.zeros((n_fragments1, n_fragments2), dtype=float)
     overall_dist_matrix_boolean = np.zeros((n_fragments1, n_fragments2), dtype=float)
+    sorted_residues_1 = np.argsort(residues[mol1])
+    sorted_residues_2 = np.argsort(residues[mol2])
     for model in range(n_models):
         dat1 = m[mol1][model, :, :]
         dat2 = m[mol2][model, :, :]
@@ -171,7 +173,7 @@ def foo_contact_maps_worker(path, molecule_pair, indices, residues, save_path, c
     # save the contacts based on different thresholds
     for c in [0.2, 0.25, 0.3]:
         with open(f'{save_path}/list_contacts_{mol1}_{mol2}_{int(c * 100)}.txt', 'w') as f:
-            indx, indy = np.where(m_boolean[np.ix_(np.array(indices[mol1]), np.array(indices[mol2]))] >= c)
+            indx, indy = np.where(m_boolean[np.ix_(np.array(indices[mol1])[sorted_residues_1], np.array(indices[mol2])[sorted_residues_2])] >= c)
             f.write(f'{mol1:^15}\t{mol2}\n')
             cm_dict = defaultdict(list)
             for i in np.unique(indx):
@@ -184,15 +186,15 @@ def foo_contact_maps_worker(path, molecule_pair, indices, residues, save_path, c
     for matrix, plot_type in zip([m, m_adjusted, m_boolean], ['unadjusted', 'adjusted', 'boolean']):
         fig, ax = plt.subplots(figsize=(10, 10))
         if plot_type == 'boolean':
-            temp = ax.imshow(matrix[np.ix_(np.array(indices[mol1]), np.array(indices[mol2]))], aspect='auto',
+            temp = ax.imshow(matrix[np.ix_(np.array(indices[mol1])[sorted_residues_1], np.array(indices[mol2])[sorted_residues_2])], aspect='auto',
                              cmap='magma' if plot_type != 'boolean' else 'magma_r', vmax=0.25, vmin=0)
         else:
-            temp = ax.imshow(matrix[np.ix_(np.array(indices[mol1]), np.array(indices[mol2]))], aspect='auto',
+            temp = ax.imshow(matrix[np.ix_(np.array(indices[mol1])[sorted_residues_1], np.array(indices[mol2])[sorted_residues_2])], aspect='auto',
                              cmap='magma' if plot_type != 'boolean' else 'magma_r')
         ax.set_xticks(np.arange(len(indices[mol2]))[::50])
         ax.set_yticks(np.arange(len(indices[mol1]))[::50])
-        ax.set_xticklabels(residues[mol2][::50])
-        ax.set_yticklabels(residues[mol1][::50])
+        ax.set_xticklabels(np.array(residues[mol2])[sorted_residues_2][::50])
+        ax.set_yticklabels(np.array(residues[mol1])[sorted_residues_1][::50])
         ax.set_title(f'Distance Matrix {plot_type}')
         ax.set_xlabel(mol2)
         ax.set_ylabel(mol1)
@@ -209,6 +211,7 @@ def foo_contact_map_wrapper(args):
 def process_names(names):
     indices = defaultdict(list)
     residues = defaultdict(list)
+    bead_sort = defaultdict(list)
     reg = '[^0-9]*([0-9]+)[^0-9]+([0-9]+)[^0-9]*'
     f = open('running_temp_name_fragment_map.txt', 'w')
     for k in names:
@@ -227,14 +230,16 @@ def process_names(names):
                 residues[k] += list(range(n1, n2 + 1))
                 indices[k] += [i for _ in range(n1, n2 + 1)]
                 f.write(f'{n1} -> {n2}\n')
+                bead_sort[k].append(n1)
             elif 'Fragment' in name:
                 residues[k] += list(range(n1, n2))
                 indices[k] += [i for _ in range(n1, n2)]
                 f.write(f'{n1} -> {n2 - 1}\n')
+                bead_sort[k].append(n1)
             else:
                 assert False, f'Neither bead nor fragment: {name} in {k}'
     f.close()
-    return indices, residues
+    return indices, residues, bead_sort
 
 
 def get_all_data_cm(list_of_rmfs, npool=None, save_path='.', burn_in=0):
@@ -251,30 +256,35 @@ def get_all_data_cm(list_of_rmfs, npool=None, save_path='.', burn_in=0):
             os.mkdir(data_save)
         if not os.path.isdir(cm_save):
             os.mkdir(cm_save)
-        args = [(list_of_rmfs[r], r, burn_in, q3) for r in range(len(list_of_rmfs))]
-        p3 = mp.Process(target=foo_saver, args=(len(list_of_rmfs), q3, data_save), daemon=True)
-        p3.start()
-        print('Saving molecule-wise coordinates and radii.')
-        temp = p.starmap(foo_rmf_parser, args)
-        assert all(temp), 'Some of the foo_workers did not end properly while calculating parsing rmfs'
-        names = temp[0]
-        print('Finished!')
-        indices, residues = process_names(names)
-        del temp
+            args = [(list_of_rmfs[r], r, burn_in, q3) for r in range(len(list_of_rmfs))]
+            p3 = mp.Process(target=foo_saver, args=(len(list_of_rmfs), q3, data_save), daemon=True)
+            p3.start()
+            print('Saving molecule-wise coordinates and radii.')
+            temp = p.starmap(foo_rmf_parser, args)
+            assert all(temp), 'Some of the foo_workers did not end properly while calculating parsing rmfs'
+            names = temp[0]
+            print('Finished!')
+            indices, residues, bead_sort = process_names(names)
+            del temp
+            print('Waiting for processes to die')
+            wait_time_start = time.time()
+            while (time.time() - wait_time_start) < 60:
+                p3.join(5)
+                if not p3.is_alive():
+                    print('Processes have ended properly.')
+                    break
+            if p3.is_alive():
+                print('Processes have not ended. Exiting the function.')
+                print(f'\tProcess p3: {p3.is_alive()}')
+            with open(f'{cm_save}/names_indices', 'wb') as f:
+                pickle.dump([indices, residues, bead_sort, names], f)
+        else:
+            with open(f'{cm_save}/names_indices', 'rb') as f:
+                indices, residues, bead_sort, names = pickle.load(f)
+        print('Processing contact maps.')
+        total_successes = 0
         mol_pairs = set([(i, j) for i in names for j in names if i < j])
         args = [(f'{data_save}/saved_data', mol_pair, indices, residues, cm_save) for mol_pair in mol_pairs]
-        total_successes = 0
-        print('Waiting for processes to die')
-        wait_time_start = time.time()
-        while (time.time() - wait_time_start) < 60:
-            p3.join(5)
-            if not p3.is_alive():
-                print('Processes have ended properly.')
-                break
-        if p3.is_alive():
-            print('Processes have not ended. Exiting the function.')
-            print(f'\tProcess p3: {p3.is_alive()}')
-        print('Processing contact maps.')
         for result in tqdm.tqdm(p.imap_unordered(foo_contact_map_wrapper, args), desc='cm_mol_pairs', smoothing=0,
                                 total=len(args)):
             total_successes += result
@@ -285,14 +295,10 @@ def get_all_data_cm(list_of_rmfs, npool=None, save_path='.', burn_in=0):
 if __name__ == '__main__':
     # sys.argv -> location of all the output dirs, step sequence arguments (ignored for only cm),
     # plot saving path, number of cores, burn-in n-frames, (for cm only) cluster number
-    # save_path = sys.argv[3]
-    # n_pool = int(sys.argv[4])
-    # burn_in = int(sys.argv[5])
-    # cluster_number = int(sys.argv[6])
-    # location = [x for x in os.listdir(sys.argv[1]) if re.search(f'[AB]_gsm_clust{cluster_number}.rmf3', x)]
-    # rmfs = [f'{sys.argv[1]}/{x}' for x in location]
-
-    cluster_rmf_file = sys.argv[1]
-    n_pool = int(sys.argv[2])
-
-    get_all_data_cm([cluster_rmf_file],n_pool)
+    save_path = sys.argv[3]
+    n_pool = int(sys.argv[4])
+    burn_in = int(sys.argv[5])
+    cluster_number = int(sys.argv[6])
+    location = [x for x in os.listdir(sys.argv[1]) if re.search(f'[AB]_gsm_clust{cluster_number}.rmf3', x)]
+    rmfs = [f'{sys.argv[1]}/{x}' for x in location]
+    get_all_data_cm(rmfs, n_pool, save_path, burn_in)
