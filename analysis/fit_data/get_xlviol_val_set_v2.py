@@ -8,8 +8,7 @@ from tqdm import tqdm
 
 all_mdls_fname = sys.argv[1]
 xl_file = sys.argv[2]
-threshold = sys.argv[3]
-
+threshold = float(sys.argv[3])
 
 
 class Particle:
@@ -39,11 +38,13 @@ class Particle:
             molecule=self.pname,
             residue_index=self.resid,
             resolution=1,
-        ).get_selected_particles() #TODO crosscheck if all ambiguous beads are selected 
+        ).get_selected_particles()  # TODO crosscheck if all ambiguous beads are selected
         for bead in sel0:
             self.coords.append(IMP.core.XYZ(bead))
 
-#TODO did we test that this script gives the same distances as in stat file or RMF for ambiguous crosslinks? 
+
+# TODO did we test that this script gives the same distances as in stat file or RMF for ambiguous crosslinks?
+
 
 class Xlink:
     """
@@ -57,7 +58,7 @@ class Xlink:
         self.xl = xl_ln.strip()
         self.p1_xyz = []
         self.p2_xyz = []
-        self.min_distances = [] #minimum distance from each model 
+        self.min_distances = []  # minimum distance from each model
         self.violated = None
 
     def set_xl_coords(
@@ -90,7 +91,7 @@ class Xlink:
         self.p1_xyz = prot1.coords
         self.p2_xyz = prot2.coords
 
-    def get_min_distance(self):
+    def get_min_distance(self) -> bool:
         distances = []
         for c1 in self.p1_xyz:
             for c2 in self.p2_xyz:
@@ -98,28 +99,40 @@ class Xlink:
                 if dist < 0:
                     dist = 0
                 distances.append(dist)
-        self.min_distances.append(min(distances))
+        if len(distances) > 0:
+            self.min_distances.append(min(distances))
+            return True
+        else:
+            return False
 
     def set_violation_status(self, viol_threshold):
-        self.violated = not any(dist < viol_threshold for dist in self.min_distances)
+        self.violated = True
+        for dist in self.min_distances:
+            if dist < viol_threshold:
+                self.violated = False
 
 
-def generate_logfile(all_xls):
-    outfname = f"xl_violation_{xl_file.split('/')[-1]}.log"
+def generate_logfile(xls):
+    logfname = f"xl_violation_{xl_file.split('/')[-1]}.log"
+    outfname = f"xl_violation_{xl_file.split('/')[-1]}.csv"
     viol_count = 0
     violated_xl = []
-    for xl in all_xls:
-        xl.set_violation_status(viol_threshold=threshold) #TODO suggestion not bug. Avoid global variables and pass from function instead
-        if xl.violated:
-            viol_count += 1
-            violated_xl.append(xl)
 
-    perc_viol = (viol_count / len(all_xls)) * 100
+    with open(outfname, "w") as outf:
+        outf.write("Protein1,Residue1,Protein2,Residue2,Minimum distance\n")
+        for xl in xls:
+            xl.set_violation_status(viol_threshold=threshold)
+            if xl.violated:
+                viol_count += 1
+                violated_xl.append(xl)
+            outf.write(f"{xl.xl},{str(min(xl.min_distances))}\n")
 
-    with open(outfname, "w") as logf:
+    perc_viol = (viol_count / len(xls)) * 100
+
+    with open(logfname, "w") as logf:
         logf.write(f"Percent crosslink violation is {perc_viol:.2f}\n")
         logf.write(
-            f"{viol_count} out of {len(all_xls)} crosslinks were violated in this cluster of models\n"
+            f"{viol_count} out of {len(xls)} crosslinks were violated in this cluster of models\n"
         )
         if viol_count > 0:
             logf.write("Following crosslinks were violated in this cluster:\n")
@@ -127,7 +140,7 @@ def generate_logfile(all_xls):
                 logf.write(f"\t{lnk.xl}\n")
 
 
-all_xls: list[Xlink] = []  
+all_xls: list[Xlink] = []
 with open(xl_file, "r") as xlf:
     for ln in xlf.readlines():
         if not ln.startswith("Protein"):
@@ -139,12 +152,16 @@ rmf_fh = RMF.open_rmf_file_read_only(all_mdls_fname)
 hier = IMP.rmf.create_hierarchies(rmf_fh, mdl)
 mdl.update()
 
+all_valid_xls: list[Xlink] = []
 for frame in tqdm(range(rmf_fh.get_number_of_frames())):
     for xl in all_xls:
         xl.set_xl_coords(hierarchy=hier, frame_id=frame, rmf=rmf_fh)
-        xl.get_min_distance()
+        xl_valid = xl.get_min_distance()
+        if frame == 0:
+            if xl_valid:
+                all_valid_xls.append(xl)
 
     # if frame != 0 and frame % 100 == 0:
     #     break
 
-generate_logfile(all_xls)
+generate_logfile(all_valid_xls)
