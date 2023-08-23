@@ -1,7 +1,6 @@
 ### contact_map_all_pairs
 
-Parallelized version of contact map for all protein pairs. Default code for contact maps.
-
+Parallelized version of contact map for all protein pairs. Same functionality, earlier and slower version of the code in `surface_distance_maps_v2`.  
 
 ### cm
 Get boolean contact maps for all protein pairs. Parallelized. By Satwik Pasani.
