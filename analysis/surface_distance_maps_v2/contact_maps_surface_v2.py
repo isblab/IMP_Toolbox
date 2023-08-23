@@ -77,6 +77,10 @@ def main():
     sizes_dict = dmaps_functions.get_protein_sizes(hier, all_proteins)
     print(all_proteins)
 
+    #TODO will not work if the last particle in selection is not the last numbered bead.  
+    #TODO this can be the case for missing residues in PDB coming at the end of selection. 
+    #TODO updating this to take the min and max instead. Also handles the first res not being 1 issue. 
+
     nmodels = rmf_fh.get_number_of_frames()
     mdl_ids = [i for i in range(nmodels)]
 
@@ -93,6 +97,8 @@ def main():
     for p1 in all_proteins:
         for p2 in tqdm(all_proteins, desc=f"Processing interactions of {p1}"):
             if ((p1, p2) in done_prot_pairs) or ((p2, p1) in done_prot_pairs):
+                #TODO  Shorter way to implement uses itertools.combinations or some other iterator over list 
+                #TODO to get pairs with yx  
                 """No xy -> yx repetitions"""
                 continue
 

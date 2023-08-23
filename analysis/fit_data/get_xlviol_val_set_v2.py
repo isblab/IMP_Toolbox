@@ -121,7 +121,7 @@ def generate_logfile(xls):
     with open(outfname, "w") as outf:
         outf.write("Protein1,Residue1,Protein2,Residue2,Minimum distance\n")
         for xl in xls:
-            xl.set_violation_status(viol_threshold=threshold)
+            xl.set_violation_status(viol_threshold=threshold) #TODO Avoid global variables and pass from function instead
             if xl.violated:
                 viol_count += 1
                 violated_xl.append(xl)

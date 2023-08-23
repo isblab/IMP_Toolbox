@@ -101,8 +101,25 @@ def get_protein_sizes(hier: IMP.atom.Hierarchy, all_proteins: list[str]) -> dict
                 last_res = str(sel0[-1]).strip()[1:-1]
 
             sizes_dict[protein] = int(last_res)
+
+            #TODO alternate implementation to get min and max residues (if the middle of a protein is modeled)
+
+            # for particle in sel0:
+                # bead_name, start, end = get_bead_name(particle)
+
+                # if start<min_res:
+                #     min_res=start
+
+                # if end>max_res:
+                #     max_res=end
+
+
+            # sizes_dict[protein] = (min_res,max_res) 
+            
     return sizes_dict
 
+#TODO use s1 and s2 to be tuples of start and end residue instead of end alone and modify below function 
+#TODO accordingly. 
 
 def measure_beadwise_distances(
     p1: str,
@@ -137,7 +154,7 @@ def measure_beadwise_distances(
             copy_index=int(p2.split(".")[1]),
         )
 
-        distances_in_frame = np.zeros((s1 + 1, s2 + 1, 1))
+        distances_in_frame = np.zeros((s1 + 1, s2 + 1, 1)) #TODO fix s1 and s2 to s1.end - s1.start +1 and similarly for s2 here  
         for bead1 in sel1.get_selected_particles():
             for bead2 in sel2.get_selected_particles():
                 dist = IMP.core.get_distance(IMP.core.XYZR(bead1), IMP.core.XYZR(bead2))
