@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def compute_dmaps():
     args = parse_args()
 
     for adirectory in [
@@ -77,9 +77,9 @@ def main():
     sizes_dict = dmaps_functions.get_protein_sizes(hier, all_proteins)
     print(all_proteins)
 
-    #TODO will not work if the last particle in selection is not the last numbered bead.  
-    #TODO this can be the case for missing residues in PDB coming at the end of selection. 
-    #TODO updating this to take the min and max instead. Also handles the first res not being 1 issue. 
+    # TODO will not work if the last particle in selection is not the last numbered bead.
+    # TODO this can be the case for missing residues in PDB coming at the end of selection.
+    # TODO updating this to take the min and max instead. Also handles the first res not being 1 issue.
 
     nmodels = rmf_fh.get_number_of_frames()
     mdl_ids = [i for i in range(nmodels)]
@@ -97,8 +97,8 @@ def main():
     for p1 in all_proteins:
         for p2 in tqdm(all_proteins, desc=f"Processing interactions of {p1}"):
             if ((p1, p2) in done_prot_pairs) or ((p2, p1) in done_prot_pairs):
-                #TODO  Shorter way to implement uses itertools.combinations or some other iterator over list 
-                #TODO to get pairs with yx  
+                # TODO  Shorter way to implement uses itertools.combinations or some other iterator over list
+                # TODO to get pairs with yx
                 """No xy -> yx repetitions"""
                 continue
 
@@ -169,15 +169,24 @@ def main():
 
             i += 1
             done_prot_pairs.append((p1, p2))
-            break
-        break
+            #     #TODO Remove these breaks
+        #     break
+        # break
 
     toc = time.time()
     print(
         f"Processed {len(done_prot_pairs)} pairs of proteins from {nmodels} models in {toc-tic} seconds"
     )
     shutil.rmtree(os.path.join(os.getcwd(), "concatenated_models"))
-    shutil.rmtree(os.path.join(os.getcwd(), "__pycache__"))
+    if "__pycache__" in os.listdir("./"):
+        shutil.rmtree(os.path.join(os.getcwd(), "__pycache__"))
 
 
-main()
+compute_dmaps()
+
+# dmat = np.loadtxt(
+#     os.path.join("distance_matrices", "WDR76.0-WDR76.0_mean_distances.csv")
+# )
+# interfaces = np.where((dmat < 20.0) & (dmat != 0))
+# print(interfaces[0].shape)
+# print(dmat[interfaces])

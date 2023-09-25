@@ -155,6 +155,7 @@ def measure_beadwise_distances(
         )
 
         distances_in_frame = np.zeros((s1 + 1, s2 + 1, 1)) #TODO fix s1 and s2 to s1.end - s1.start +1 and similarly for s2 here  
+        bead_pair_details = np.zeros((s1 + 1, s2 + 1, 1), dtype=str)
         for bead1 in sel1.get_selected_particles():
             for bead2 in sel2.get_selected_particles():
                 dist = IMP.core.get_distance(IMP.core.XYZR(bead1), IMP.core.XYZR(bead2))
