@@ -11,6 +11,7 @@ pip3 install --user matplotlib numpy scipy scikit-learn ;
 sudo dnf install boost-devel gperftools-devel CGAL-devel graphviz gsl-devel cmake doxygen hdf5-devel swig fftw-devel opencv-devel  gcc-c++ ninja-build  python-devel ;
 sudo dnf install openmpi-devel ;
 sudo dnf install environment-modules ;
+sudo dnf install cereal-devel
 source /usr/share/Modules/init/bash
 
 echo 'module load mpi/openmpi-x86_64' >> ~/.bash_profile ;
