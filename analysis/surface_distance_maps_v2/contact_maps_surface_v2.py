@@ -75,7 +75,7 @@ def compute_dmaps():
 
     all_proteins = dmaps_functions.get_protein_names(hier)
     sizes_dict = dmaps_functions.get_protein_sizes(hier, all_proteins)
-    print(all_proteins)
+    print(all_proteins, sizes_dict)
 
     # TODO will not work if the last particle in selection is not the last numbered bead.
     # TODO this can be the case for missing residues in PDB coming at the end of selection.
@@ -125,11 +125,9 @@ def compute_dmaps():
             mean_distances = all_distances.mean(axis=2)
 
             mean_distances = np.delete(np.delete(mean_distances, 0, axis=0), 0, axis=1)
-
             binarized_distance_matrix = np.where(
                 mean_distances <= int(args.threshold), 1, 0
             )
-
             np.savetxt(
                 os.path.join("distance_matrices", f"{p1}-{p2}_mean_distances.csv"),
                 mean_distances,

@@ -77,13 +77,13 @@ def get_protein_names(hier: IMP.atom.Hierarchy) -> list[str]:
     """Given the IMP Hierarchy, return the names of all the proteins"""
     proteins = []
     sel0 = IMP.atom.Selection(hierarchy=hier).get_selected_particles()
-
     for particle in sel0:
         name, _, _ = get_bead_name(particle)
 
         protein_name = ".".join(name.split(":")[0:2])
         if protein_name not in proteins:
             proteins.append(protein_name)
+
     return proteins
 
 
@@ -92,34 +92,38 @@ def get_protein_sizes(hier: IMP.atom.Hierarchy, all_proteins: list[str]) -> dict
     for protein in all_proteins:
         if protein not in sizes_dict:
             sel0 = IMP.atom.Selection(
-                hier, molecule=protein.split(".")[0]
+                hier, molecule=protein.split(".")[0], copy_index = int(protein.split(".")[1])
             ).get_selected_particles()
+
+            if "bead" in str(sel0[0]):
+                start_res = str(sel0[0]).split("-")[0].strip('"')
+            else:
+                start_res = str(sel0[0]).strip()[1:-1]
 
             if "bead" in str(sel0[-1]):
                 last_res = str(sel0[-1]).split("_")[0].split("-")[1]
             else:
                 last_res = str(sel0[-1]).strip()[1:-1]
-
-            sizes_dict[protein] = int(last_res)
+            sizes_dict[protein] = (int(start_res),int(last_res))
 
             #TODO alternate implementation to get min and max residues (if the middle of a protein is modeled)
-
+            #
             # for particle in sel0:
-                # bead_name, start, end = get_bead_name(particle)
+            #     bead_name, start, end = get_bead_name(particle)
+            #
+            #     if start<min_res:
+            #         min_res=start
+            #
+            #     if end>max_res:
+            #         max_res=end
+            #
+            #
+            # sizes_dict[protein] = (min_res,max_res)
 
-                # if start<min_res:
-                #     min_res=start
-
-                # if end>max_res:
-                #     max_res=end
-
-
-            # sizes_dict[protein] = (min_res,max_res) 
-            
     return sizes_dict
 
-#TODO use s1 and s2 to be tuples of start and end residue instead of end alone and modify below function 
-#TODO accordingly. 
+#TODO use s1 and s2 to be tuples of start and end residue instead of end alone and modify below function
+#TODO accordingly.
 
 def measure_beadwise_distances(
     p1: str,
@@ -154,8 +158,8 @@ def measure_beadwise_distances(
             copy_index=int(p2.split(".")[1]),
         )
 
-        distances_in_frame = np.zeros((s1 + 1, s2 + 1, 1)) #TODO fix s1 and s2 to s1.end - s1.start +1 and similarly for s2 here  
-        bead_pair_details = np.zeros((s1 + 1, s2 + 1, 1), dtype=str)
+        distances_in_frame = np.zeros(((s1[1] - s1[0]) + 2, (s2[1] - s2[0]) + 2, 1)) #TODO fix s1 and s2 to s1.end - s1.start +1 and similarly for s2 here
+        bead_pair_details = np.zeros(((s1[1]-s1[0]) + 2, (s2[1]-s2[0]) + 2, 1), dtype=str)
         for bead1 in sel1.get_selected_particles():
             for bead2 in sel2.get_selected_particles():
                 dist = IMP.core.get_distance(IMP.core.XYZR(bead1), IMP.core.XYZR(bead2))
@@ -167,7 +171,7 @@ def measure_beadwise_distances(
 
                 for r1 in range(start1, end1 + 1):
                     for r2 in range(start2, end2 + 1):
-                        distances_in_frame[r1, r2] = dist
+                        distances_in_frame[r1-(s1[0]-1), r2-(s2[0]-1)] = dist
 
         distances.append(distances_in_frame)
 
@@ -182,7 +186,7 @@ def get_interacting_beads(
     interactions = np.where((distance_matrix <= threshold))
     resid_corrected_interactions = []
     for i in interactions:
-        resid_corrected_interactions.append(i + 1)
+        resid_corrected_interactions.append(i)
 
     return resid_corrected_interactions
 
