@@ -3,6 +3,7 @@ import glob
 import time
 import shutil
 import argparse
+import pandas as pd
 
 import RMF
 import IMP
@@ -13,7 +14,8 @@ import numpy as np
 from tqdm import tqdm
 import dmaps_functions
 import concurrent.futures
-from matplotlib import pyplot as plt
+import networkx as nx
+import pylab as pyl
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,15 +48,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--binarization_threshold",
         "-t",
-        dest="threshold",
+        dest="distance_threshold",
         type=float,
         help="Distance threshold for identifying a contact",
-        default=1,
+        default=10,
         required=False,
     )
+    parser.add_argument(
+        "--percentage_threshold",
+        "-pt",
+        dest="percentage_threshold",
+        type=float,
+        help="Percentage threshold of models for identifying a contact",
+        default=0.2,
+        required=False,
+    )
+    #TODO add argument for threshold of percentage of models
 
     return parser.parse_args()
 
+def save_matrix_to_csv(matrix, s1, s2, p1, p2, directory, prefix):
+    output_csv_file = os.path.join(directory, f"{p1}-{p2}_{prefix}.csv")
+    np.savetxt(output_csv_file, matrix)
+    df = pd.read_csv(output_csv_file, sep=' ', header=None)
+    df.columns = [str(i) for i in range(s2[0], (s2[0]) + df.shape[1])]
+    df.index = range(s1[0], (s1[0]) + len(df))
+    if "binarized" in directory or "percent" in directory:
+        df_values_equal_to_1 = df[df == 1].dropna(how='all').dropna(axis=1, how='all')
+        df_values_equal_to_1.to_csv(output_csv_file, index=True, sep=',')
+    else:
+        df.to_csv(output_csv_file, index=True, sep=',')
 
 def compute_dmaps():
     args = parse_args()
@@ -64,6 +87,8 @@ def compute_dmaps():
         "distance_maps",
         "binarized_distance_matrices",
         "binarized_distance_maps",
+        "percent_satisfied_matrices",
+        "percent_satisfied_maps",
     ]:
         if not os.path.isdir(os.path.join(os.getcwd(), adirectory)):
             os.mkdir(os.path.join(os.getcwd(), adirectory))
@@ -106,11 +131,12 @@ def compute_dmaps():
                 f"\nProcessing the distance calculations for {p1}/{p2} pair. Hold on..."
             )
             s1, s2 = sizes_dict[p1], sizes_dict[p2]
-
             all_distances = []
+            all_satisfied_models =[]
+            # print(num_satisfied_models)
 
             with concurrent.futures.ProcessPoolExecutor(args.nprocs) as executor:
-                for distances in executor.map(
+                for (distances,num_satisfied_models) in executor.map(
                     dmaps_functions.measure_beadwise_distances,
                     [p1 for _ in range(args.nprocs)],
                     [p2 for _ in range(args.nprocs)],
@@ -118,58 +144,96 @@ def compute_dmaps():
                     [s2 for _ in range(args.nprocs)],
                     concatenated_rmfs,
                     [1 for _ in range(args.nprocs)],
+                    [float(args.distance_threshold) for _ in range(args.nprocs)]
                 ):
                     all_distances.append(distances)
+                    all_satisfied_models.append(num_satisfied_models)
 
             all_distances = np.concatenate(all_distances, axis=2)
+            stack_satisfied_models = np.stack(all_satisfied_models,axis=2) #TODO
+            sum_satisfied_models = np.sum(stack_satisfied_models, axis=2) # Adding all the 1's in the all the models to compare later with percentage satisfied
+
             mean_distances = all_distances.mean(axis=2)
 
             mean_distances = np.delete(np.delete(mean_distances, 0, axis=0), 0, axis=1)
             binarized_distance_matrix = np.where(
-                mean_distances <= int(args.threshold), 1, 0
+                mean_distances <= float(args.distance_threshold), 1, 0
             )
-            np.savetxt(
-                os.path.join("distance_matrices", f"{p1}-{p2}_mean_distances.csv"),
-                mean_distances,
-            )
-            np.savetxt(
-                os.path.join(
-                    "binarized_distance_matrices", f"{p1}-{p2}_binarized_distances.csv"
-                ),
-                binarized_distance_matrix,
-            )
+            percent_models_satisfied = np.delete(np.delete(sum_satisfied_models, 0, axis=0), 0, axis=1)
+            percent_models_satisfied = np.where(percent_models_satisfied >= int(args.percentage_threshold*nmodels), 1, 0)
 
-            plt.figure(i, dpi=1200)
-            plt.imshow(mean_distances, cmap="hot")
-            plt.xlabel(p2)
-            plt.ylabel(p1)
-            plt.colorbar()
-            plt.savefig(
-                os.path.join("distance_maps", f"{p1}-{p2}_dmap_w_new_script.png"),
+
+            save_matrix_to_csv(mean_distances, s1, s2, p1, p2, "distance_matrices", "mean_distances")
+            save_matrix_to_csv(binarized_distance_matrix,s1, s2, p1, p2, "binarized_distance_matrices", "binarized_distances")
+            save_matrix_to_csv(percent_models_satisfied[:, :, 0],s1, s2, p1, p2, "percent_satisfied_matrices", "percent_satisfied_distances")
+
+            # Plot for mean distance maps
+            fig, ax = pyl.subplots(1, 1)
+
+            cax = ax.matshow(mean_distances, cmap='hot')
+            ax.set_xticks(np.arange(0.5, (s2[1]-s2[0]+1), 50))
+            ax.set_xticklabels(np.arange(s2[0], s2[1], 50))
+
+            ax.set_yticks(np.arange(0.5, (s1[1]-s1[0]+1), 50))
+            ax.set_yticklabels(np.arange(s1[0], s1[1], 50))
+
+            pyl.xlabel(p1)
+            pyl.ylabel(p2)
+            ax.xaxis.tick_bottom()
+            fig.colorbar(cax)
+            pyl.savefig(
+                os.path.join("distance_maps", f"{p1}-{p2}_dmap.png"),
                 dpi=600,
             )
-            plt.close(fig=i)
+            pyl.close()
 
-            i += 1
-            plt.figure(i, dpi=1200)
-            plt.imshow(binarized_distance_matrix, cmap="Greys")
-            plt.xlabel(p2)
-            plt.ylabel(p1)
-            # plt.colorbar()
-            plt.savefig(
+            # Plot for binarized distance maps
+            fig, ax = pyl.subplots(1, 1)
+
+            cax = ax.matshow(binarized_distance_matrix, cmap='Greys')
+            ax.set_xticks(np.arange(0.5, (s2[1]-s2[0]+1), 50))
+            ax.set_xticklabels(np.arange(s2[0], s2[1], 50))
+
+            ax.set_yticks(np.arange(0.5, (s1[1]-s1[0]+1), 50))
+            ax.set_yticklabels(np.arange(s1[0], s1[1], 50))
+
+            pyl.xlabel(p2)
+            pyl.ylabel(p1)
+            ax.xaxis.tick_bottom()
+            pyl.savefig(
                 os.path.join(
                     "binarized_distance_maps",
-                    f"{p1}-{p2}_binarized_dmap_w_new_script.png",
+                    f"{p1}-{p2}_binarized_dmap.png",
                 ),
                 dpi=600,
             )
-            plt.close(fig=i)
 
-            i += 1
+            pyl.close()
+
+            # Plot for percent satisfied maps
+            fig, ax = pyl.subplots(1, 1)
+
+            cax = ax.matshow(percent_models_satisfied, cmap='Greys')
+            ax.set_xticks(np.arange(0.5, (s2[1]-s2[0]+1), 50))
+            ax.set_xticklabels(np.arange(s2[0], s2[1], 50))
+
+            ax.set_yticks(np.arange(0.5, (s1[1]-s1[0]+1), 50))
+            ax.set_yticklabels(np.arange(s1[0], s1[1], 50))
+
+            pyl.xlabel(p2)
+            pyl.ylabel(p1)
+            ax.xaxis.tick_bottom()
+
+            pyl.savefig(
+                os.path.join(
+                    "percent_satisfied_maps",
+                    f"{p1}-{p2}_percentage_satisfied_dmap.png",
+                ),
+                dpi=600,
+            )
+            pyl.close()
+            # exit()
             done_prot_pairs.append((p1, p2))
-            #     #TODO Remove these breaks
-        #     break
-        # break
 
     toc = time.time()
     print(
@@ -181,10 +245,3 @@ def compute_dmaps():
 
 
 compute_dmaps()
-
-# dmat = np.loadtxt(
-#     os.path.join("distance_matrices", "WDR76.0-WDR76.0_mean_distances.csv")
-# )
-# interfaces = np.where((dmat < 20.0) & (dmat != 0))
-# print(interfaces[0].shape)
-# print(dmat[interfaces])

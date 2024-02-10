@@ -132,6 +132,7 @@ def measure_beadwise_distances(
     s2: int,
     rmf_file: str,  # RMF.FileConstHandle,
     resolution: int,
+    distance_threshold: float
 ) -> np.ndarray:
     """Reads the concatednated RMF3 file and measures p1-p2 distances for all models"""
 
@@ -140,6 +141,8 @@ def measure_beadwise_distances(
     hier = IMP.rmf.create_hierarchies(rmf_file_handle, mdl)
 
     distances = []
+
+    num_satisfied_models = np.zeros(((s1[1] - s1[0]) + 2, (s2[1] - s2[0]) + 2,1))
 
     for frame_id in tqdm(range(rmf_file_handle.get_number_of_frames())):
         IMP.rmf.load_frame(rmf_file_handle, frame_id)
@@ -160,6 +163,7 @@ def measure_beadwise_distances(
 
         distances_in_frame = np.zeros(((s1[1] - s1[0]) + 2, (s2[1] - s2[0]) + 2, 1)) #TODO fix s1 and s2 to s1.end - s1.start +1 and similarly for s2 here
         bead_pair_details = np.zeros(((s1[1]-s1[0]) + 2, (s2[1]-s2[0]) + 2, 1), dtype=str)
+
         for bead1 in sel1.get_selected_particles():
             for bead2 in sel2.get_selected_particles():
                 dist = IMP.core.get_distance(IMP.core.XYZR(bead1), IMP.core.XYZR(bead2))
@@ -173,10 +177,13 @@ def measure_beadwise_distances(
                     for r2 in range(start2, end2 + 1):
                         distances_in_frame[r1-(s1[0]-1), r2-(s2[0]-1)] = dist
 
+                if dist < distance_threshold:
+                    num_satisfied_models[r1-(s1[0]-1), r2-(s2[0]-1)] +=1
+
         distances.append(distances_in_frame)
 
     del rmf_file_handle
-    return np.concatenate(distances, axis=2)
+    return np.concatenate(distances, axis=2), num_satisfied_models
 
 
 def get_interacting_beads(
