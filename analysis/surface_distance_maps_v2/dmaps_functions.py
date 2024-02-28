@@ -89,8 +89,11 @@ def get_protein_names(hier: IMP.atom.Hierarchy) -> list[str]:
 
 def get_protein_sizes(hier: IMP.atom.Hierarchy, all_proteins: list[str]) -> dict:
     sizes_dict = {}
+
     for protein in all_proteins:
+
         if protein not in sizes_dict:
+
             sel0 = IMP.atom.Selection(
                 hier, molecule=protein.split(".")[0], copy_index = int(protein.split(".")[1])
             ).get_selected_particles()
@@ -116,7 +119,6 @@ def get_protein_sizes(hier: IMP.atom.Hierarchy, all_proteins: list[str]) -> dict
             #
             #     if end>max_res:
             #         max_res=end
-            #
             #
             # sizes_dict[protein] = (min_res,max_res)
 
@@ -175,10 +177,11 @@ def measure_beadwise_distances(
 
                 for r1 in range(start1, end1 + 1):
                     for r2 in range(start2, end2 + 1):
+
                         distances_in_frame[r1-(s1[0]-1), r2-(s2[0]-1)] = dist
 
-                if dist < distance_threshold:
-                    num_satisfied_models[r1-(s1[0]-1), r2-(s2[0]-1)] +=1
+                        if dist < distance_threshold:
+                            num_satisfied_models[r1-(s1[0]-1), r2-(s2[0]-1)] += 1
 
         distances.append(distances_in_frame)
 
