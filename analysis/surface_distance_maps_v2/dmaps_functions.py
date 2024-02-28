@@ -110,17 +110,17 @@ def get_protein_sizes(hier: IMP.atom.Hierarchy, all_proteins: list[str]) -> dict
             # sizes_dict[protein] = (int(start_res),int(last_res))
 
             #TODO alternate implementation to get min and max residues (if the middle of a protein is modeled)
-            bead_name, start, max_res = get_bead_name(sel0[0])
-            bead_name, min_res, end = get_bead_name(sel0[-1])
-            # for particle in sel0:
-            #     bead_name, start, end = get_bead_name(particle)
-            #     if start<min_res:
-            #         min_res=start
-            #
-            #     if end>max_res:
-            #         max_res=end
+            bead_name, min_res, max_res = get_bead_name(sel0[0])
+            
+            for particle in sel0:
+                bead_name, start, end = get_bead_name(particle)
+                if start<min_res:
+                    min_res=start
 
-            sizes_dict[protein] = (start,end)
+                if end>max_res:
+                    max_res=end
+
+            sizes_dict[protein] = (min_res,max_res)
 
     return sizes_dict
 
