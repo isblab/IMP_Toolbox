@@ -122,7 +122,7 @@ def compute_dmaps():
     done_prot_pairs = []
     for p1 in all_proteins:
         for p2 in tqdm(all_proteins, desc=f"Processing interactions of {p1}"):
-            if ((p1, p2) in done_prot_pairs) or ((p2, p1) in done_prot_pairs) or p1==p2:
+            if ((p1, p2) in done_prot_pairs) or ((p2, p1) in done_prot_pairs) or p1[0:5]==p2[0:5]:
                 # TODO  Shorter way to implement uses itertools.combinations or some other iterator over list
                 # TODO to get pairs with yx
                 """No xy -> yx repetitions"""
