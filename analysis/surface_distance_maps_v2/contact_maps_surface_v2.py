@@ -68,16 +68,17 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def save_matrix_to_csv(matrix, s1, s2, p1, p2, directory, prefix):
-    output_csv_file = os.path.join(directory, f"{p1}-{p2}_{prefix}.csv")
-    np.savetxt(output_csv_file, matrix)
-    df = pd.read_csv(output_csv_file, sep=' ', header=None)
+    df = pd.DataFrame(matrix)
     df.columns = [str(i) for i in range(s2[0], (s2[0]) + df.shape[1])]
     df.index = range(s1[0], (s1[0]) + len(df))
-    if "binarized" in directory or "percent" in directory:
+
+    if 'binarized' in prefix or 'percent' in prefix:
         df_values_equal_to_1 = df[df == 1].dropna(how='all').dropna(axis=1, how='all')
-        df_values_equal_to_1.to_csv(output_csv_file, index=True, sep=',')
+        df_values_equal_to_1.to_csv(os.path.join(directory, f"{p1}-{p2}_{prefix}.csv"), index=True, sep=',')
+        return df_values_equal_to_1
     else:
-        df.to_csv(output_csv_file, index=True, sep=',')
+        df.to_csv(os.path.join(directory, f"{p1}-{p2}_{prefix}.csv"), index=True, sep=',')
+        return df
 
 def compute_dmaps():
     args = parse_args()
@@ -121,7 +122,7 @@ def compute_dmaps():
     done_prot_pairs = []
     for p1 in all_proteins:
         for p2 in tqdm(all_proteins, desc=f"Processing interactions of {p1}"):
-            if ((p1, p2) in done_prot_pairs) or ((p2, p1) in done_prot_pairs):
+            if ((p1, p2) in done_prot_pairs) or ((p2, p1) in done_prot_pairs) or p1==p2:
                 # TODO  Shorter way to implement uses itertools.combinations or some other iterator over list
                 # TODO to get pairs with yx
                 """No xy -> yx repetitions"""
@@ -177,8 +178,8 @@ def compute_dmaps():
             ax.set_yticks(np.arange(0.5, (s1[1]-s1[0]+1), 50))
             ax.set_yticklabels(np.arange(s1[0], s1[1], 50))
 
-            pyl.xlabel(p1)
-            pyl.ylabel(p2)
+            pyl.xlabel(p2)
+            pyl.ylabel(p1)
             ax.xaxis.tick_bottom()
             fig.colorbar(cax)
             pyl.savefig(
