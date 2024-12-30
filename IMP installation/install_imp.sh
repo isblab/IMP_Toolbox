@@ -1,7 +1,7 @@
 #!/bin/bash
 
-install_path=$1
-ncores=$2
+install_path=${1:?"Please specify the path of the directory where you would like to install IMP."}
+ncores=${2:?"Please specify the number of cores you would like to use for the build."}
 
 cd $install_path ;
 mkdir imp-clean ;
