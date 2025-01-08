@@ -7,7 +7,8 @@ See [Modeling with IMP](https://docs.google.com/document/d/1gaG83RsEBQNemuWwhra0
 ## Installation
 
 ## Pre-processing
-``pae_to_domains.py`` is a script by Tristan Croll to extract domains from AF predictions. (depending on the value of ``resolution`` parameter, you can get less fragments compared to ``get_high_confidence_region_from_AF2.py``)
+- ``pae_to_domains.py`` is a script by Tristan Croll to extract domains from AF predictions. (depending on the value of ``resolution`` parameter, you can get less fragments compared to ``get_high_confidence_region_from_AF2.py``)
+- For ChimeraX commands to visualize the domains on the monomer prediction, look at ``predict_domains.py`` in Cardiac Desmosome repo.
 
 ## Modeling (not what you may think at first)
 
