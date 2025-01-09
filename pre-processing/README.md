@@ -7,7 +7,8 @@ Use one of these two methods
 PAE domains correspond to residues with PAE values < 5 (all vs all residues).
 This method is more stringent than the method below. 
 
-2. `Tristan's PAE to domains script` : uses clustering based on only PAE to form domains. One needs to filter for pLDDT in an additional separate script. Less stringent because all PAE values in a domain need not be <5. 
+2. `predict_domains script` : uses Tristan Crolls' clustering based on only PAE to form domains. Less stringent because all PAE values in a domain need not be <5.
+Getting domains based on PAE first and then filtering for plDDDT is slightly better, because #TODO
 
 #### Extract contacts or interface residues predicted confidently for use as restraints in IMP
 See `https://github.com/isblab/af_pipeline/`
