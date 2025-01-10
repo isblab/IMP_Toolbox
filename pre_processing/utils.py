@@ -9,7 +9,7 @@ def get_dropbox_path():
     "Linux": f"/home/{os.getlogin()}/Dropbox"
 }
 
-    if platform.system() in system_spec_paths.keys():
+    if platform.system() in system_spec_paths:
         path_to_dropbox = system_spec_paths[platform.system()]
     else:
         path_to_dropbox = input("Enter the path to your Dropbox folder: ")
@@ -83,7 +83,7 @@ def read_fasta(fasta_file):
     with open(fasta_file, "r") as f:
         lines = f.readlines()
 
-    for i, line in enumerate(lines):
+    for line in lines:
         if line.startswith(">"):
             seq_id = line[1:].strip()
         else:
@@ -92,30 +92,28 @@ def read_fasta(fasta_file):
 
     return all_sequences
 
-
 def get_key_from_res_range(res_range):
-    """ Returns a res_range (str) from the residue range (list)
+    """Returns a residue range string from a list of residue numbers.
 
     Args:
-        res_range (list): list of residue numbers [1, 2, 3, 5, 6, 7]
+        res_range (list): List of residue numbers, e.g., [1, 2, 3, 5, 6, 7]
 
     Returns:
-        _key (str): residue range ("1-3,5-7")
+        str: Residue range string, e.g., "1-3,5-7"
     """
-    if len(res_range) == 0:
+    if not res_range:
         return ""
-    key = str(res_range[0])
-    for i, res in enumerate(res_range):
-        if i == 0:
-            continue
-        elif res_range[i-1] != res - 1:
-            key += f",{res}"
-        if i+1 < len(res_range):
-            if res_range[i+1] != res + 1:
-                key += f"-{res_range[i]}"
-        if i+1 == len(res_range):
-            key += f"-{res}"
-    return key
+    res_range = sorted(res_range)
+    ranges = []
+    start = prev = res_range[0]
+    for num in res_range[1:]:
+        if num == prev + 1:
+            prev = num
+        else:
+            ranges.append(f"{start}-{prev}")
+            start = prev = num
+    ranges.append(f"{start}-{prev}")
+    return ",".join(ranges)
 
 def save_df(df, file_path, index=False, header=True, sep=","):
     """Save a pandas DataFrame to a file

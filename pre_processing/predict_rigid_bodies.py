@@ -2,7 +2,6 @@
 import argparse
 import random
 import sys
-import numpy as np
 from pae_to_domains.pae_to_domains import (
     parse_pae_file,
     domains_from_pae_matrix_igraph,
@@ -95,8 +94,7 @@ class DomainPredictor:
             output_type (str): Type of output file
         """
 
-        assert output_type in ["csv", "json", "txt", "cxc"]
-        "Invalid output type. Expected 'csv', 'json', 'txt' or 'cxc'"
+        assert output_type in ["csv", "json", "txt", "cxc"], "Invalid output type. Expected 'csv', 'json', 'txt' or 'cxc'"
 
         self.output_type = output_type
 
@@ -245,8 +243,7 @@ class DomainPredictor:
         output_type = self.output_type
 
         file_ext = os.path.splitext(save_path)[1][1:]
-        assert file_ext == output_type
-        f"File extension does not match file type. Expected {output_type}, got {file_ext}"
+        assert file_ext == output_type, f"File extension does not match file type. Expected {output_type}, got {file_ext}"
 
         if file_ext == "csv":
             with open(save_path, "wt") as outfile:
