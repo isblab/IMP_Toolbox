@@ -38,7 +38,7 @@ class DomainPredictor:
         """Set the modeled regions for the protein
 
         Args:
-            modeled_regions (dict): Dictionary of modeled regions
+            input_file (str): Path to the modeled regions JSON file
         """
 
         modeled_regions = read_json(input_file)
@@ -106,7 +106,7 @@ class DomainPredictor:
             pae_file (str): Path to the PAE file
 
         Raises:
-            ValueError: Invalid library specified. Use 'igraph' or 'network'
+            ValueError: Invalid library specified. Use 'igraph' or 'networkx'
 
         Returns:
             domains (list): List of residues in each domain
@@ -236,7 +236,7 @@ class DomainPredictor:
         output_type = self.output_type
 
         file_ext = os.path.splitext(save_path)[1][1:]
-        assert file_ext == output_type, f"File extension does not match file type. Expected {output_type}, got {file_ext}"
+        assert file_ext.lower() == output_type.lower(), f"File extension does not match file type. Expected {output_type}, got {file_ext}"
 
         if file_ext == "csv":
             with open(save_path, "wt") as outfile:
@@ -266,7 +266,7 @@ class DomainPredictor:
                 for d in domains:
                     while True:
                         color = "%06x" % random.randint(0, 0xFFFFFF)
-                        if not (color.startswith("ff") or color.startswith("FF")):
+                        if not color.startswith("ff"):
                             break
                     d_range = get_key_from_res_range(d)
                     f.write(f"col #1/A:{d_range} #{color}\n")
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     args.add_argument(
         "--af_pipeline_path",
         type=str,
-        required=True,
+        required=False,
         default="../../af_pipeline",
     )
     args.add_argument(
