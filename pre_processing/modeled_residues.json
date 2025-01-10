@@ -1,0 +1,37 @@
+{
+    "Dp1": {
+        "pdb_id": "3R6N",
+        "pdb_residues": [178,584],
+        "region_to_be_modeled": [1,584],
+        "job_name": "dp1_1_1to2871",
+        "chain": "A"
+    },
+    "Pkp2a": {
+        "pdb_id": "3TT9",
+        "pdb_residues": [346, 576],
+        "region_to_be_modeled": [1, 837],
+        "job_name": "pkp2a_1_1to837",
+        "chain": "A"
+    },
+    "Pg": {
+        "pdb_id": "3IFQ",
+        "pdb_residues": [126, 673],
+        "region_to_be_modeled": [1,745],
+        "job_name": "pg_1_1to745",
+        "chain": "A"
+    },
+    "Dsg2": {
+        "pdb_id": "3IFQ",
+        "pdb_residues": [747, 843],
+        "region_to_be_modeled": [635,923],
+        "job_name": "pg_1_1to745_dsg2_1_1to1118",
+        "chain": "B"
+    },
+    "Dsc2a": {
+        "pdb_id": "3IFQ",
+        "pdb_residues": [796, 901],
+        "region_to_be_modeled": [720,901],
+        "job_name": "dsc2a_1_1to901_pg_1_1to745",
+        "chain": "A"
+    }
+}
