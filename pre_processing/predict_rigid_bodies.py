@@ -122,7 +122,7 @@ class DomainPredictor:
             f = domains_from_pae_matrix_networkx
 
         else:
-            raise ValueError("Invalid library specified. Use 'igraph' or 'network")
+            raise ValueError("Invalid library specified. Use 'igraph' or 'networkx")
 
         domains = f(
             pae_matrix,
@@ -134,10 +134,7 @@ class DomainPredictor:
         return domains
 
     def high_plddt_residues(self):
-        """Get the residues with pLDDT >= self.plddt_cutoff
-
-        Args:
-            mdoeled_regions (str): Path to the modeled residues file (json)
+        """Get the residues with pLDDT >= plddt_cutoff
 
         Returns:
             confident_residues (list): List of residues with pLDDT >= plddt_cutoff
@@ -170,10 +167,6 @@ class DomainPredictor:
 
     def filter_domains_by_plddt(self):
         """Filter the predicted domains by pLDDT values
-
-        Args:
-            domains (list): List of predicted domains
-            confident_residues (list): List of residues with pLDDT >= plddt_cutoff
 
         Returns:
             filtered_domains (list): List of domains with only confident_residues
