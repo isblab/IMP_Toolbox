@@ -1,4 +1,3 @@
-# TODO: merge small regions within a domain based on the coarse-grain level in IMP
 import argparse
 import random
 import sys
@@ -18,6 +17,10 @@ from utils import read_json, write_json, get_key_from_res_range
 # this script will only work for monomer predictions
 # job_name must be "{protein_name}_{everything_else}" and
 # protein_name should be the same in modeled_residues.json (case insensitive)
+
+#TODO: remove job_name dependancy for protein_name
+#TODO: extend the script for complexes
+#TODO: merge small regions within a domain based on the coarse-grain level in IMP
 
 class DomainPredictor:
 
