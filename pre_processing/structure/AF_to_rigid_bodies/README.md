@@ -21,6 +21,7 @@ e.g. as shown below, for alpha-actinin monomer, ABD-SR domains is within a confi
 ABD: Actin-binding domain
 SR: Spectrin repeat
 
+=================================================================================================================
 Scripts to use: `predict_rigid_bodies.py`
 
 How to use:
