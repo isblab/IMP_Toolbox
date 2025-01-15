@@ -8,6 +8,7 @@ from pae_to_domains.pae_to_domains import (
     domains_from_pae_matrix_networkx,
 )
 import os
+sys.path.append("../")
 from utils import read_json, write_json, get_key_from_res_range
 
 # cd to the directory containing the script
@@ -295,19 +296,19 @@ if __name__ == "__main__":
         "--input_file",
         type=str,
         required=False,
-        default="../../../../data/modeled_residues.json",
+        default="../../../../../data/modeled_residues.json",
     )
     args.add_argument(
         "--predictions_dir",
         type=str,
         required=False,
-        default="../../../../data/AF_predictions/AF_monomer",
+        default="../../../../../data/AF_predictions/AF_monomer",
     )
     args.add_argument(
         "--result_dir",
         type=str,
         required=False,
-        default="../../../misc_data/domains"
+        default="../../../../misc_data/domains"
     )
     args.add_argument(
         "--output_type",
