@@ -1,4 +1,5 @@
-# TODO: merge small regions within a domain based on the coarse-grain level in IMP
+# Description: Predict rigid bodies from AlphaFold monomer predictions
+
 import argparse
 import random
 import sys
@@ -8,10 +9,8 @@ from pae_to_domains.pae_to_domains import (
     domains_from_pae_matrix_networkx,
 )
 import os
-sys.path.append("../")
+sys.path.append("../../")
 from utils import read_json, write_json, get_key_from_res_range
-
-# cd to the directory containing the script
 
 #! THINGS TO NOTE:
 # you need parser.py from the af_pipeline repository
@@ -20,7 +19,6 @@ from utils import read_json, write_json, get_key_from_res_range
 # job_name must be "{protein_name}_{everything_else}" and
 # protein_name should be the same in modeled_residues.json (case insensitive)
 
-#TODO: remove job_name dependancy for protein_name
 #TODO: extend the script for complexes
 #TODO: merge small regions within a domain based on the coarse-grain level in IMP
 
@@ -291,30 +289,34 @@ class DomainPredictor:
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument(
+        "-af",
         "--af_pipeline_path",
         type=str,
-        required=False,
-        default="../../af_pipeline",
+        required=True,
     )
     args.add_argument(
+        "-i",
         "--input_file",
         type=str,
         required=False,
-        default="../../../../../data/modeled_residues.json",
+        default="../../inputs/modeled_residues.json",
     )
     args.add_argument(
+        "-p",
         "--predictions_dir",
         type=str,
         required=False,
-        default="../../../../../data/AF_predictions/AF_monomer",
+        default="../../inputs/AF_predictions",
     )
     args.add_argument(
+        "-o",
         "--result_dir",
         type=str,
         required=False,
-        default="../../../../misc_data/domains"
+        default="../../output/rigid_bodies",
     )
     args.add_argument(
+        "-t",
         "--output_type",
         type=str,
         required=False,
