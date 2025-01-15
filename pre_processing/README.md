@@ -8,6 +8,8 @@ PAE domains correspond to residues with PAE values < 5 (all vs all residues).
 This method is more stringent than the method below. 
 
 2. `predict_rigid_bodies.py` : uses Tristan Crolls' clustering based on only PAE to form domains (less stringent because all PAE values in a domain need not be <5) and filters the domains based on per-residue pLDDT.
+=======
+
 Currently the latter method is preferred. That is, getting domains based on PAE first and then filtering for plDDDT is slightly better because,
 the former script only considers the split of the domains at the borders of confident residue stretch (pLDDT>=70). So, a domain boundary within such a stretch will be missed.
 e.g. as shown below, for alpha-actinin monomer, ABD-SR domains is within a confident residue-stretch.
