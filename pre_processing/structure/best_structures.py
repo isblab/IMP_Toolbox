@@ -109,6 +109,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default="../inputs/cardiac_desmosome_proteins.json",
+        help="Path to input json file containing proteins",
     )
     args.add_argument(
         "-o",
@@ -116,6 +117,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default="../output/best_structures.csv",
+        help="Path to output csv file containing best structures",
     )
     args.add_argument(
         "-ow",
@@ -123,6 +125,7 @@ if __name__ == "__main__":
         action="store_true",
         required=False,
         default=False,
+        help="Overwrite existing best structures",
     )
 
     args = args.parse_args()
