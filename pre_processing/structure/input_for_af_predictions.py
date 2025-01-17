@@ -1,9 +1,18 @@
-# Description: write alphafold json file for prediction from target gene pairs
-# Input: to be defined in the main function
+# Description: write alphafold json file for prediction from target protein pairs
+# Input: yaml file containing the target proteins
 # Output: json files for alphafold prediction
+# Use case:
+# you have a large number of proteins for which you want to predict the structure (monomer or complex)
+# so, the number of jobs for alphafold prediction is large
+# This script will create the input json files for AF server (20 jobs per file)
 
-#TODO: better way to define the input to the script
+#TODO: better way to define the input to the script or the input dictionary can be generated programmatically
 
+#NOTE: currently, it is helpful to have copilot do the job of defining the input
+#      (once you start typing the dictionary, copilot will suggest the rest of the dictionary)
+
+import yaml
+import argparse
 import sys
 sys.path.append("../")
 import os
@@ -21,11 +30,11 @@ class AFInput:
         self.output_dir = "../output/af_input"
 
 
-    def get_uniprot_ids(self, protein_tuple):
-        """Get the uniprot ids for the proteins in the tuple
+    def get_uniprot_ids(self, proteins):
+        """Get the uniprot ids for the proteins in the list
 
         Args:
-            protein_tuple (tuple): tuple of protein names
+            proteins (list): list of protein names
 
         Returns:
             list: list of uniprot ids
@@ -34,13 +43,13 @@ class AFInput:
         assert all(
             p_name in self.proteins
             for p_name
-            in protein_tuple
+            in proteins
         ), "Missing UniProt assignments for the proteins"
 
         uniprot_list = [
             self.proteins[p_name]
             for p_name
-            in protein_tuple
+            in proteins
         ]
 
         assert all(
@@ -52,25 +61,25 @@ class AFInput:
         return uniprot_list
 
 
-    def generate_job_name(self, protein_tuple, kwargs):
-        """Generate a job name for the given protein tuple and kwargs describing the job
+    def generate_job_name(self, proteins, kwargs):
+        """Generate a job name for the given protein list and kwargs describing the job
 
         Args:
-            protein_tuple (tuple): tuple of protein names
+            proteins (list): list of protein names
             kwargs (dict): dictionary of job description
 
         Returns:
             str: job name
         """
-
+        # add other arguments in the valid list as needed (for example, "seeds")
         assert all(
             arg in ["copies", "fragments"]
             for arg
             in kwargs.keys()
         ), "Invalid argument in kwargs"
 
-        copy_list = kwargs.get("copies", [1] * len(protein_tuple))
-        uniprot_list = self.get_uniprot_ids(protein_tuple)
+        copy_list = kwargs.get("copies", [1] * len(proteins))
+        uniprot_list = self.get_uniprot_ids(proteins)
         fragment_list = kwargs.get("fragments", [(1, len(self.all_sequences[uniprot_id])) for uniprot_id in uniprot_list])
         copy_list = [str(copy) for copy in copy_list]
         fragment_list = [f"{str(fragment[0])}to{str(fragment[1])}" for fragment in fragment_list]
@@ -80,7 +89,7 @@ class AFInput:
                 [
                     f"{p_name}-{copy}-{fragment}"
                     for p_name, copy, fragment
-                    in zip(protein_tuple, copy_list, fragment_list)
+                    in zip(proteins, copy_list, fragment_list)
                 ]
             )
         )
@@ -110,7 +119,7 @@ class AFInput:
             dict: dictionary for the job
         """
 
-        protein_tuple, uniprot_list, copy_list, fragment_list = zip(*combined_info)
+        proteins, uniprot_list, copy_list, fragment_list = zip(*combined_info)
         af_dict = {
                 "name": job_name,
                 "modelSeeds": [],
@@ -133,19 +142,19 @@ class AFInput:
         return af_dict
 
 
-    def sanity_check(self, protein_tuple, uniprot_list, copy_list, fragment_list):
+    def sanity_check(self, proteins, uniprot_list, copy_list, fragment_list):
         """Check if the input lists are of same length
 
         Args:
-            protein_tuple (tuple): tuple of protein names
+            proteins (list): list of protein names
             uniprot_list (list): list of uniprot ids
             copy_list (list): list of copy numbers
             fragment_list (list): list of sequence fragments (start, end)
         """
 
         assert (
-                len(protein_tuple) == len(uniprot_list) == len(copy_list) == len(fragment_list)
-            ), "protein_tuple, uniprot_list, copy_list and fragment_list should be of same length"
+                len(proteins) == len(uniprot_list) == len(copy_list) == len(fragment_list)
+            ), "proteins, uniprot_list, copy_list and fragment_list should be of same length"
 
 
     def create_af_input(self, file_name="af_input"):
@@ -154,21 +163,21 @@ class AFInput:
 
         af_dict_list = []  # all jobs for AF server
 
-        for protein_tuple, input_info in self.to_be_predicted.items():
+        for jobs in self.to_be_predicted:
+            proteins = jobs["proteins"]
+            uniprot_list = self.get_uniprot_ids(proteins)
 
-            uniprot_list = self.get_uniprot_ids(protein_tuple)
-
-            copy_list = input_info.get(
+            copy_list = jobs.get(
                 "copies",
-                [1] * len(protein_tuple)
+                [1] * len(proteins)
             )
 
-            job_name = self.generate_job_name(
-                protein_tuple,
-                {"copies": copy_list}
-            )
+            # job_name = self.generate_job_name(
+            #     proteins,
+            #     {"copies": copy_list}
+            # )
 
-            fragment_list = input_info.get(
+            fragment_list = jobs.get(
                 "fragments",
                 [
                     (1, len(self.all_sequences[uniprot_id]))
@@ -177,17 +186,18 @@ class AFInput:
                 ]
             )
 
+            # you can add more arguments in the kwargs as needed
             job_name = self.generate_job_name(
-                protein_tuple,
+                proteins,
                 {
                     "copies": copy_list,
                     "fragments": fragment_list
                 }
             )
 
-            self.sanity_check(protein_tuple, uniprot_list, copy_list, fragment_list)
+            self.sanity_check(proteins, uniprot_list, copy_list, fragment_list)
 
-            combined_info = zip(protein_tuple, uniprot_list, copy_list, fragment_list)
+            combined_info = zip(proteins, uniprot_list, copy_list, fragment_list)
 
             af_dict = self.make_job(job_name, combined_info) # a single job for AF server
 
@@ -206,68 +216,61 @@ class AFInput:
 
 if __name__ == "__main__":
 
-    # pairwise prediction
-    pairwise_targets = {
-        ("Dsc2a", "Dsg2"): {
-            "copies": [1, 1]
-        },
-        ("Dsc2a", "Pkp2a"): {
-            "copies": [1, 1]
-        },
-        ("Dsc2a", "Dp1"): {
-            "copies": [1, 1]
-        },
-        ("Dsc2a", "Pg"): {
-            "copies": [1, 1]
-        },
-        ("Pg", "Pkp2a"): {
-            "copies": [1, 1]
-        },
-        ("Pg", "Dsg2"): {
-            "copies": [1, 1]
-        },
-        ("Pg", "Dp1"): {
-            "copies": [1, 1]
-        },
-        ("Dp1", "Dsg2"): {
-            "copies": [1, 1]
-        },
-        ("Dp1", "Pkp2a"): {
-            "copies": [1, 1]
-        },
-        ("Dsg2", "Pkp2a"): {
-            "copies": [1, 1]
-        },
-    }
+    args = argparse.ArgumentParser()
+    args.add_argument(
+        "-s",
+        "--sequences",
+        type=str,
+        required=False,
+        default="../output/all_sequences.fasta",
+        help="fasta file containing all sequences"
+    )
+    args.add_argument(
+        "-p",
+        "--proteins",
+        type=str,
+        required=False,
+        default="../inputs/cardiac_desmosome_proteins.json",
+        help="json file containing protein names and uniprot ids"
+    )
+    args.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=False,
+        default="../output/af_input",
+        help="output directory for alphafold input"
+    )
+    args.add_argument(
+        "-i",
+        "--input",
+        type=str,
+        required=False,
+        default="../inputs/af_server_targets.yaml",
+        help="input yaml file containing the target proteins"
+    )
+    args = args.parse_args()
 
-    # monomer prediction
-    monomer_targets = {
-        ("Dsc2a",): {
-            "copies": [1]
-        },
-        ("Dsg2",): {
-            "copies": [1]
-        },
-        ("Pg",): {
-            "copies": [1]
-        },
-        ("Pkp2a",): {
-            "copies": [1]
-        },
-        ("Dp1",): {
-            "copies": [1]
-        }
-    }
+    monomer_targets = yaml.load(open(args.input), Loader=yaml.FullLoader)["monomer_targets"]
+    pairwise_targets = yaml.load(open(args.input), Loader=yaml.FullLoader)["pairwise_targets"]
+    full_odp_targets = yaml.load(open(args.input), Loader=yaml.FullLoader)["full_odp_targets"]
 
-    # full ODP prediction
-    full_odp_targets = {
-        ("Dsc2a", "Dsg2", "Pg", "Pkp2a", "Dp1"): {
-            "copies": [1, 1, 2, 2, 2],
-            "fragments": [(718, 901), (634, 941), (1, 745), (1, 837), (1, 584)]
-        }
-    }
+    monomer_input = AFInput(monomer_targets)
+    monomer_input.proteins = read_json(args.proteins)
+    monomer_input.all_sequences = read_fasta(args.sequences)
+    monomer_input.output_dir = args.output
 
-    # write jobs to json
-    AFInput(monomer_targets).create_af_input(file_name="af_input_monomer")
-    AFInput(pairwise_targets).create_af_input(file_name="af_input_pairwise")
-    AFInput(full_odp_targets).create_af_input(file_name="af_input_full_odp")
+    pairwise_input = AFInput(pairwise_targets)
+    pairwise_input.proteins = read_json(args.proteins)
+    pairwise_input.all_sequences = read_fasta(args.sequences)
+    pairwise_input.output_dir = args.output
+
+    full_odp_input = AFInput(full_odp_targets)
+    full_odp_input.proteins = read_json(args.proteins)
+    full_odp_input.all_sequences = read_fasta(args.sequences)
+    full_odp_input.output_dir = args.output
+
+    # write the input json for alphafold prediction
+    monomer_input.create_af_input(file_name="af_input_monomer")
+    pairwise_input.create_af_input(file_name="af_input_pairwise")
+    full_odp_input.create_af_input(file_name="af_input_full_odp")
