@@ -24,7 +24,7 @@ What to expect:
 
 - json files each containing 20 jobs at most that can be submitted to AF server (see [af_input](https://github.com/isblab/IMP_Toolbox/tree/main/pre_processing/output/af_input) for reference)
 
-# Analyze AF output
+# Analyze AF output (only binary complexes)
 Scripts to use: `analysing_af_output.py`
 
 How to use:
