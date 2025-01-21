@@ -24,4 +24,18 @@ What to expect:
 
 - json files each containing 20 jobs at most that can be submitted to AF server (see [af_input](https://github.com/isblab/IMP_Toolbox/tree/main/pre_processing/output/af_input) for reference)
 
+# Analyze AF output
+Scripts to use: `analysing_af_output.py`
+
+How to use:
+
+- `python analysing_af_output.py --af_pipeline`
+- Other parameters are optional through which you can set pLDDT, PAE and distance cutoffs and specify paths for input and output (use `-h` for more details)
+
+What to expect:
+
+- An image with three plots. (PAE matrix, interaction region PAE matrix, interaction region confident interactions) (see [af_contact_maps](https://github.com/isblab/IMP_Toolbox/tree/main/pre_processing/output/af_contact_maps) for reference)
+- An interaction region on a protein is set as the region that just about covers all the confident interactions
+- Confident interactions are decided by `af_pipeline`
+
 # get_residues_in_pdb
