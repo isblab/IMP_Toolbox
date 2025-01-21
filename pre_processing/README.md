@@ -7,5 +7,6 @@ With these scripts, you can -
 - perform pairwise sequence alignment
 - create job files for AF-server
 - find rigid bodies from the monomer predictions
+- find confident regions in a binary complex
 
 Whatever you need should be in the `input` and what you should get should be in the `output`
