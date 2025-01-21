@@ -1,7 +1,7 @@
 full_odp_targets:
-    - "proteins": ["Dsc2a", "Dsg2", "Pg", "Pkp2a", "Dp1", "Pg", "Pkp2a", "Dp1"]
-      "copies": [1, 1, 1, 1, 1, 1, 1, 1]
-      "fragments": [[718, 901], [634, 941], [1, 745], [1, 837], [1, 584], [1, 745], [1, 837], [1, 584]]
+    - "proteins": ["Dsc2a", "Dsg2", "Pg", "Pkp2a", "Dp1"]
+      "copies": [1, 1, 2, 2, 2]
+      "fragments": [[718, 901], [634, 941], [1, 745], [1, 837], [1, 584]]
 
 monomer_targets:
     - "proteins": ["Dsc2a"]
