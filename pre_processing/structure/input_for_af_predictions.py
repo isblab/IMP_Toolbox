@@ -157,7 +157,7 @@ class AFInput:
             ), "proteins, uniprot_list, copy_list and fragment_list should be of same length"
 
 
-    def create_af_input(self, file_name="af_input"):
+    def create_af_input(self, file_name="af_input", job_name=None):
         """Create input for AlphaFold prediction
         """
 
@@ -187,13 +187,16 @@ class AFInput:
             )
 
             # you can add more arguments in the kwargs as needed
-            job_name = self.generate_job_name(
-                proteins,
-                {
-                    "copies": copy_list,
-                    "fragments": fragment_list
-                }
-            )
+            if job_name is None:
+                job_name = self.generate_job_name(
+                    proteins,
+                    {
+                        "copies": copy_list,
+                        "fragments": fragment_list
+                    }
+                )
+            else:
+                job_name = job_name
 
             self.sanity_check(proteins, uniprot_list, copy_list, fragment_list)
 
@@ -273,4 +276,4 @@ if __name__ == "__main__":
     # write the input json for alphafold prediction
     monomer_input.create_af_input(file_name="af_input_monomer")
     pairwise_input.create_af_input(file_name="af_input_pairwise")
-    full_odp_input.create_af_input(file_name="af_input_full_odp")
+    full_odp_input.create_af_input(file_name="af_input_full_odp", job_name="full_odp")

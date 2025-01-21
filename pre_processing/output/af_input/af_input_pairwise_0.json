@@ -18,7 +18,7 @@
         ]
     },
     {
-        "name": "Dsc2a-1-1to901 Pkp2a-1-1to837",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -36,7 +36,7 @@
         ]
     },
     {
-        "name": "Dsc2a-1-1to901 Dp1-1-1to2871",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -54,7 +54,7 @@
         ]
     },
     {
-        "name": "Dsc2a-1-1to901 Pg-1-1to745",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -72,7 +72,7 @@
         ]
     },
     {
-        "name": "Pg-1-1to745 Pkp2a-1-1to837",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -90,7 +90,7 @@
         ]
     },
     {
-        "name": "Pg-1-1to745 Dsg2-1-1to1118",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -108,7 +108,7 @@
         ]
     },
     {
-        "name": "Pg-1-1to745 Dp1-1-1to2871",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -126,7 +126,7 @@
         ]
     },
     {
-        "name": "Dp1-1-1to2871 Dsg2-1-1to1118",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -144,7 +144,7 @@
         ]
     },
     {
-        "name": "Dp1-1-1to2871 Pkp2a-1-1to837",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
@@ -162,7 +162,7 @@
         ]
     },
     {
-        "name": "Dsg2-1-1to1118 Pkp2a-1-1to837",
+        "name": "Dsc2a-1-1to901 Dsg2-1-1to1118",
         "modelSeeds": [],
         "sequences": [
             {
