@@ -1,4 +1,6 @@
 Diagrams/
+/playbook.ipynb
+sequence_diagram_gen.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
