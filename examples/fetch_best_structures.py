@@ -4,11 +4,10 @@
 
 import sys
 from argparse import ArgumentParser
-from set_up import IMP_TOOLBOX, PRE_PROCESSING
+from set_up import IMP_TOOLBOX
 sys.path.append(IMP_TOOLBOX)
-sys.path.append(PRE_PROCESSING)
 from pre_processing.structure.BestStructure import BestStructures
-from pre_processing.utils import read_json
+from utils import read_json
 
 if __name__ == "__main__":
 

@@ -1,4 +1,4 @@
-from pre_processing.utils import request_session, request_result, read_json, write_json
+from utils import request_session, request_result, read_json, write_json
 import pandas as pd
 import os
 from tqdm import tqdm
