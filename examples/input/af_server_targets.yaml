@@ -1,38 +1,141 @@
-full_odp_targets:
-    - "proteins": ["Dsc2a", "Dsg2", "Pg", "Pkp2a", "Dp1"]
-      "copies": [1, 1, 2, 2, 2]
-      "fragments": [[718, 901], [634, 941], [1, 745], [1, 837], [1, 584]]
+RNA_DNA_complex_8I54:
+  - name: "Lb2Cas12a_RNA_DNA_complex"
+    modelSeeds: [1,2]
+    entities:
+      - name: "Lb2Cas12a"
+        type: "proteinChain"
+        count: 1
+      - name: "RNA_33"
+        type: "rnaSequence"
+      - name: "DNA_25"
+        type: "dnaSequence"
+      - name: "DNA_mod"
+        type: "dnaSequence"
+      - name: "MG"
+        type: "ion"
+        count: 1
 
-monomer_targets:
-    - "proteins": ["Dsc2a"]
-      "copies": [1]
-    - "proteins": ["Dsg2"]
-      "copies": [1]
-    - "proteins": ["Pg"]
-      "copies": [1]
-    - "proteins": ["Pkp2a"]
-      "copies": [1]
-    - "proteins": ["Dp1"]
-      "copies": [1]
-
-pairwise_targets:
-    - "proteins": ["Dsc2a", "Dsg2"]
-      "copies": [1, 1]
-    - "proteins": ["Dsc2a", "Pkp2a"]
-      "copies": [1, 1]
-    - "proteins": ["Dsc2a", "Dp1"]
-      "copies": [1, 1]
-    - "proteins": ["Dsc2a", "Pg"]
-      "copies": [1, 1]
-    - "proteins": ["Pg", "Pkp2a"]
-      "copies": [1, 1]
-    - "proteins": ["Pg", "Dsg2"]
-      "copies": [1, 1]
-    - "proteins": ["Pg", "Dp1"]
-      "copies": [1, 1]
-    - "proteins": ["Dp1", "Dsg2"]
-      "copies": [1, 1]
-    - "proteins": ["Dp1", "Pkp2a"]
-      "copies": [1, 1]
-    - "proteins": ["Dsg2", "Pkp2a"]
-      "copies": [1, 1]
+Actin_profilin:
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+        range: [1, 375]
+      - name: "Cdc3"
+        range: [1, 100]
+        type: "proteinChain"
+  -  entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - name: "actin_profilin_complex"
+    entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"
+  - entities:
+      - name: "Act1"
+        type: "proteinChain"
+      - name: "Cdc3"
+        type: "proteinChain"

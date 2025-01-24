@@ -1,0 +1,46 @@
+[
+    {
+        "name": "Act1_1to375_Cdc3_1to127",
+        "modelSeeds": [],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "count": 1,
+                    "glycans": [],
+                    "modifications": []
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "MSWQAYVDTSLLGTGKIDRAAIVSRAGDSVWAASAGFNLSPQEIQGLAAGFQDPPSMFGTGIILAGQKYITIRAEGRSIYGKLQKEGIICVATKLCILVSHYPETTLPGEAAKITEALADYLVGVGY",
+                    "count": 1,
+                    "glycans": [],
+                    "modifications": []
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1to375_Cdc3_1to127",
+        "modelSeeds": [],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "count": 1,
+                    "glycans": [],
+                    "modifications": []
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "MSWQAYVDTSLLGTGKIDRAAIVSRAGDSVWAASAGFNLSPQEIQGLAAGFQDPPSMFGTGIILAGQKYITIRAEGRSIYGKLQKEGIICVATKLCILVSHYPETTLPGEAAKITEALADYLVGVGY",
+                    "count": 1,
+                    "glycans": [],
+                    "modifications": []
+                }
+            }
+        ]
+    }
+]
