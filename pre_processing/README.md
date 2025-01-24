@@ -1,4 +1,4 @@
-# Pre-processing scripts
+# Pre-processing
 This directory contains scripts to aid the preprocessing of the input data to IMP
 
 With these scripts, you can -

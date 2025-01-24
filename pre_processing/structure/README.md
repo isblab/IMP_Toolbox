@@ -1,4 +1,4 @@
-# Finding best structures for given proteins
+# Structure
 ```mermaid
 
 classDiagram
@@ -10,7 +10,11 @@ classDiagram
         + fetch_best_structures(self, save_path, overwrite)
     }
 ```
-<!-- 
+
+Check the following examples in the examples directory for usage.
+
+- `fetch_best_structures.py`
+<!--
 Script to use: `best_structures.py`
 
 How to use:
