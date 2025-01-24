@@ -1,8 +1,4 @@
-import sys
-import os
-sys.path.append(os.path.dirname(sys.path[0])) # pre_processing directory
-from utils import request_session
-
+from pre_processing.utils import request_session
 
 class FetchSequences:
     """Fetch sequences for given uniprot ids and save them in fasta format

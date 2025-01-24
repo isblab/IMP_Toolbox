@@ -4,7 +4,7 @@
 
 import sys
 import os
-from examples.set_up import IMP_TOOLBOX, PRE_PROCESSING
+from set_up import IMP_TOOLBOX, PRE_PROCESSING
 sys.path.append(IMP_TOOLBOX)
 sys.path.append(PRE_PROCESSING)
 from pre_processing.utils import read_json
