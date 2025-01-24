@@ -29,13 +29,14 @@ if __name__ == "__main__":
         "--output",
         type=str,
         required=False,
-        default="./output/all_sequences.fasta",
+        default="./output/protein_sequences.fasta",
     )
 
     args = args.parse_args()
 
     proteins_dict = read_json(args.input)
-    uniprot_ids = proteins_dict.values()
+    uniprot_ids = list(proteins_dict.values())
+    uniprot_ids = [u for u in uniprot_ids if u is not None]
 
     fetchit = FetchSequences(uniprot_ids)
 

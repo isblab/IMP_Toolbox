@@ -43,6 +43,7 @@ if __name__ == "__main__":
 
     proteins_dict = read_json(args.input)
     uniprot_ids = list(proteins_dict.values())
+    uniprot_ids = [u for u in uniprot_ids if u is not None]
 
     bs = BestStructures(uniprot_ids=uniprot_ids)
 
