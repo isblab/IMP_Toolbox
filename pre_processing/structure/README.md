@@ -1,4 +1,16 @@
 # Finding best structures for given proteins
+```mermaid
+
+classDiagram
+    class BestStructures {
+        + uniprot_ids
+        - __init__(self, uniprot_ids) None
+        + get_best_structures(self, uniprot_id)
+        + make_best_structures_df(self, best_structures)
+        + fetch_best_structures(self, save_path, overwrite)
+    }
+```
+<!-- 
 Script to use: `best_structures.py`
 
 How to use:
@@ -38,4 +50,4 @@ What to expect:
 - An interaction region on a protein is set as the region that just about covers all the confident interactions
 - Confident interactions are decided by `af_pipeline`
 
-# get_residues_in_pdb
+# get_residues_in_pdb -->
