@@ -49,12 +49,22 @@ if __name__ == "__main__":
         help="fasta file containing dna or rna sequences"
     )
     args = args.parse_args()
+
     proteins = read_json(args.uniprot)
     protein_sequences = read_fasta(args.prtotein_sequences)
-    dna_sequences = read_fasta(args.nucleotide_sequences) if args.nucleotide_sequences else None
+    dna_sequences = read_fasta(args.nucleotide_sequences)
     input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
 
-    af_input = AFInput(proteins, protein_sequences, input_yml, dna_sequences)
+    # dna_sequences is not a required argument to AFInput
+    # check AFInput for yml keys
+    af_input = AFInput(
+        proteins=proteins,
+        protein_sequences=protein_sequences,
+        input_yml=input_yml,
+        dna_sequences=dna_sequences
+    )
+
     af_input.output_dir = args.output
     af_input.sanity_check_uniprot(proteins)
+
     af_input.create_job_files()
