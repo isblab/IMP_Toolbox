@@ -1,28 +1,36 @@
-RNA_DNA_complex_8I54:
-  - name: "Lb2Cas12a_RNA_DNA_complex"
-    modelSeeds: [1,2]
+RNA_DNA_complex_8I54: # job cycle
+  - name: "Lb2Cas12a_RNA_DNA_complex" # user provided job name
+    modelSeeds: [1,2] # 2 models with seeds 1 and 2
     entities:
       - name: "Lb2Cas12a"
         type: "proteinChain"
         count: 1
+        glycans: [["BMA", 5]]
+        modifications:
+        - - "CCD_HY3"
+          - 11
       - name: "RNA_33"
         type: "rnaSequence"
       - name: "DNA_25"
         type: "dnaSequence"
       - name: "DNA_mod"
         type: "dnaSequence"
+        modifications: [["CCD_6OG", 2], ["CCD_6MA", 1]]
       - name: "MG"
         type: "ion"
         count: 1
 
 Actin_profilin:
-  - entities:
+  - modelSeeds: 30 # 30 models with randomly generated seeds
+    # no user provided job name
+    entities:
       - name: "Act1"
         type: "proteinChain"
         range: [1, 375]
       - name: "Cdc3"
-        range: [1, 100]
+        range: [11, 20]
         type: "proteinChain"
+  # no user provided job name or model seeds
   -  entities:
       - name: "Act1"
         type: "proteinChain"
@@ -30,111 +38,6 @@ Actin_profilin:
         type: "proteinChain"
   - name: "actin_profilin_complex"
     entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - name: "actin_profilin_complex"
-    entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
-      - name: "Act1"
-        type: "proteinChain"
-      - name: "Cdc3"
-        type: "proteinChain"
-  - entities:
       - name: "Act1"
         type: "proteinChain"
       - name: "Cdc3"

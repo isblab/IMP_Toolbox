@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 import yaml
 from set_up import IMP_TOOLBOX
 sys.path.append(IMP_TOOLBOX)
-from af_pipeline.AFInput import AFInput
+from af_pipeline.AFinput import AFInput
 from utils import read_json, read_fasta
 
 if __name__ == "__main__":
@@ -45,26 +45,26 @@ if __name__ == "__main__":
         "--nucleotide_sequences",
         type=str,
         required=False,
-        default=None,
+        default="./output/dna_sequences.fasta",
         help="fasta file containing dna or rna sequences"
     )
     args = args.parse_args()
 
     proteins = read_json(args.uniprot)
     protein_sequences = read_fasta(args.prtotein_sequences)
-    dna_sequences = read_fasta(args.nucleotide_sequences)
+    dna_sequences = read_fasta(args.nucleotide_sequences) if args.nucleotide_sequences else None
     input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
 
-    # dna_sequences is not a required argument to AFInput
-    # check AFInput for yml keys
+    # dna_sequences or proteins is not a required argument to AFInput
+    # if proteins is not provided, the protein sequences will be used to create the job cycles
+    # headers in protein sequences should match the entity names in the input yaml file if the proteins are not provided
+
     af_input = AFInput(
-        proteins=proteins,
         protein_sequences=protein_sequences,
         input_yml=input_yml,
-        dna_sequences=dna_sequences
+        nucleic_acid_sequences=dna_sequences,
+        proteins=proteins,
     )
-
     af_input.output_dir = args.output
-    af_input.sanity_check_uniprot(proteins)
-
-    af_input.create_job_files()
+    af_input.create_job_cycles()
+    af_input.write_job_files()
