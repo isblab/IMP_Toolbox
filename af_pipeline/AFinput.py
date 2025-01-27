@@ -559,7 +559,7 @@ class AFSequence(Entity):
             entity_info=entity_info,
             protein_sequences=protein_sequences,
             nucleic_acid_sequences=nucleic_acid_sequences,
-            protiens=proteins,
+            proteins=proteins,
         )
         self.name = self.entity_name
         self.type = self.entity_type

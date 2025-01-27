@@ -13,7 +13,7 @@ if __name__ == "__main__":
         "--prtotein_sequences",
         type=str,
         required=False,
-        default="./output/protein_sequences.fasta",
+        default="./input/protein_sequences.fasta",
         help="fasta file containing all sequences"
     )
     args.add_argument(
@@ -45,26 +45,26 @@ if __name__ == "__main__":
         "--nucleotide_sequences",
         type=str,
         required=False,
-        default="./output/dna_sequences.fasta",
+        default="./input/nucleic_acid_sequences.fasta",
         help="fasta file containing dna or rna sequences"
     )
     args = args.parse_args()
 
     proteins = read_json(args.uniprot)
     protein_sequences = read_fasta(args.prtotein_sequences)
-    dna_sequences = read_fasta(args.nucleotide_sequences) if args.nucleotide_sequences else None
+    nucleic_acid_sequences = read_fasta(args.nucleotide_sequences) if args.nucleotide_sequences else None
     input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
 
-    # dna_sequences or proteins is not a required argument to AFInput
+    # nucleic_acid_sequences or proteins is not a required argument to AFInput
     # if proteins is not provided, the protein sequences will be used to create the job cycles
     # headers in protein sequences should match the entity names in the input yaml file if the proteins are not provided
 
     af_input = AFInput(
         protein_sequences=protein_sequences,
         input_yml=input_yml,
-        nucleic_acid_sequences=dna_sequences,
+        nucleic_acid_sequences=nucleic_acid_sequences,
         proteins=proteins,
     )
     af_input.output_dir = args.output
-    af_input.create_job_cycles()
-    af_input.write_job_files()
+    job_cycles = af_input.create_job_cycles()
+    af_input.write_job_files(job_cycles=job_cycles)
