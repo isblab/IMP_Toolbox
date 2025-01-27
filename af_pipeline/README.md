@@ -27,6 +27,8 @@ classDiagram
         + residues_of_interest(self)
     }
 
+    note for RigidBodies "lower resolution parameter leads to larger clusters/domains/rigid bodies and vice versa"
+    end
     class RigidBodies {
         + library = "igraph" or "networkx"
         + pae_power = 1
