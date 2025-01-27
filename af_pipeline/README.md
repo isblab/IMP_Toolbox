@@ -56,13 +56,34 @@ job_cycle:
     - name: "protein_2"
       type: "proteinChain"
 ```
-
+**Usage:**
 - For allowed entity types as well as PTMs, ligands and ions, refer to `allowed_af_things.json` or [JSON file format for AlphaFold Server jobs](https://github.com/google-deepmind/alphafold/tree/main/server) 
 - `modelSeeds` can either be an `int` or `list`.
   1. if `isinstance(modelSeeds, int)` -> `modelSeeds = random.sample(range(1, 10 * num_seeds), num_seeds)`
   2. if `isinstance(modelSeeds, list)` -> list taken as is
 
   Each seed in the list will be a new job.
+- Input `yaml` file can contain multiple cycles, each with multiple jobs
+
+```python
+from af_pipeline.AFinput import AFInput
+
+proteins = read_json("./input/proteins.json")
+protein_sequences = read_fasta("./input/protein_sequences.fasta")
+nucleic_acid_sequences = read_fasta("./input/nucleic_acid_sequences.fasta")
+input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
+
+af_input = AFInput(
+    protein_sequences=protein_sequences, # required (output of fetch_sequences.py)
+    input_yml=input_yml, # required
+    nucleic_acid_sequences=nucleic_acid_sequences, # optional only in case of DNA or RNA sequences
+    proteins=proteins, # optional if protein_sequences have protein names as headers and they match with input yaml
+)
+
+af_input.output_dir = args.output
+job_cycles = af_input.create_job_cycles()
+af_input.write_job_files(job_cycles=job_cycles)
+```
 
 Check the following examples in the examples directory for usage.
 - `create_af_jobs.py`
@@ -86,6 +107,7 @@ Using Alphafold information extract high-confidence regions from Alphafold for u
       af_region: [630,1118]
 ```
 
+**Usage:**
 - `srtucture_path` and `selection` is optional
 - If only `data_path` is provided, the output will be only based on PAE cutoff.
 
