@@ -1,4 +1,5 @@
 # Sequence
+## Sequence
 ```mermaid
 ---
 config:
@@ -6,14 +7,22 @@ config:
         hideEmptyMembersBox: true
 ---
 classDiagram
-    note for FetchSequences "Sequence"
     class FetchSequences {
         + uniprot_ids
         - __init__(self, uniprot_ids) None
         + uniprot_to_sequences(self, max_retries)
         + only_uniprot_id_as_name(self, fasta)
     }
-    note for Align_Paralogs "paralog_alignment"
+```
+### Description
+- Query [UniProt REST API](https://www.uniprot.org/help/api) to download protein sequences for give **UniProt ID**s
+- example: https://rest.uniprot.org/uniprotkb/accessions?accessions=P60709&format=fasta
+
+Refer to:
+- `fetch_sequences.py` in IMP_Toolbox/examples for usage
+## paralog_alignment
+```mermaid
+classDiagram
     class Align_Paralogs {
         + hdac
         + exclude
@@ -35,7 +44,11 @@ classDiagram
         + map_aligned_pos(self)
         + mapped_XLs(self, alignments_dict)
     }
-    note for PSA "get_psa"
+
+```
+## get_psa
+```mermaid
+classDiagram
     class PSA {
         + uni_id1
         + uni_id2
@@ -49,7 +62,3 @@ classDiagram
     }
 
 ```
-
-Check the following examples in the examples directory for usage.
-
-- `fetch_sequences.py`
