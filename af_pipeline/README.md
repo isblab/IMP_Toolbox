@@ -131,6 +131,11 @@ domains = af.plddt_filtered_domains(domains)
 ```python
 rigid_bodies = af.get_rigid_bodies(domains, selected=True, num_proteins=2)
 ```
+- The extracted rigid bodies can be saved in `pdb` format.
+```python
+af.save_rigid_bodies_pdb(rigid_bodies)
+```
+
 #### Note
 Currently the this method is preferred over `get_high_confidence_region_from_AF2.py`. That is, getting domains based on PAE first and then filtering for plDDDT is slightly better because,
 the former script only considers the split of the domains at the borders of confident residue stretch (pLDDT>=70). So, a domain boundary within such a stretch will be missed.
