@@ -2,19 +2,24 @@
 # Description: This file contains the classes to handle the output of the AlphaFold2/3 pipeline.
 # RigibBodies -> find rigid bodies in the predicted structures
 
-# TODO: add a function to get the rigid body as a structure
 # TODO: combine af_pipeline functionality within this script
 #   - Interaction class to get confident interactions (output: contact map, restraints) --> patches (meanshift)
 #   - additional work -> adjust res_num for the output of af_pipeline scripts
+# TODO: add one of the following
+#   - cxc output selecting low plddt residues
+#   - function to handle contiguous patches of low plddt residues
+#   - change the bfactor of residues in pdb file so that all the atoms in a residue have the same bfactor (of representative atom)
+
 
 from collections import defaultdict
+import os
 from af_pipeline.pae_to_domains.pae_to_domains import (
     parse_pae_file,
     domains_from_pae_matrix_igraph,
     domains_from_pae_matrix_networkx,
 )
 from utils import read_json
-from af_pipeline.parser import AfParser
+from af_pipeline.parser import AfParser, ResidueSelect
 
 
 class Initialize:
@@ -226,7 +231,8 @@ class RigidBodies(Initialize):
 
         assert self.structure_path is not None; "Structure path not provided."
 
-        self.af_parser = AfParser(self.structure_path, self.data_path)
+        if self.af_parser is None:
+            self.af_parser = AfParser(self.structure_path, self.data_path)
         plddt = self.af_parser.get_ca_plddt()
         flat_plddt = [0] * self.total_length
 
@@ -295,6 +301,37 @@ class RigidBodies(Initialize):
         rigid_bodies = [rb for rb in rigid_bodies if len(rb) >= num_proteins]
 
         return rigid_bodies
+
+    def save_rigid_bodies_pdb(self, rigid_bodies):
+        """Save the rigid bodies as PDB files.
+        """
+
+        assert self.structure_path is not None; "Structure path not provided."
+
+
+        if self.af_parser is None:
+            self.af_parser = AfParser(self.structure_path, self.data_path)
+
+        chain_wise_offset = {}
+        for p_select in self.pred_selection:
+            chain = p_select["id"]
+            af_start, _ = p_select["af_region"]
+            chain_wise_offset[chain] = af_start - 1
+
+        for idx, rb in enumerate(rigid_bodies):
+            pdb_file = f"rigid_body_{idx}.pdb"
+            res_dict = self.af_parser.get_residue_positions()
+
+            rb_res_dict = {}
+            for chain_id, res_list in res_dict.items():
+                rb_res_dict[chain_id] = [
+                    res
+                    for res in res_list
+                    if (res[0]+chain_wise_offset[chain_id]) in rb[chain_id]
+                ]
+
+        ResidueSelect(rb_res_dict)
+        self.af_parser.save_pdb(ResidueSelect(rb_res_dict), f"{self.output_dir}/{pdb_file}")
 
 # class ContactMap:
 
