@@ -2,10 +2,14 @@
 # Description: This file contains the classes to handle the output of the AlphaFold2/3 pipeline.
 # RigibBodies -> find rigid bodies in the predicted structures
 
-# TODO: add a function to get the rigid body as a structure
 # TODO: combine af_pipeline functionality within this script
 #   - Interaction class to get confident interactions (output: contact map, restraints) --> patches (meanshift)
 #   - additional work -> adjust res_num for the output of af_pipeline scripts
+# TODO: add one of the following
+#   - cxc output selecting low plddt residues
+#   - function to handle contiguous patches of low plddt residues
+#   - change the bfactor of residues in pdb file so that all the atoms in a residue have the same bfactor (of representative atom)
+
 
 from collections import defaultdict
 import os
