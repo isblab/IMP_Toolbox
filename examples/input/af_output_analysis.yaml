@@ -2,8 +2,8 @@
   data_path: "/home/omkar/Omkar/omg_forks/IMP_Toolbox/examples/input/af_data.json"
   selection:
     - id: "A"
-      model_region: [400,745]
-      af_region: [1,745]
+      model_region: [1,375]
+      af_region: [1,375]
     - id: "B"
-      model_region: [635,1118]
-      af_region: [1,1118]
+      model_region: [1,127]
+      af_region: [1,127]

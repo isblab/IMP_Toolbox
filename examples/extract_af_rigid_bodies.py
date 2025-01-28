@@ -48,13 +48,14 @@ if __name__ == "__main__":
         af.plddt_cutoff = 70
         af.pae_cutoff = 5
         af.pae_power = 1
-        af.resolution = 0.1
-        af.library = "igraph"
+        af.resolution = 0.5
+        af.library = "igraph" # "networkx" is slower
 
         domains = af.predict_domains()
-        domains = af.plddt_filtered_domains(domains, selected=True)
+        # domains = af.plddt_filtered_domains(domains, selected=True)
 
         rbs = af.get_rigid_bodies(domains, num_proteins=2, selected=True)
+        af.save_rigid_bodies_pdb(rbs)
         write_json(f"{args.output}/{file_name}.json", rbs)
 
         # txt output
