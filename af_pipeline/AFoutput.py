@@ -4,6 +4,7 @@
 
 # TODO: combine af_pipeline functionality within this script
 #   - Interaction class to get confident interactions (output: contact map, restraints) --> patches (meanshift)
+#   - get interaction patches from the contact map for defining the restraints
 #   - additional work -> adjust res_num for the output of af_pipeline scripts
 # TODO: add one of the following
 #   - cxc output selecting low plddt residues
@@ -11,8 +12,12 @@
 #   - change the bfactor of residues in pdb file so that all the atoms in a residue have the same bfactor (of representative atom)
 
 
+from cProfile import label
 from collections import defaultdict
 import os
+
+import numpy as np
+from sklearn.cluster import MeanShift
 from af_pipeline.pae_to_domains.pae_to_domains import (
     parse_pae_file,
     domains_from_pae_matrix_igraph,
@@ -20,7 +25,7 @@ from af_pipeline.pae_to_domains.pae_to_domains import (
 )
 from utils import read_json
 from af_pipeline.parser import AfParser, ResidueSelect
-
+from af_pipeline.main import Interaction
 
 class Initialize:
 
@@ -333,11 +338,124 @@ class RigidBodies(Initialize):
         ResidueSelect(rb_res_dict)
         self.af_parser.save_pdb(ResidueSelect(rb_res_dict), f"{self.output_dir}/{pdb_file}")
 
-# class ContactMap:
 
-#     def __init__(self, chain1, chain2):
-#         self.chain1 = chain1
-#         self.chain2 = chain2
+class ContactMap(Interaction):
+
+    def __init__(
+        self,
+        structure_path: str,
+        data_path: str,
+        pred_selection: list = [],
+    ):
+        super().__init__(structure_path, data_path)
+
+        self.pred_selection = pred_selection
+        self.contact_map = None
+        self.restraints = None
+
+    def get_interacting_regions(self):
+        """Get the interacting regions for all possible pairs of chains.
+        """
+
+        interacting_regions = []
+
+        if len(self.pred_selection) == 0:
+            self.pred_selection = [
+                {
+                    "id": chain,
+                    "model_region": (1, self.lengths_dict[chain]),
+                    "af_region": (1, self.lengths_dict[chain]),
+                }
+                for chain in self.lengths_dict.keys()
+            ]
+        else:
+            for p_select1 in self.pred_selection:
+                for p_select2 in self.pred_selection:
+
+                    chain_id1 = p_select1["id"]
+                    chain_id2 = p_select2["id"]
+                    offset = p_select1["af_region"][0] - 1
+                    start1, end1 = (p_select1["model_region"][0] - offset), (p_select1["model_region"][1] - offset)
+                    offset = p_select2["af_region"][0] - 1
+                    start2, end2 = (p_select2["model_region"][0] - offset), (p_select2["model_region"][1] - offset)
+
+                    if chain_id1 != chain_id2:
+                        if any(
+                            chain_id1 in d.keys() and chain_id2 in d.keys()
+                            for d in interacting_regions
+                        ):
+                            continue
+                        interacting_regions.append(
+                            {
+                                chain_id1: (start1, end1),
+                                chain_id2: (start2, end2),
+                            }
+                        )
+
+        return interacting_regions
+
+    def get_contact_map(self, interacting_region):
+        """Create a contact map.
+        """
+
+        contact_map = self.get_confident_interactions(interacting_region=interacting_region)
+        return contact_map
+
+    def get_contacting_residues(self, interacting_region):
+        """Get the contacting residues.
+        """
+
+        contact_map = self.get_contact_map(interacting_region)
+        residues = []
+
+        contacting_residues = np.argwhere(contact_map == 1)
+        chain1, chain2 = interacting_region.keys()
+
+        ch_dict1 = next(item for item in self.pred_selection if item["id"] == chain1)
+        ch_dict2 = next(item for item in self.pred_selection if item["id"] == chain2)
+
+        chain1_offset = interacting_region[chain1][0] - 1 + ch_dict1["af_region"][0] - 1
+        chain2_offset = interacting_region[chain2][0] - 1 + ch_dict2["af_region"][0] - 1
+
+        # adjust the residue numbers
+        for res in contacting_residues:
+            res1, res2 = res
+            res1 += chain1_offset + 1
+            res2 += chain2_offset + 1
+            residues.append((res1, res2))
+
+        return residues
+
+    def get_interacting_patches(self, interacting_region, bandwidth=2):
+        """Get the interacting patches from the contact map.
+        """
+
+        contact_map = self.get_contact_map(interacting_region)
+        patches = []
+        contacting_residues = np.argwhere(contact_map == 1)
+        chain1, chain2 = interacting_region.keys()
+
+        # ch_dict1 = next(item for item in self.pred_selection if item["id"] == chain1)
+        # ch_dict2 = next(item for item in self.pred_selection if item["id"] == chain2)
+
+        # chain1_offset = interacting_region[chain1][0] - 1 + ch_dict1["af_region"][0] - 1
+        # chain2_offset = interacting_region[chain2][0] - 1 + ch_dict2["af_region"][0] - 1
+
+        ms = MeanShift()
+        ms.fit(contacting_residues)
+        labels = ms.labels_
+        # cluster_centers = ms.cluster_centers_
+        # for res, label in zip(contacting_residues, labels):
+        #     res1, res2 = res
+        #     res1 += chain1_offset + 1
+        #     res2 += chain2_offset + 1
+        #     patches.append((res1, res2, label))
+
+        segmented_map = np.zeros_like(contact_map)
+        for i, point in enumerate(contacting_residues):
+            segmented_map[point[0], point[1]] = labels[i] + 1  # Label clusters (starting from 1)
+
+        return segmented_map
 
 # class Restraints:
 
