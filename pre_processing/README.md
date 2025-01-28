@@ -38,6 +38,8 @@ fasta = fetchit.uniprot_to_sequences()
 ```python
 fasta = fetchit.only_uniprot_id_as_name(fasta)
 ```
+Refer to:
+- `fetch_sequences.py` in IMP_Toolbox/examples for usage
 
 ## structure
 ### Find structures for given proteins (UniProt IDs)
@@ -71,4 +73,6 @@ best_structures = bs.fetch_best_structures(
 df = bs.make_best_structures_df(best_structures)
 ```
 
-### 
+Refer to:
+- `fetch_best_structures.py` in IMP_Toolbox/examples for usage
+###
