@@ -1,0 +1,7 @@
+- structure_path: "/home/omkar/Omkar/omg_forks/IMP_Toolbox/examples/input/model_Lb2Cas12a_RNA_DNA_complex.cif"
+  data_path: "/home/omkar/Omkar/omg_forks/IMP_Toolbox/examples/input/data_Lb2Cas12a_RNA_DNA_complex.json"
+  af_offset:
+    A: [1,1206]
+    # C: [1,25]
+    D: [1,9]
+    # E: [1,33]
