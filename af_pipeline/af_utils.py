@@ -1,10 +1,14 @@
 import numpy as np
 from scipy.spatial import distance_matrix
+from typing import Dict
 
 def get_distance_map(coords1: np.array, coords2: np.array):
     """
     Create an all-v-all distance map.
+
+    Returns a matrix of distances between all pairs of atoms/residues in the two sets of coordinates.
     """
+
     distance_map = distance_matrix(coords1, coords2)
 
     return distance_map
@@ -13,7 +17,10 @@ def get_distance_map(coords1: np.array, coords2: np.array):
 def get_contact_map(distance_map: np.array, contact_threshold: float):
     """
     Given the distance map, create a binary contact map by thresholding distances.
+
+    Returns a binary matrix, where 1 indicates a contact and 0 indicates no contact.
     """
+
     contact_map = np.where(distance_map <= contact_threshold, 1, 0)
 
     return contact_map
@@ -24,10 +31,10 @@ def get_interaction_map(
 ):
     """
     Create an interaction map, given the input coordinates.
-    Can create either of:
-            Distance map
-            Contact map
+
+    Returns a distance map or a contact map, based on the map_type specified.
     """
+
     distance_map = get_distance_map(coords1, coords2)
 
     if map_type == "distance":
@@ -40,10 +47,11 @@ def get_interaction_map(
     else:
         raise Exception("Invalid map_type specified...")
 
-def offset_interacting_region(self, interacting_region: Dict, af_offset: dict | None = None):
+
+def offset_interacting_region(interacting_region: Dict, af_offset: dict | None = None):
     """
     Offset the interacting region to the AF2/3 numbering. \n
-    interacting region defined by user is as per the original numbering (UniProt in case of proteins). \n
+    Interacting region defined by user is as per the original numbering (UniProt in case of proteins). \n
     However, if the prediction is done on a fragment of the protein, the numbering will be different. \n
     This function offsets the interacting region to the numbering of the predicted structure. \n
     By default, the offset is assumed to be 0.
