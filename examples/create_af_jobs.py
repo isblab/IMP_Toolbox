@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 import yaml
 from set_up import IMP_TOOLBOX
 sys.path.append(IMP_TOOLBOX)
-from af_pipeline.AFinput import AFInput
+from af_pipeline.AFInput import AFInput
 from utils import read_json, read_fasta
 
 if __name__ == "__main__":
@@ -65,6 +65,6 @@ if __name__ == "__main__":
         nucleic_acid_sequences=nucleic_acid_sequences,
         proteins=proteins,
     )
-    af_input.output_dir = args.output
+
     job_cycles = af_input.create_job_cycles()
-    af_input.write_job_files(job_cycles=job_cycles)
+    af_input.write_job_files(job_cycles=job_cycles, output_dir=args.output)

@@ -1,4 +1,4 @@
-RNA_DNA_complex_8I54: # job cycle
+Lb2Cas12a_RNA_DNA_complex_8I54: # job cycle
   - name: "Lb2Cas12a_RNA_DNA_complex" # user provided job name
     modelSeeds: [1,2] # 2 models with seeds 1 and 2
     entities:
@@ -21,8 +21,9 @@ RNA_DNA_complex_8I54: # job cycle
         count: 1
 
 Actin_profilin:
-  - modelSeeds: 30 # 30 models with randomly generated seeds
+    # job 1
     # no user provided job name
+  - modelSeeds: 30 # 30 models with randomly generated seeds
     entities:
       - name: "Act1"
         type: "proteinChain"
@@ -30,15 +31,23 @@ Actin_profilin:
       - name: "Cdc3"
         range: [11, 20]
         type: "proteinChain"
+  # job 2
   # no user provided job name or model seeds
   -  entities:
       - name: "Act1"
         type: "proteinChain"
       - name: "Cdc3"
         type: "proteinChain"
+  # job 3
   - name: "actin_profilin_complex"
     entities:
       - name: "Act1"
         type: "proteinChain"
       - name: "Cdc3"
         type: "proteinChain"
+      - name: "CCD_ATP"
+        type: "ligand"
+        count: 1
+      - name: "MG"
+        type: "ion"
+        count: 1
