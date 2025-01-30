@@ -101,6 +101,7 @@ def get_key_from_res_range(res_range):
     Returns:
         str: Residue range string, e.g., "1-3,5-7"
     """
+
     if not res_range:
         return ""
     res_range = sorted(res_range)
@@ -110,9 +111,12 @@ def get_key_from_res_range(res_range):
         if num == prev + 1:
             prev = num
         else:
-            ranges.append(f"{start}-{prev}")
+            ranges.append(f"{start}-{prev}") if start != prev else ranges.append(str(start))
             start = prev = num
-    ranges.append(f"{start}-{prev}")
+    if start == prev:
+        ranges.append(str(start))
+    else:
+        ranges.append(f"{start}-{prev}")
     return ",".join(ranges)
 
 def save_df(df, file_path, index=False, header=True, sep=","):
@@ -123,3 +127,40 @@ def save_df(df, file_path, index=False, header=True, sep=","):
         file_path (str): path to save the DataFrame
     """
     df.to_csv(file_path, index=index, header=header, sep=sep)
+
+def generate_cmap(n):
+    """
+    Generate a custom colormap with n colors.
+    """
+
+    import random
+    import time
+    colors = []
+
+    start = time.time()
+
+    while len(colors) < n:
+
+        color = "%06x" % random.randint(0, 0xFFFFFF)
+
+        if f"#{color}" not in colors:
+            colors.append(f"#{color}")
+
+        if time.time() - start > 10:
+            break
+
+    return colors
+
+def str_join( prots: list, sep: str ):
+	"""
+	Given a list of strings, join them by the provided separator (sep).
+	"""
+	return f"{sep}".join( prots )
+
+
+def str_split( prot_pair: str, sep: str ):
+	"""
+	Split the given string by the  provided separator (sep).
+	"""
+	return prot_pair.split( sep )
+
