@@ -81,3 +81,60 @@ def offset_interacting_region(interacting_region: Dict, af_offset: dict | None =
         offset_interacting_region[chain_id] = (start, end)
 
     return offset_interacting_region
+
+
+def plot_map(contact_map: np.array, interacting_region: dict):
+    """Plot the contact map
+
+    Args:
+        contact_map (np.array): binary contact map
+    """
+
+    p1_region, p2_region = interacting_region.values()
+    chain1, chain2 = interacting_region.keys()
+    # print(p1_region, chain1)
+    # print(p2_region, chain2)
+
+    xtick_vals = np.arange(
+        0, p2_region[1] - p2_region[0] + 1#, p2_region[1] - p2_region[0]
+    )
+    xtick_labels = [str(x+p2_region[0]) for x in xtick_vals]
+
+    ytick_vals = np.arange(
+        0, p1_region[1] - p1_region[0] + 1#, p1_region[1] - p1_region[0]
+    )
+    ytick_labels = [str(x+p1_region[0]) for x in ytick_vals]
+
+    import plotly.graph_objects as go
+    from utils import generate_cmap
+
+    num_unique_patches = len(np.unique(contact_map))
+    colorscale = generate_cmap(num_unique_patches)
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=contact_map,
+            colorscale=colorscale,
+        )
+    )
+
+    fig.update_layout(
+        title="Contact Map",
+        yaxis_title=f"Residue number of {chain1}",
+        xaxis_title=f"Residue number of {chain2}",
+        xaxis=dict(
+            tickmode="array",
+            tickformat=".0f",
+            tickvals=xtick_vals,
+            ticktext=xtick_labels,
+        ),
+        yaxis=dict(
+            tickmode="array",
+            tickformat=".0f",
+            tickvals=ytick_vals,
+            ticktext=ytick_labels,
+        ),
+    )
+
+    return fig
+

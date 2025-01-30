@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 import numpy as np
 import pandas as pd
@@ -6,7 +7,6 @@ from af_pipeline.Initialize import Initialize
 from af_pipeline.af_utils import get_interaction_map
 from utils import get_key_from_res_range
 from af_pipeline.af_utils import offset_interacting_region
-
 
 class Interaction(Initialize):
     """ Class to handle interaction data for the predicted structure. \n
@@ -317,3 +317,47 @@ class Interaction(Initialize):
             segmented_map[res_idx[0], res_idx[1]] = labels[i] + 1
 
         return segmented_map, patches
+
+
+    def save_map(
+        self,
+        contact_map: np.array,
+        patches: dict,
+        interacting_region: dict,
+        out_file: str,
+        save_plot=False
+    ):
+        """Save the interacting patches and the segmented map to a file.
+
+        Args:
+            contact_map (np.array): binary contact map or segmented map
+            patches (dict): interacting patches from the map
+            interacting_region (dict): interacting region specified by the user
+            out_file (str): path to save the output file
+            save_plot (bool, optional): save the plot. Defaults to False.
+        """
+
+        out_dir = os.path.dirname(out_file)
+        file_name = os.path.basename(out_file).split(".")[0]
+
+        txt_outfile = os.path.join(out_dir, f"{file_name}.txt")
+
+        print(f"Writing interacting patches to {txt_outfile}")
+
+        with open(txt_outfile, "w") as f:
+            for patch_id, patch in patches.items():
+                    f.write(f"Patch {patch_id}\n")
+                    for chain, res_range in patch.items():
+                        f.write(f"{chain}: {res_range}\n")
+
+        if save_plot==True:
+            from af_pipeline.af_utils import plot_map
+            fig = plot_map(
+                contact_map=contact_map,
+                interacting_region=interacting_region,
+            )
+            out_file = os.path.join(out_dir, f"{file_name}.html")
+            fig.write_html(
+                out_file,
+                full_html=False,
+            )
