@@ -437,16 +437,6 @@ class AfParser:
             return plddt_dict
 
 
-    def save_pdb(self, res_select_obj: Bio.PDB.Select, out_file: str):
-        """
-        Given the ResidueSelect object, save the structure as a PDB file.
-        """
-
-        io = PDBIO()
-        io.set_structure(self.structureparser.structure)
-        io.save(out_file, res_select_obj)
-
-
     def create_interchain_mask(self, lengths_dict: Dict):
         """
         Create a binary 2D mask for selecting only interchain interactions.

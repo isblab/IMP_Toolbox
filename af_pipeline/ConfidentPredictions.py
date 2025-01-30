@@ -1,5 +1,6 @@
 from af_pipeline.Initialize import Initialize
 from af_pipeline.parser import ResidueSelect
+from af_pipeline.af_utils import save_pdb
 
 
 class ConfidentPredictions(Initialize):
@@ -59,4 +60,8 @@ class ConfidentPredictions(Initialize):
 
         ResidueSelect(confident_residues)
 
-        self.save_pdb(ResidueSelect(confident_residues), self.out_file)
+        save_pdb(
+            structure=self.structureparser.structure,
+            res_select_obj=ResidueSelect(confident_residues),
+            out_file=self.out_file
+        )

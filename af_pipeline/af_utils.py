@@ -1,6 +1,17 @@
 import numpy as np
 from scipy.spatial import distance_matrix
 from typing import Dict
+from Bio.PDB import PDBIO
+import Bio
+
+def save_pdb(structure: Bio.PDB.Structure, res_select_obj: Bio.PDB.Select, out_file: str):
+    """
+    Given the ResidueSelect object, save the structure as a PDB file.
+    """
+
+    io = PDBIO()
+    io.set_structure(structure)
+    io.save(out_file, res_select_obj)
 
 def get_distance_map(coords1: np.array, coords2: np.array):
     """

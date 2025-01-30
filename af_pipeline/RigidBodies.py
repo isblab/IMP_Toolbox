@@ -8,7 +8,7 @@ import os
 from collections import defaultdict
 from af_pipeline.parser import ResidueSelect
 from utils import get_key_from_res_range
-
+from af_pipeline.af_utils import save_pdb
 
 class RigidBodies(Initialize):
     """Class to predict rigid bodies from a PAE file.
@@ -177,9 +177,10 @@ class RigidBodies(Initialize):
         for idx, rb_dict in enumerate(domains):
             output_path = os.path.join(output_dir, f"rigid_body_{idx}.pdb")
 
-            self.save_pdb(
-                ResidueSelect(rb_dict),
-                output_path,
+            save_pdb(
+                structure=self.structureparser.structure,
+                res_select_obj=ResidueSelect(rb_dict),
+                out_file=output_path,
             )
 
 

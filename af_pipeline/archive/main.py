@@ -88,7 +88,7 @@ class SaveConfidentPredictions( Initialize ):
 
         ResidueSelect( confident_residues )
 
-        self.save_pdb( ResidueSelect( confident_residues ),
+        save_pdb( ResidueSelect( confident_residues ),
                         self.out_file )
 
 
