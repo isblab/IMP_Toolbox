@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import MeanShift
 from af_pipeline.Initialize import Initialize
-from af_pipeline.af_utils import get_interaction_map
+from af_pipeline.af_utils import get_interaction_map, renumber_chain_res_num
 from utils import get_key_from_res_range
 from af_pipeline.af_utils import offset_interacting_region
 
@@ -144,8 +144,6 @@ class Interaction(Initialize):
             pae (np.array): PAE matrix for the interacting region
         """
 
-        interacting_region = offset_interacting_region(interacting_region, self.af_offset)
-
         chains, mol1_res, mol2_res = self.get_chains_n_indices(interacting_region)
 
         coords1, coords2 = self.get_required_coords(chains, mol1_res, mol2_res)
@@ -188,11 +186,6 @@ class Interaction(Initialize):
             confident_interactions (np.array): binary map of confident interacting residues
         """
 
-        interacting_region = offset_interacting_region(
-            interacting_region=interacting_region,
-            af_offset=self.af_offset
-        )
-
         interaction_map, plddt1, plddt2, pae = self.get_interaction_data(
             interacting_region=interacting_region
         )
@@ -211,6 +204,7 @@ class Interaction(Initialize):
         prot1_name: str,
         prot2_name: str,
         contact_map: np.array,
+        interacting_region: dict,
         interface_only=True,
     ):
         """
@@ -243,16 +237,20 @@ class Interaction(Initialize):
                 res1_idx = np.append(res1_idx, ["" for x in range(diff)])
 
             df["Protein1"] = [prot1_name] * len(res1_idx)
-            df["Residue1"] = res1_idx
+            # df["Residue1"] = res1_idx
+            df["Residue1"] = [interacting_region[prot1_name][0]+res_num-1 for res_num in res1_idx]
             df["Protein2"] = [prot2_name] * len(res2_idx)
-            df["Residue2"] = res2_idx
+            # df["Residue2"] = res2_idx
+            df["Residue2"] = [interacting_region[prot2_name][0]+res_num-1 for res_num in res2_idx]
 
         # Write all interacting residue pairs.
         else:
             df["Protein1"] = [prot1_name] * len(res1_idx)
-            df["Residue1"] = res1_idx
+            # df["Residue1"] = res1_idx
+            df["Residue1"] = [interacting_region[prot1_name][0]+res_num-1 for res_num in res1_idx]
             df["Protein2"] = [prot2_name] * len(res2_idx)
-            df["Residue2"] = res2_idx
+            # df["Residue2"] = res2_idx
+            df["Residue2"] = [interacting_region[prot2_name][0]+res_num-1 for res_num in res2_idx]
 
         return df
 
