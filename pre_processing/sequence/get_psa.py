@@ -4,6 +4,7 @@
 
 ############# One above all #############
 ##-------------------------------------##
+import time
 import numpy as np
 import pandas as pd
 import sys
@@ -55,7 +56,7 @@ class PSA():
 		print( "May the Force be with you..." )
 
 
-	def send_request( self, url ):
+	def send_request( self, url, max_trials = 5 ):
 		# Send a request to the server to fetch the data.
 		# url --> URL of the server from where to fetch the data.
 		for i in range( 1, 10 ):
