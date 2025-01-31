@@ -1,6 +1,6 @@
 from af_pipeline.Initialize import Initialize
 from af_pipeline.parser import ResidueSelect
-from af_pipeline.af_utils import save_pdb
+from af_pipeline.af_utils import save_pdb, renumber_res_dict, renumber_residues
 
 
 class ConfidentPredictions(Initialize):
@@ -15,11 +15,13 @@ class ConfidentPredictions(Initialize):
         self,
         struct_file_path: str,
         data_file_path: str,
-        out_file: str
+        out_file: str,
+        af_offset: dict | None = None,
     ):
         super().__init__(
             data_file_path=data_file_path,
             struct_file_path=struct_file_path,
+            af_offset=af_offset,
         )
 
         self.out_file = out_file
@@ -58,10 +60,17 @@ class ConfidentPredictions(Initialize):
                 if select:
                     confident_residues[chain].append(res)
 
-        ResidueSelect(confident_residues)
+        structure = renumber_residues(
+            structure=self.structureparser.structure,
+            af_offset=self.af_offset,
+        )
+        confident_residues = renumber_res_dict(
+            res_dict=confident_residues,
+            af_offset=self.af_offset,
+        )
 
         save_pdb(
-            structure=self.structureparser.structure,
+            structure=structure,
             res_select_obj=ResidueSelect(confident_residues),
             out_file=self.out_file
         )
