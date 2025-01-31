@@ -22,7 +22,7 @@ if __name__ == "__main__":
         "--output",
         type=str,
         required=False,
-        default="./output/af_output",
+        default="./output/af_output/confident_residues",
         help="Path to output directory",
     )
     args = args.parse_args()
