@@ -3,6 +3,34 @@ from scipy.spatial import distance_matrix
 from typing import Dict
 from Bio.PDB import PDBIO
 import Bio
+from Bio.PDB.Chain import Chain
+from Bio.PDB.Structure import Structure
+from Bio.PDB.Model import Model
+
+def renumber_residues(structure: Bio.PDB.Structure.Structure, af_offset: dict):
+    """Renumber the residues in the structure based on the offset."""
+
+    new_structure = Structure(structure.id)
+    model = Model(0)
+    new_structure.add(model)
+
+    for model in structure:
+        for chain in model:
+            new_chain = Chain(id=chain.id)
+            chain_id = chain.id
+            for residue in chain:
+                new_residue = residue.copy()
+                h, num, ins = new_residue.id
+
+                num = renumber_chain_res_num(num, chain_id, af_offset)
+
+                new_residue.id = (h, num, ins)
+                new_chain.add(new_residue)
+            new_structure[0].add(new_chain)
+
+    del structure
+
+    return new_structure
 
 def save_pdb(structure: Bio.PDB.Structure, res_select_obj: Bio.PDB.Select, out_file: str):
     """
@@ -59,6 +87,49 @@ def get_interaction_map(
         raise Exception("Invalid map_type specified...")
 
 
+def renumber_res_dict(res_dict: Dict, af_offset: dict):
+    """
+    Renumber the residues in the res_dict based on the offset.
+
+    Args:
+        res_dict (Dict): dictionary containing residue positions
+        af_offset (dict): offset dictionary
+
+    Returns:
+        Dict: renumbered residue dictionary
+    """
+
+    renumbered_res_dict = {}
+
+    for chain_id in res_dict:
+
+        renumbered_res_dict[chain_id] = []
+
+        for res in res_dict[chain_id]:
+
+            res = renumber_chain_res_num(res, chain_id, af_offset)
+
+            renumbered_res_dict[chain_id].append(res)
+
+    return renumbered_res_dict
+
+def renumber_chain_res_num(chain_res_num: int, chain_id: str, af_offset: dict| None = None):
+    """
+    Renumber the residue number based on the offset.
+
+    Args:
+        chain_res_num (int): residue number
+        af_offset (dict): offset dictionary
+
+    Returns:
+        int: renumbered residue number
+    """
+
+    if af_offset and chain_id in af_offset:
+        chain_res_num = chain_res_num + af_offset[chain_id][0] - 1
+
+    return chain_res_num
+
 def offset_interacting_region(interacting_region: Dict, af_offset: dict | None = None):
     """
     Offset the interacting region to the AF2/3 numbering. \n
@@ -86,8 +157,9 @@ def offset_interacting_region(interacting_region: Dict, af_offset: dict | None =
         start, end = interacting_region[chain_id]
 
         if af_offset and chain_id in af_offset:
-            start = start - (af_offset[chain_id] - 1)
-            end = end - (af_offset[chain_id] - 1)
+
+            start = start - (af_offset[chain_id][0] - 1)
+            end = end - (af_offset[chain_id][0] - 1)
 
         offset_interacting_region[chain_id] = (start, end)
 
