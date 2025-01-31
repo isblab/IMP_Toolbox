@@ -1,64 +1,12 @@
-# Sequence
-## Sequence
-```mermaid
----
-config:
-    class:
-        hideEmptyMembersBox: true
----
-classDiagram
-    class FetchSequences {
-        + uniprot_ids
-        - __init__(self, uniprot_ids) None
-        + uniprot_to_sequences(self, max_retries)
-        + only_uniprot_id_as_name(self, fasta)
-    }
-```
-### Description
-- Query [UniProt REST API](https://www.uniprot.org/help/api) to download protein sequences for give **UniProt ID**s
-- example: https://rest.uniprot.org/uniprotkb/accessions?accessions=P60709&format=fasta
+# Finding protein sequences for given proteins
 
-Refer to:
-- `fetch_sequences.py` in IMP_Toolbox/examples for usage
-## paralog_alignment
-```mermaid
-classDiagram
-    class Align_Paralogs {
-        + hdac
-        + exclude
-        + remove
-        + data
-        + fasta_path
-        + output_path
-        + outputfile_name
-        + included_proteins
-        + mapping
-        + final_mapping
-        + prot_lengths
-        - __init__(self, hdac, exclude, outfile) None
-        + forward(self)
-        + get_aligned_pos(self, target, query, position)
-        + Needle_alignment(self, seqa_path, seqb_path, outputfile)
-        + get_paralog(self, protein)
-        + return_dominant_paralog(self, prt)
-        + map_aligned_pos(self)
-        + mapped_XLs(self, alignments_dict)
-    }
+Scripts to use: `fetch_sequences.py`
 
-```
-## get_psa
-```mermaid
-classDiagram
-    class PSA {
-        + uni_id1
-        + uni_id2
-        + res_range
-        - __init__(self, uni_id1, uni_id2, res_range) None
-        + forward(self)
-        + send_request(self, url)
-        + get_uniprot_seq(self, uni_id)
-        + get_aligned_pos(self, target, query, position)
-        + Needle_alignment(self, seqa, seqb)
-    }
+How to use:
 
-```
+- `python fetch_sequences.py -i proteins_dictionary.json -o all_sequences.fasta`
+- `proteins_dictionary.json` should contain protein names and their uniprot identifiers. (see [cardiac_desmosome_proteins.json](https://github.com/isblab/IMP_Toolbox/blob/main/pre_processing/inputs/cardiac_desmosome_proteins.json) for reference)
+
+What to expect:
+
+- `all_sequences.fasta`: a file with all the protein sequences for the proteins in the dictionary
