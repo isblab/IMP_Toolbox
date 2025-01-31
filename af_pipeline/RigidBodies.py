@@ -8,7 +8,7 @@ import os
 from collections import defaultdict
 from af_pipeline.parser import ResidueSelect
 from utils import get_key_from_res_range
-from af_pipeline.af_utils import save_pdb
+from af_pipeline.af_utils import save_pdb, renumber_residues, renumber_chain_res_num
 
 class RigidBodies(Initialize):
     """Class to predict rigid bodies from a PAE file.
@@ -147,11 +147,16 @@ class RigidBodies(Initialize):
 
         for chain_id, rb_res_pos_list in rb_dict.items():
 
-            confident_residues = [
-                res_pos
-                for res_pos in rb_res_pos_list
-                if self.plddt_dict[chain_id][res_pos - 1] >= self.plddt_cutoff
-            ]
+            confident_residues = []
+            for chain_res_idx, plddt_score in enumerate(self.plddt_dict[chain_id]):
+                res_num = chain_res_idx + 1
+                res_num = renumber_chain_res_num(res_num, chain_id, self.af_offset)
+                # if self.af_offset and chain_id in self.af_offset:
+                #     res_num = res_num + self.af_offset[chain_id][0] - 1
+
+                if res_num in rb_res_pos_list and plddt_score >= self.plddt_cutoff:
+                    confident_residues.append(res_num)
+
             rb_dict[chain_id] = confident_residues
 
         empty_chains = []
@@ -174,11 +179,16 @@ class RigidBodies(Initialize):
 
         os.makedirs(output_dir, exist_ok=True)
 
+        structure = renumber_residues(
+            structure=self.structureparser.structure,
+            af_offset=self.af_offset,
+        )
+
         for idx, rb_dict in enumerate(domains):
             output_path = os.path.join(output_dir, f"rigid_body_{idx}.pdb")
 
             save_pdb(
-                structure=self.structureparser.structure,
+                structure=structure,
                 res_select_obj=ResidueSelect(rb_dict),
                 out_file=output_path,
             )
