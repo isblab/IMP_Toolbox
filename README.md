@@ -8,9 +8,6 @@ See [Modeling with IMP](https://docs.google.com/document/d/1gaG83RsEBQNemuWwhra0
 
 ## Pre-processing
 
-Note: the classes for pre-processing and AFpipeline are in `preprocessing` and `af_pipeline`. You need to import and use them for your own systems. See `examples` for example scripts. 
-
-
 ## Modeling (not what you may think at first)
 
 ## Analysis
