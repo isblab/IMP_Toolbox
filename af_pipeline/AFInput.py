@@ -4,6 +4,7 @@ import random
 from typing import List, Dict, Any
 from af_pipeline.af_constants import PTM, DNA_MOD, RNA_MOD, LIGAND, ION, ENTITY_TYPES
 
+
 class AFInput:
     """ Class to handle the creation of AlphaFold input files
     """
