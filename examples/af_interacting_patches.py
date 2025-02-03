@@ -1,12 +1,9 @@
-from pprint import pprint
 import sys
 from argparse import ArgumentParser
 from set_up import IMP_TOOLBOX
 sys.path.append(IMP_TOOLBOX)
 from af_pipeline.Interaction import Interaction
-import os
 import yaml
-
 
 if __name__ == "__main__":
 
@@ -26,7 +23,7 @@ if __name__ == "__main__":
         "--output",
         type=str,
         required=False,
-        default="./output/af_output",
+        default="./output/af_output/interacting_patches",
         help="Path to output directory",
     )
 
@@ -54,21 +51,27 @@ if __name__ == "__main__":
                 "A": (1, 375),
                 "B": (1, 127),
             }
-        ]
+        ],
+        [
+        #     {
+        #         "A": (1600, 1800),
+        #         "B": (1600, 1800),
+        #     }
+        ],
     ]
 
-    for _, pred_to_analyse in enumerate(input_yaml):
-        pred_selection = pred_to_analyse.get("af_offset")
+    for pred_idx, pred_to_analyse in enumerate(input_yaml):
+        af_offset = pred_to_analyse.get("af_offset")
         structure_path = pred_to_analyse.get("structure_path")
         data_path = pred_to_analyse.get("data_path")
 
-        dir_name = os.path.basename(structure_path).split(".")[0]
-        output_dir = os.path.join(args.output, f"{dir_name}_patches")
-        os.makedirs(output_dir, exist_ok=True)
+        interacting_regions_ = interacting_regions[pred_idx]
 
         af_interaction = Interaction(
             struct_file_path=structure_path,
             data_file_path=data_path,
+            af_offset=af_offset,
+            output_dir=args.output,
         )
 
         af_interaction.plddt_cutoff = 70
@@ -76,26 +79,15 @@ if __name__ == "__main__":
         af_interaction.interaction_map_type = "contact"
         af_interaction.contact_threshold = 8
 
-        for interacting_region in interacting_regions[_]:
+        if not interacting_regions_:
+            interacting_regions_ = af_interaction.create_interacting_regions()
 
-            contact_map = af_interaction.get_confident_interactions(
-                interacting_region=interacting_region
-            )
+        for interacting_region in interacting_regions_:
 
-            seg_map, interacting_patches = af_interaction.get_interacting_patches(
-                contact_map=contact_map,
+            af_interaction.save_interaction_info(
                 interacting_region=interacting_region,
-                bandwidth=None,
-            )
-
-            ir_str = "_".join([f"{k}:{v[0]}-{v[1]}" for k, v in interacting_region.items()])
-
-            pprint(interacting_patches)
-
-            af_interaction.save_map(
-                contact_map=seg_map,
-                patches=interacting_patches,
-                interacting_region=interacting_region,
-                out_file=os.path.join(output_dir, f"patch_{ir_str}.html"),
-                save_plot=True,
+                save_plot=False,
+                plot_type="interactive",
+                save_table=True,
+                interface_only=True,
             )

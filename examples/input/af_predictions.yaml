@@ -7,3 +7,8 @@
     E: [1,33]
 - structure_path: "/home/omkar/Omkar/omg_forks/IMP_Toolbox/examples/input/AF_predictions/complex_2/model_actin_profilin_complex.cif"
   data_path: "/home/omkar/Omkar/omg_forks/IMP_Toolbox/examples/input/AF_predictions/complex_2/data_actin_profilin_complex.json"
+- structure_path: "/home/omkar/Omkar/omg_forks/IMP_Toolbox/examples/input/AF_predictions/complex_3/model_dp_1021_1950.cif"
+  data_path: "/home/omkar/Omkar/omg_forks/IMP_Toolbox/examples/input/AF_predictions/complex_3/data_dp_1021_1950.json"
+  af_offset:
+    A: [1021, 1950]
+    B: [1021, 1950]

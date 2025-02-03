@@ -1,4 +1,4 @@
-from af_pipeline.Initialize import Initialize
+from af_pipeline._Initialize import _Initialize
 from af_pipeline.pae_to_domains.pae_to_domains import (
     parse_pae_file,
     domains_from_pae_matrix_igraph,
@@ -6,11 +6,11 @@ from af_pipeline.pae_to_domains.pae_to_domains import (
 )
 import os
 from collections import defaultdict
-from af_pipeline.parser import ResidueSelect
-from utils import get_key_from_res_range
+from af_pipeline.Parser import ResidueSelect
+from utils import get_key_from_res_range, save_pdb
 
 
-class RigidBodies(Initialize):
+class RigidBodies(_Initialize):
     """Class to predict rigid bodies from a PAE file.
     - The rigid bodies (pseudo-domains) are predicted based on the PAE matrix (Graph-based community clustering approach by Tristan Croll).
     - The rigid bodies can be further filtered based on the pLDDT cutoff.
@@ -147,11 +147,16 @@ class RigidBodies(Initialize):
 
         for chain_id, rb_res_pos_list in rb_dict.items():
 
-            confident_residues = [
-                res_pos
-                for res_pos in rb_res_pos_list
-                if self.plddt_dict[chain_id][res_pos - 1] >= self.plddt_cutoff
-            ]
+            confident_residues = []
+            for chain_res_idx, plddt_score in enumerate(self.plddt_dict[chain_id]):
+                res_num = chain_res_idx + 1
+                res_num = self.renumber.renumber_chain_res_num(res_num, chain_id)
+                # if self.af_offset and chain_id in self.af_offset:
+                #     res_num = res_num + self.af_offset[chain_id][0] - 1
+
+                if res_num in rb_res_pos_list and plddt_score >= self.plddt_cutoff:
+                    confident_residues.append(res_num)
+
             rb_dict[chain_id] = confident_residues
 
         empty_chains = []
@@ -166,24 +171,7 @@ class RigidBodies(Initialize):
         return rb_dict
 
 
-    def save_rb_structures(self, domains: list, output_dir: str):
-        """Save the structures of the rigid bodies in PDB format."""
-
-        dir_name = os.path.basename(self.struct_file_path).split(".")[0]
-        output_dir = os.path.join(output_dir, dir_name)
-
-        os.makedirs(output_dir, exist_ok=True)
-
-        for idx, rb_dict in enumerate(domains):
-            output_path = os.path.join(output_dir, f"rigid_body_{idx}.pdb")
-
-            self.save_pdb(
-                ResidueSelect(rb_dict),
-                output_path,
-            )
-
-
-    def save_rb(self, domains: list, output_dir: str, output_format: str = "txt"):
+    def save_rigid_bodies(self, domains: list, output_dir: str, output_format: str = "txt", save_structure: bool = True):
         """Save the rigid bodies to a text file."""
 
         output_dir = os.path.join(output_dir)
@@ -210,3 +198,17 @@ class RigidBodies(Initialize):
                             f.write(f"{chain_id}: {get_key_from_res_range(res_list)}\n")
 
                     f.write("\n")
+
+        if save_structure:
+            structure = self.renumber.renumber_structure(
+                structure=self.structureparser.structure,
+            )
+
+            for idx, rb_dict in enumerate(domains):
+                output_path = os.path.join(output_dir, f"rigid_body_{idx}.pdb")
+
+                save_pdb(
+                    structure=structure,
+                    out_file=output_path,
+                    res_select_obj=ResidueSelect(rb_dict),
+                )

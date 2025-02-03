@@ -24,7 +24,7 @@ if __name__ == "__main__":
         "--output",
         type=str,
         required=False,
-        default="./output/af_output",
+        default="./output/af_output/rigid_bodies",
         help="Path to output directory",
     )
 
@@ -55,20 +55,15 @@ if __name__ == "__main__":
 
         domains = af_rigid.predict_domains(
             num_res=5, # minimum number of residues in a domain
-            num_proteins=1, # minimum number of proteins in a domain
+            num_proteins=2, # minimum number of proteins in a domain
             plddt_filter=True, # filter domains based on pLDDT score
         )
 
-        # save the rigid bodies in PDB format
-        af_rigid.save_rb_structures(
-            domains=domains,
-            output_dir=args.output
-        )
-
         # save the rigid bodies in txt format
-        af_rigid.save_rb(
+        af_rigid.save_rigid_bodies(
             domains=domains,
             output_dir=args.output,
-            output_format="txt"
+            output_format="txt",
+            save_structure=True,
         )
         print(f"saved rigid bodies for {file_name} to: {args.output}")
