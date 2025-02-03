@@ -3,8 +3,8 @@ import pandas as pd
 
 from typing import Dict
 
-from af_pipeline.parser import AfParser, ResidueSelect
-from af_pipeline.utils import get_interaction_map
+from af_pipeline.Parser import AfParser, ResidueSelect
+from utils import get_interaction_map
 
 """
 This script will contain modules for performing analysis for the AF2/3 prediction.
