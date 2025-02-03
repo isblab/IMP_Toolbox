@@ -22,7 +22,7 @@ from af_pipeline.pae_to_domains.pae_to_domains import (
     domains_from_pae_matrix_networkx,
 )
 from utils import get_key_from_res_range, read_json, write_json
-from af_pipeline.parser import AfParser, ResidueSelect
+from af_pipeline.Parser import AfParser, ResidueSelect
 from af_pipeline.main import Interaction
 
 """
