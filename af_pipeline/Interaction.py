@@ -385,8 +385,8 @@ class Interaction(_Initialize):
             df["Protein1"] = [chain_id1] * len(res1_idx)
             df["Protein2"] = [chain_id2] * len(res2_idx)
 
-            df["Residue1"] = res1_idx
-            df["Residue2"] = res2_idx
+            df["Interface_residues1"] = res1_idx
+            df["Interface_residues2"] = res2_idx
 
             # if p1_region:
             #     # res1_idx = [start+res_num-1 for res_num in res1_idx]
