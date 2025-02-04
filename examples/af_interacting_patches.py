@@ -31,32 +31,32 @@ if __name__ == "__main__":
 
     input_yaml = yaml.load(open(args.input), Loader=yaml.FullLoader)
 
-    interacting_regions = [
+    regions_of_interest = [
         [
-            {
-                "A": (50, 200),
-                "D": (1, 9),
-            },
-            {
-                "A": (600, 700),
-                "E": (1, 20),
-            },
-            {
-                "A": (1, 1200),
-                "C": (1, 25)
-            }
+            # {
+            #     "A": (50, 200),
+            #     "D": (1, 9),
+            # },
+            # {
+            #     "A": (600, 700),
+            #     "E": (1, 20),
+            # },
+            # {
+            #     "A": (1, 1200),
+            #     "C": (1, 25)
+            # }
+        ],
+        [
+            # {
+            #     "A": (1, 375),
+            #     "B": (1, 127),
+            # }
         ],
         [
             {
-                "A": (1, 375),
-                "B": (1, 127),
+                "A": (1600, 1800),
+                "B": (1600, 1800),
             }
-        ],
-        [
-        #     {
-        #         "A": (1600, 1800),
-        #         "B": (1600, 1800),
-        #     }
         ],
     ]
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         structure_path = pred_to_analyse.get("structure_path")
         data_path = pred_to_analyse.get("data_path")
 
-        interacting_regions_ = interacting_regions[pred_idx]
+        regions_of_interest_ = regions_of_interest[pred_idx]
 
         af_interaction = Interaction(
             struct_file_path=structure_path,
@@ -75,19 +75,16 @@ if __name__ == "__main__":
         )
 
         af_interaction.plddt_cutoff = 70
-        af_interaction.pae_cutoff = 5
+        af_interaction.pae_cutoff = 10
         af_interaction.interaction_map_type = "contact"
-        af_interaction.contact_threshold = 8
+        af_interaction.contact_threshold = 10
 
-        if not interacting_regions_:
-            interacting_regions_ = af_interaction.create_interacting_regions()
+        if not regions_of_interest_:
+            regions_of_interest_ = af_interaction.create_regions_of_interest()
 
-        for interacting_region in interacting_regions_:
-
-            af_interaction.save_interaction_info(
-                interacting_region=interacting_region,
-                save_plot=False,
-                plot_type="interactive",
-                save_table=True,
-                interface_only=True,
+        for region_of_interest in regions_of_interest_:
+            af_interaction.save_ppair_interaction(
+                region_of_interest=region_of_interest,
+                save_plot=True,
+                plot_type="both",
             )

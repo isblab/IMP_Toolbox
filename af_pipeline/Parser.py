@@ -540,17 +540,10 @@ class RenumberResidues:
     ):
         """Renumber the residues in the structure based on the offset."""
 
-        # new_structure = Structure(structure.id)
-        # model = Model(0)
-        # new_structure.add(model)
-
         for model in structure:
             for chain in model:
-                # new_chain = Chain(id=chain.id)
                 chain_id = chain.id
                 for residue in chain:
-                    # new_residue = residue.copy()
-                    # h, num, ins = new_residue.id
                     h, num, ins = residue.id
 
                     num = self.renumber_chain_res_num(
@@ -558,13 +551,7 @@ class RenumberResidues:
                         chain_id=chain_id,
                     )
 
-                    # new_residue.id = (h, num, ins)
                     residue.id = (h, num, ins)
-
-                    # new_chain.add(new_residue)
-                # new_structure[0].add(new_chain)
-
-        # del structure
 
         return structure
 
@@ -591,9 +578,9 @@ class RenumberResidues:
         return chain_res_num
 
 
-    def renumber_interacting_region(
+    def renumber_region_of_interest(
         self,
-        interacting_region: Dict,
+        region_of_interest: Dict,
     ):
         """
         Offset the interacting region to the AF2/3 numbering. \n
@@ -607,24 +594,24 @@ class RenumberResidues:
             prediction is done on a fragment of A (30-100) and B (10-50). \n
             so, user defines - \n
             af_offset = {'A': [30, 100], 'B': [10, 50]} \n
-            interacting_region = {'A': (30, 50), 'B': (20, 40)}
+            region_of_interest = {'A': (30, 50), 'B': (20, 40)}
 
-            renumbered_interacting_region = {'A': (1, 21), 'B': (11, 31)} \n
+            renumbered_region_of_interest = {'A': (1, 21), 'B': (11, 31)} \n
             i.e. within the predicted structure, the functions in the Interaction class will look for
             interactions in the region of: 1-21 resdiue of A and 11-31 residues of B.
         """
 
-        renumbered_interacting_region = {}
+        renumbered_region_of_interest = {}
 
-        for chain_id in interacting_region:
+        for chain_id in region_of_interest:
 
-            start, end = interacting_region[chain_id]
+            start, end = region_of_interest[chain_id]
 
             if self.af_offset and chain_id in self.af_offset:
 
                 start = start - (self.af_offset[chain_id][0] - 1)
                 end = end - (self.af_offset[chain_id][0] - 1)
 
-            renumbered_interacting_region[chain_id] = (start, end)
+            renumbered_region_of_interest[chain_id] = (start, end)
 
-        return renumbered_interacting_region
+        return renumbered_region_of_interest
