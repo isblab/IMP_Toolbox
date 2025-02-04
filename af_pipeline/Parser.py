@@ -1,3 +1,4 @@
+from collections import defaultdict
 import warnings
 import numpy as np
 import os
@@ -615,3 +616,29 @@ class RenumberResidues:
             renumbered_region_of_interest[chain_id] = (start, end)
 
         return renumbered_region_of_interest
+
+
+    def residue_map(self, res_dict: Dict):
+        """
+        Create a mapping of residue indices to residue numbers and vice-versa. \n
+        res_idx is essentially token index. \n
+        res_num is the residue number. \n
+        res_num = res_idx + 1 if af_offset is not provided. \n
+        res_num = res_idx + af_offset if af_offset is provided. \n
+        af_offset informs what is the starting residue number for each chain.
+        """
+
+        idx_to_num = defaultdict(dict)
+        num_to_idx = defaultdict(dict)
+
+        res_idx = 0
+        for chain_id, res_pos_list in res_dict.items():
+            for res_pos in res_pos_list:
+                res_num = res_pos[0]
+                if self.af_offset and chain_id in self.af_offset:
+                    res_num += self.af_offset[chain_id][0] - 1
+                idx_to_num[chain_id][res_idx] = res_num
+                num_to_idx[chain_id][res_num] = res_idx
+                res_idx += 1
+
+        return idx_to_num, num_to_idx

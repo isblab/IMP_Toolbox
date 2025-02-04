@@ -1,4 +1,3 @@
-from collections import defaultdict
 from af_pipeline.Parser import AfParser
 
 
@@ -72,7 +71,7 @@ class _Initialize(AfParser):
             self.lengths_dict = self.dataparser.get_chain_lengths(data=data)
 
         self.sanity_check()
-        self.idx_to_num, self.num_to_idx = self.residue_map(af_offset=self.af_offset)
+        self.idx_to_num, self.num_to_idx = self.renumber.residue_map(res_dict=self.res_dict)
 
 
     def sanity_check(self):
@@ -91,41 +90,3 @@ class _Initialize(AfParser):
 
         if not self.lengths_dict:
             raise Exception(f"No chain lengths found. {error_statement}")
-
-
-    def residue_map(self, af_offset: dict | None = None):
-        """
-        Create a mapping of residue indices to residue numbers and vice-versa. \n
-        res_idx is essentially token index. \n
-        res_num is the residue number. \n
-        res_num = res_idx + 1 if af_offset is not provided. \n
-        res_num = res_idx + af_offset if af_offset is provided. \n
-        af_offset informs what is the starting residue number for each chain.
-        """
-
-        # res_num = 1
-
-        idx_to_num = defaultdict(dict)
-        num_to_idx = defaultdict(dict)
-
-        # for res_idx, chain_id in enumerate(self.token_chain_ids):
-
-        #     res_num = self.token_res_ids[res_idx]
-
-        #     if af_offset and chain_id in af_offset:
-        #         res_num += af_offset[chain_id][0] - 1
-
-        #     idx_to_num[chain_id][res_idx] = res_num
-        #     num_to_idx[chain_id][res_num] = res_idx
-
-        res_idx = 0
-        for chain_id, res_pos_list in self.res_dict.items():
-            for res_pos in res_pos_list:
-                res_num = res_pos[0]
-                if af_offset and chain_id in af_offset:
-                    res_num += af_offset[chain_id][0] - 1
-                idx_to_num[chain_id][res_idx] = res_num
-                num_to_idx[chain_id][res_num] = res_idx
-                res_idx += 1
-
-        return idx_to_num, num_to_idx
