@@ -531,30 +531,33 @@ class RenumberResidues:
     ):
         """Renumber the residues in the structure based on the offset."""
 
-        new_structure = Structure(structure.id)
-        model = Model(0)
-        new_structure.add(model)
+        # new_structure = Structure(structure.id)
+        # model = Model(0)
+        # new_structure.add(model)
 
         for model in structure:
             for chain in model:
-                new_chain = Chain(id=chain.id)
+                # new_chain = Chain(id=chain.id)
                 chain_id = chain.id
                 for residue in chain:
-                    new_residue = residue.copy()
-                    h, num, ins = new_residue.id
+                    # new_residue = residue.copy()
+                    # h, num, ins = new_residue.id
+                    h, num, ins = residue.id
 
                     num = self.renumber_chain_res_num(
                         chain_res_num=num,
                         chain_id=chain_id,
                     )
 
-                    new_residue.id = (h, num, ins)
-                    new_chain.add(new_residue)
-                new_structure[0].add(new_chain)
+                    # new_residue.id = (h, num, ins)
+                    residue.id = (h, num, ins)
 
-        del structure
+                    # new_chain.add(new_residue)
+                # new_structure[0].add(new_chain)
 
-        return new_structure
+        # del structure
+
+        return structure
 
 
     def renumber_chain_res_num(
