@@ -7,9 +7,6 @@ from typing import Dict
 from af_pipeline.af_constants import LIGAND, ION
 import Bio
 from Bio.PDB import PDBParser, MMCIFParser, Select
-from Bio.PDB.Structure import Structure
-from Bio.PDB.Model import Model
-from Bio.PDB.Chain import Chain
 
 ALLOWED_LIGANDS = [ligand.split("_")[1] for ligand in LIGAND]
 
@@ -52,10 +49,11 @@ class AfParser:
         self.struct_file_path = struct_file_path
         # AF2/3 structure data file path.
         self.data_file_path = data_file_path
-
+        # methods to parse data file contents
         self.dataparser = DataParser(data_file_path)
 
         if struct_file_path:
+            # methods to parse structure
             self.structureparser = StructureParser(struct_file_path)
 
         self.renumber = RenumberResidues(
@@ -89,8 +87,8 @@ class AfParser:
         return_dict: bool,
     ):
         """
-        Given the averaged PAE matrix, obtain min PAe values for all residues.
-            Esentially return a vector containing row-wise min PAE values.
+        Given the averaged PAE matrix, obtain min PAE values for all residues. \n
+        Esentially return a vector containing row-wise min PAE values.\n
         min_pae indicates whether the minimum error in the interaction with some residue.
 
         If mask_intrachain, only interchain interactions are considered.
@@ -101,7 +99,6 @@ class AfParser:
             avg_pae = avg_pae * interchain_mask
         min_pae = np.min(avg_pae, axis=1)
 
-        # Convert to a dict.
         min_pae_dict = {}
         start = 0
         for chain in lengths_dict:
@@ -156,18 +153,30 @@ class DataParser:
 
     def get_residue_positions(self, data: Dict):
         """ Get the residue positions from the data dict. \n
+        This is specific to AF3: "token_chain_ids" key. \n
+        If data is AF2, None is returned. \n
+        However, similar information can be obtained from the structure file. \n
+        see AfParser.StructureParser.get_residue_positions().
 
         Args:
-            data (Dict): _description_
+            data (Dict): data dict from the data file.
+
+        Returns:
+            res_dict (Dict): dict containing the residue positions for each chain.
         """
+
         token_chain_ids = self.get_token_chain_ids(data)
         token_res_ids = self.get_token_res_ids(data)
+
         res_dict = {}
+
         for chain_id, res_id in zip(token_chain_ids, token_res_ids):
             if chain_id not in res_dict:
                 res_dict[chain_id] = np.array(res_id)
             else:
                 res_dict[chain_id] = np.append(res_dict[chain_id], res_id)
+
+        return res_dict
 
 
     def get_token_chain_ids(self, data: Dict):
