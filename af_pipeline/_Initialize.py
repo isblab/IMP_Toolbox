@@ -83,8 +83,8 @@ class _Initialize(AfParser):
 
         error_statement = "Input data file needs to be in AF3 format if structure path is not provided."
 
-        # if not self.token_chain_ids:
-        #     raise Exception(f"No chain IDs found. {error_statement}")
+        if not self.token_chain_ids:
+            raise Exception(f"No chain IDs found. {error_statement}")
 
         # if not self.token_res_ids:
         #     raise Exception(f"No residue IDs found. {error_statement}")
