@@ -146,7 +146,8 @@ classDiagram
         - __init__(self, af_offset) None
         + renumber_structure(self, structure)
         + renumber_chain_res_num(self, chain_res_num, chain_id)
-        + renumber_interacting_region(self, interacting_region)
+        + renumber_region_of_interest(self, region_of_interest)
+        + residue_map(self, res_dict)
     }
 
     ResidueSelect --|> `Bio.PDB.Select`
@@ -279,8 +280,6 @@ af_rigid.save_rigid_bodies(
   - interacting patches from contact map
 
 
-<mark> remove get_interacting_patches() </mark>
-
 ```mermaid
 ---
 config:
@@ -290,19 +289,14 @@ config:
 classDiagram
     class Interaction {
         - __init__(self, struct_file_path, data_file_path, af_offset, output_dir) None
-        + save_interaction_info(self, interacting_region, save_plot, plot_type, save_table, interface_only, **kwargs)
-        + create_interacting_regions(self)
-        + get_chains_n_indices(self, interacting_region)
-        + get_required_coords(self, chains, mol1_res, mol2_res)
-        + get_required_plddt(self, chains, mol1_res, mol2_res)
-        + get_required_pae(self, chains, mol1_res, mol2_res)
-        + get_interaction_data(self, interacting_region)
+        + save_ppair_interaction(self, region_of_interest, save_plot, plot_type)
+        + create_regions_of_interest(self)
+        + get_interaction_data(self, region_of_interest)
         + apply_confidence_cutoffs(self, plddt1, plddt2, pae)
-        + get_confident_interactions(self, interacting_region)
-        + get_contacts_as_restraints(self, chain_id1, chain_id2, p1_region, p2_region, contact_map, interface_only, residue_range)
-        + get_interacting_patches(self, contact_map, interacting_region, bandwidth)
-        + get_interacting_patches2(self, contact_map, interacting_region)
+        + get_confident_interaction_map(self, region_of_interest)
+        + get_interacting_patches(self, contact_map, region_of_interest)
     }
+
 
   Interaction --|> _Initialize
 
