@@ -5,7 +5,7 @@ Refer to the respective examples in `IMP_Toolbox/examples`
 
 With these scripts, you can -
 - find sequences for your proteins (assuming you have uniprot ids)
-- find best structures for your proteins
+- find best structures for your proteins in the PDB
 - perform pairwise sequence alignment
 
 ## sequence
@@ -33,7 +33,7 @@ fetchit = FetchSequences(uniprot_ids)
 fasta = fetchit.uniprot_to_sequences()
 ```
 
-- You can keep only UniProt ID as a header for each sequence using following. (necessary if you're using this output in af_pipeline, see af_pipeline to know why)
+- You can keep only UniProt ID as a header for each sequence using following. (necessary if you're using this output in af_pipeline to create job files for AF3-server, see af_pipeline to know why)
 
 ```python
 fasta = fetchit.only_uniprot_id_as_name(fasta)

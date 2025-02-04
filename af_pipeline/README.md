@@ -37,32 +37,37 @@ RNA_DNA_complex_8I54: # job cycle (required)
         type: "ion"
         count: 1
 ```
+
 - The only required keys are:
   1. job cycle
   2. name and type in entities
-- For most use cases, the input will look like this:
+
+- For most of our use cases, the input will look like this:
+
 ```yaml
 job_cycle:
 # job 1
-  - entities:
-    - name: "protein_1"
-      type: "proteinChain"
-    - name: "protein_2"
-      type: "proteinChain"
+  - modelSeeds: 20
+    entities:
+      - name: "protein_1"
+        type: "proteinChain"
+      - name: "protein_2"
+        type: "proteinChain"
 # job 2
   - entities:
-    - name: "dna_1"
-      type: "dnaSequence"
-    - name: "protein_2"
-      type: "proteinChain"
+      - name: "dna_1"
+        type: "dnaSequence"
+      - name: "protein_2"
+        type: "proteinChain"
 ```
+
 **Usage:**
-- For allowed entity types as well as PTMs, ligands and ions, refer to `allowed_af_things.json` or [JSON file format for AlphaFold Server jobs](https://github.com/google-deepmind/alphafold/tree/main/server) 
+- For allowed entity types as well as PTMs, ligands and ions, refer to `af_constants.py` or [JSON file format for AlphaFold Server jobs](https://github.com/google-deepmind/alphafold/tree/main/server) 
 - `modelSeeds` can either be an `int` or `list`.
   1. if `isinstance(modelSeeds, int)` -> `modelSeeds = random.sample(range(1, 10 * num_seeds), num_seeds)`
   2. if `isinstance(modelSeeds, list)` -> list taken as is
 
-  Each seed in the list will be a new job.
+  Each seed in the list will considered as a new job.
 - Input `yaml` file can contain multiple cycles, each with multiple jobs
 
 ```python
@@ -88,72 +93,273 @@ af_input.write_job_files(job_cycles=job_cycles)
 Check the following examples in the examples directory for usage.
 - `create_af_jobs.py`
 
-## AFoutput
-### Extract rigid bodies
-Using Alphafold information extract high-confidence regions from Alphafold for use as rigid bodies in IMP
-#### Description
-- uses Tristan Crolls' clustering based on only PAE to form domains (less stringent because all PAE values in a domain need not be <5) and filters the domains based on per-residue pLDDT.
+## Parser and _Initialize
+- `Parser.py` has a number of methods to parse alphafold-predicted structure and the corresponding data file.
+- The methods are arranged in different classes as follows.
 
-**Input:** `.yaml` file in the following format 
-```yaml
-- structure_path: "path/to/af_structure.cif"  # This is not required
-  data_path: "path/to/af_data.json"  # This is required
-  selection:  # This is not required
-    - id: "A"
-      model_region: [400,745]
-      af_region: [1,745]
-    - id: "B"
-      model_region: [635,1118]
-      af_region: [630,1118]
+<mark> should RenumberResidues be in Parser or utils? </mark>
+
+```mermaid
+---
+config:
+    class:
+        hideEmptyMembersBox: true
+---
+classDiagram
+    class ResidueSelect {
+        - __init__(self, confident_residues) None
+        + accept_residue(self, residue)
+    }
+
+    class AfParser {
+        - __init__(self, data_file_path, struct_file_path, af_offset) None
+        + create_interchain_mask(self, lengths_dict)
+        + get_min_pae(self, avg_pae, lengths_dict, mask_intrachain, return_dict)
+    }
+
+    class DataParser {
+        - __init__(self, data_file_path) None
+        + get_data_dict(self)
+        + get_residue_positions(self, data)
+        + get_token_chain_ids(self, data)
+        + get_token_res_ids(self, data)
+        + get_chain_lengths(self, data)
+        + get_pae(self, data)
+        + get_avg_pae(self, pae)
+    }
+
+    class StructureParser {
+        - __init__(self, struct_file_path) None
+        + get_parser(self)
+        + get_structure(self, parser)
+        + get_residues(self)
+        + extract_perresidue_quantity(self, residue, quantity)
+        + get_residue_positions(self)
+        + get_token_chain_ids(self, res_dict)
+        + get_token_res_ids(self, res_dict)
+        + get_chain_lengths(self, res_dict)
+        + get_ca_coordinates(self)
+        + get_ca_plddt(self)
+    }
+
+    class RenumberResidues {
+        - __init__(self, af_offset) None
+        + renumber_structure(self, structure)
+        + renumber_chain_res_num(self, chain_res_num, chain_id)
+        + renumber_interacting_region(self, interacting_region)
+    }
+
+    ResidueSelect --|> `Bio.PDB.Select`
+
+    class _Initialize {
+        - __init__(self, data_file_path, struct_file_path, af_offset) None
+        + get_attributes(self)
+        + sanity_check(self)
+        + residue_map(self, af_offset)
+    }
+
+    _Initialize --|> `AfParser`
+    `AfParser` --* `StructureParser`
+    `AfParser` --* `DataParser`
+    `AfParser` --* `RenumberResidues`
 ```
+
+- Some functions in `DataParser` (e.g. `get_token_res_ids`) are specific to AF3 data file format. However, if you want to analyse AF2 output, equivalent functions exist in `StructureParser`. Check docstrings of the functions for more details.
+
+- Most of the methods in `StructureParser` are not restricted to AF-predicted structure can be used on any `.cif` or `.pdb`. So, it can be used for tasks such as renumbering residues in the structure with the help of `RenumberResidues`.
+
+- `_Initialze` inherits from `Parser` and does not assume things such as number of chains in the structure or specific chain ids.
+
+## RigidBodies
+### Description
+- Given an AF-prediction, extract all pseudo rigid domains from it.
+- It is a wrapper over Tristan Croll's `pae_to_domains.py` script. (See pae_to_domains for more details)
+
+```mermaid
+---
+config:
+  class:
+    hideEmptyMembersBox: True
+---
+classDiagram
+    class RigidBodies {
+        - __init__(self, data_path, structure_path, af_offset) None
+        + domain_to_rb_dict(self, domain)
+        + filter_plddt(self, rb_dict)
+        + predict_domains(self, num_res, num_proteins, plddt_filter)
+        + save_rigid_bodies(self, domains, output_dir, output_format, save_structure)
+    }
+
+    RigidBodies --|> `_Initialize`
+```
+
+**Input:**
+- `data_file_path` (required): AF2 or AF3 output data file (`pkl` or `.json`)
+- `structure_file_path` (required if you need structure as an output): `.cif` file output from AF2 or AF3
+- `af_offset` (not required): `[start, end]` of AF-prediction for each chain if the prediction is not full-length. By default, it is assumed to be `[1, len(protein_chain)]`
+
 
 **Usage:**
-- `srtucture_path` and `selection` is optional
-- If only `data_path` is provided, the output will be only based on PAE cutoff.
+```python
+from af_pipeline.RigidBodies import RigidBodies
+
+pred_to_analyses = {
+  structure_path: "path/to/af_structure.cif",
+  data_path: "path/to/af_data.json",
+  af_offset: {
+    "A": [20, 100],
+    "B": [50, 750]
+  }
+}
+
+structure_path = pred_to_analyse.get("structure_path")
+data_path = pred_to_analyse.get("data_path")
+af_offset = pred_to_analyse.get("af_offset")
+
+af_rigid = RigidBodies(
+    structure_path=structure_path,
+    data_path=data_path,
+    af_offset=af_offset,
+)
+
+# parameters to vary
+af_rigid.plddt_cutoff = 70
+af_rigid.pae_cutoff = 5 # the maximum PAE value allowed between entities for them to be clustered into the same domain.
+af_rigid.pae_power = 1
+af_rigid.resolution = 0.5 # default value in ChimeraX
+# lower value of resolution results in larger domains
+af_rigid.library = "igraph" # "networkx" is slower
+
+domains = af_rigid.predict_domains(
+    num_res=5, # minimum number of residues in a domain
+    num_proteins=2, # minimum number of proteins in a domain
+)
+```
+- This will results in a list of dictionaries where each dict represents a pseudo-domain in the following format.
 
 ```python
-from af_pipeline.AFoutput import AFOutput
-
-af = AFOutput.RigidBodies(data_path=data_path, output_dir="path/to/dir")
-domains = af.predict_domains()
-rigid_bodies = af.get_rigid_bodies(domains)
+rb1 = {
+  "A": [20, 21, 22, 23, 25, 26],
+  "B": [50, 51, 52, 53, 54, 55, 56]
+}
 ```
+- `num_proteins=2` ensures that only those pseudo-domains that have at-least two proteins are in the output.
+- `num_res=5` ensures that each chain within a pseudo-domain has at least 5 residues.
 
-- To apply pLDDT filter, `structure_path` is needed (structure is used to get per-residue pLDDT)
+- You can additionally apply pLDDT cutoff to remove low confidence residues from the structure.
+
 ```python
-domains = af.predict_domains()
-domains = af.plddt_filtered_domains(domains)
+domains = af_rigid.predict_domains(
+    num_res=5, # minimum number of residues in a domain
+    num_proteins=2, # minimum number of proteins in a domain
+    plddt_filter=True, # filter domains based on pLDDT score
+)
+# save the rigid bodies in txt format
+af_rigid.save_rigid_bodies(
+    domains=domains,
+    output_dir=args.output,
+    output_format="txt",
+    save_structure=True, # if set to True, you will get each rigid body as a separate PDB
+)
 ```
 
-- `selection` can be provided if AF-prediction is not full-length or modeled region is not the whole AF region. Note that this is not required, by default the first residue in the AF-prediction will be assigned '1' in the output list
-- Set `selected=True` in `get_rigid_bodies()` to apply selection.
-- `num_proteins` is the minimum number of proteins to be present in a rigid body (if set to 2, rigid bodies that have at least 2 chains will be given as output)
+- If you have multiple structures to analyse, you can specify the paths and af_offset in a single `.yaml` file. See the following example in the examples directory.
+
+  - `af_rigid_bodies.py`
+
+#### References:
+- https://www.cgl.ucsf.edu/chimerax/docs/user/commands/alphafold.html#pae
+- https://github.com/tristanic/pae_to_domains
+
+
+## Interaction
+### Description
+- Given AF-prediction, get the following
+  - contact map or distance map
+  - interacting patches from contact map
+
+
+<mark> remove get_interacting_patches() </mark>
+
+```mermaid
+---
+config:
+    class:
+        hideEmptyMembersBox: true
+---
+classDiagram
+    class Interaction {
+        - __init__(self, struct_file_path, data_file_path, af_offset, output_dir) None
+        + save_interaction_info(self, interacting_region, save_plot, plot_type, save_table, interface_only, **kwargs)
+        + create_interacting_regions(self)
+        + get_chains_n_indices(self, interacting_region)
+        + get_required_coords(self, chains, mol1_res, mol2_res)
+        + get_required_plddt(self, chains, mol1_res, mol2_res)
+        + get_required_pae(self, chains, mol1_res, mol2_res)
+        + get_interaction_data(self, interacting_region)
+        + apply_confidence_cutoffs(self, plddt1, plddt2, pae)
+        + get_confident_interactions(self, interacting_region)
+        + get_contacts_as_restraints(self, chain_id1, chain_id2, p1_region, p2_region, contact_map, interface_only, residue_range)
+        + get_interacting_patches(self, contact_map, interacting_region, bandwidth)
+        + get_interacting_patches2(self, contact_map, interacting_region)
+    }
+
+  Interaction --|> _Initialize
+
+```
+
+
+**Input:**
+- `data_file_path` (required): AF2 or AF3 output data file (`pkl` or `.json`)
+- `structure_file_path` (required): `.cif` file output from AF2 or AF3
+- `af_offset` (not required): `[start, end]` of AF-prediction for each chain if the prediction is not full-length. By default, it is assumed to be `[1, len(protein_chain)]`
+- `output_dir` (not_required): path to save the output
+
+**Usage:**
+
 ```python
-rigid_bodies = af.get_rigid_bodies(domains, selected=True, num_proteins=2)
+from af_pipeline.Interaction import Interaction
+
+pred_to_analyses = {
+  structure_path: "path/to/af_structure.cif",
+  data_path: "path/to/af_data.json",
+  af_offset: {
+    "A": [20, 100],
+    "B": [50, 750]
+  }
+}
+
+structure_path = pred_to_analyse.get("structure_path")
+data_path = pred_to_analyse.get("data_path")
+af_offset = pred_to_analyse.get("af_offset")
+
+af_interaction = Interaction(
+    struct_file_path=structure_path,
+    data_file_path=data_path,
+    af_offset=af_offset,
+    output_dir="/path/to/output/",
+)
+
+# parameters to vary
+af_interaction.plddt_cutoff = 70
+af_interaction.pae_cutoff = 5
+af_interaction.interaction_map_type = "contact" # or "distance"
+af_interaction.contact_threshold = 8
 ```
-- The extracted rigid bodies can be saved in `pdb` format.
+
+- If one wants to check interaction within 20-40 residues of "A" and 50-70 residues of "B", interaction region can be defined as follows:
+
 ```python
-af.save_rigid_bodies_pdb(rigid_bodies)
+interacting_region = {
+  "A": [20, 40],
+  "B": [50, 70]
+}
+
+af_interaction.save_interaction_info(
+    interacting_region=interacting_region,
+    save_plot=False,
+    plot_type="interactive",
+    save_table=True,
+    interface_only=True,
+)
 ```
-
-Check the following examples in the examples directory for usage.
-- `extract_af_rigid_bodies.py`
-
-#### Note
-Currently the this method is preferred over `get_high_confidence_region_from_AF2.py`. That is, getting domains based on PAE first and then filtering for plDDDT is slightly better because,
-the former script only considers the split of the domains at the borders of confident residue stretch (pLDDT>=70). So, a domain boundary within such a stretch will be missed.
-e.g. as shown below, for alpha-actinin monomer, ABD-SR domains is within a confident residue-stretch.
-
-- Output from `predict_rigid_bodies.py`: correct identification of domain boundary of ABD:SR
-![image](https://github.com/user-attachments/assets/97cfe31a-e4af-4307-a033-b536c74b846f)
-- Output from `get_high_confidence_region_from_af2.py`: missed domain boundary of ABD-SR
-![image](https://github.com/user-attachments/assets/0902b16a-5683-46ec-9e92-e9379f28647b)
-
-ABD: Actin-binding domain
-SR: Spectrin repeat
-
-Refer to:
-- `extract_af_rigid_bodies.py` in `IMP_Toolbox/examples` for usage
-
-#### Extract contacts or interface residues predicted confidently for use as restraints in IMP
-WIP
