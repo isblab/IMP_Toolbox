@@ -357,9 +357,32 @@ interacting_region = {
 
 af_interaction.save_interaction_info(
     interacting_region=interacting_region,
-    save_plot=False,
+    save_plot=True,
     plot_type="interactive",
     save_table=True,
     interface_only=True,
 )
 ```
+- Alternatively, one can use `create_interacting_regions` to make interacting regions for all possible chain-pairs within the structure.
+
+```python
+interacting_regions_ = af_interaction.create_interacting_regions()
+
+for interacting_region in interacting_regions_:
+
+    af_interaction.save_interaction_info(
+        interacting_region=interacting_region,
+        save_plot=True,
+        plot_type="static",
+        save_table=True,
+        interface_only=True,
+    )
+
+```
+- Interacting patches will be saved in a `.csv` file
+- `save_plot=True` gives either of the following results.
+  - if `plot_type=interactive`: `.html` file for each chain-pair
+  - if `plot_type=static`: `.png` file for each chain-pair
+- `save_table=True` gives either of the followign results
+  - if `interface_only=True`: `.csv` file with range of interface residues for each chain in the pair
+  - if `interface_only=False`: `.csv` file with residue-residue pairs of interacting chains
