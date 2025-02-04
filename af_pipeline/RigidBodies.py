@@ -136,7 +136,7 @@ class RigidBodies(_Initialize):
 
         for res_idx in domain:
             chain_id = self.token_chain_ids[res_idx]
-            res_pos = self.idx_to_num[chain_id][res_idx]
+            res_pos = self.idx_to_num[chain_id][res_idx] # this can be modified to not use token_chain_ids
             rb_dict[chain_id].append(res_pos)
 
         return rb_dict
