@@ -53,10 +53,10 @@ if __name__ == "__main__":
             # }
         ],
         [
-            {
-                "A": (1600, 1800),
-                "B": (1600, 1800),
-            }
+            # {
+            #     "A": (1600, 1800),
+            #     "B": (1600, 1800),
+            # }
         ],
     ]
 
@@ -75,9 +75,9 @@ if __name__ == "__main__":
         )
 
         af_interaction.plddt_cutoff = 70
-        af_interaction.pae_cutoff = 10
+        af_interaction.pae_cutoff = 5
         af_interaction.interaction_map_type = "contact"
-        af_interaction.contact_threshold = 10
+        af_interaction.contact_threshold = 8
 
         if not regions_of_interest_:
             regions_of_interest_ = af_interaction.create_regions_of_interest()

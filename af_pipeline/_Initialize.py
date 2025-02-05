@@ -45,33 +45,23 @@ class _Initialize(AfParser):
         self.avg_pae = self.dataparser.get_avg_pae(pae=self.pae)
 
         if self.struct_file_path:
-            # Residue positions of all residues for each chain.
-            self.res_dict = self.structureparser.get_residue_positions()
-            self.token_chain_ids = self.structureparser.get_token_chain_ids(
-                self.res_dict
-            )
-            # self.token_res_ids = self.structureparser.get_token_res_ids(self.res_dict)
-            self.lengths_dict = self.structureparser.get_chain_lengths(self.res_dict)
+            token_chain_ids, token_res_ids = self.structureparser.get_token_chain_res_ids()
+            # Chain lengths for each chain.
+            self.lengths_dict = self.structureparser.get_chain_lengths(token_chain_ids)
             # Ca-coords of all residues for each chain.
             self.coords_dict = self.structureparser.get_ca_coordinates()
             # Ca-plddt of all residues for each chain.
             self.plddt_dict = self.structureparser.get_ca_plddt()
-            # Get minPAE for each residue.
-            self.min_pae_dict = self.get_min_pae(
-                avg_pae=self.avg_pae,
-                lengths_dict=self.lengths_dict,
-                mask_intrachain=True,
-                return_dict=True,
-            )
 
         else:
-            self.token_chain_ids = self.dataparser.get_token_chain_ids(data=data)
-            # self.token_res_ids = self.dataparser.get_token_res_ids(data=data)
-            self.res_dict = self.dataparser.get_residue_positions(data=data)
+            token_chain_ids = self.dataparser.get_token_chain_ids(data=data)
+            token_res_ids = self.dataparser.get_token_res_ids(data=data)
             self.lengths_dict = self.dataparser.get_chain_lengths(data=data)
 
         self.sanity_check()
-        self.idx_to_num, self.num_to_idx = self.renumber.residue_map(res_dict=self.res_dict)
+        self.idx_to_num, self.num_to_idx = self.renumber.residue_map(
+            token_chain_ids, token_res_ids
+        )
 
 
     def sanity_check(self):
@@ -81,12 +71,6 @@ class _Initialize(AfParser):
         """
 
         error_statement = "Input data file needs to be in AF3 format if structure path is not provided."
-
-        if not self.token_chain_ids:
-            raise Exception(f"No chain IDs found. {error_statement}")
-
-        # if not self.token_res_ids:
-        #     raise Exception(f"No residue IDs found. {error_statement}")
 
         if not self.lengths_dict:
             raise Exception(f"No chain lengths found. {error_statement}")
