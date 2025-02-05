@@ -382,4 +382,3 @@ for region_of_interest in regions_of_interest_:
   - if `plot_type=both`: both interactive sand static plots will be saved
 
 ![alt text](image.png)
-<iframe src="https://www.tldraw.com/ro/tneYAf4IZ_wgW5RtjV3hu?d=v-7573.8145.5364.2774.2N5-ttKWfJYVUsW5wZcak" title="description"></iframe>
