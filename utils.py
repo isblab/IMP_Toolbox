@@ -98,7 +98,7 @@ def read_fasta(fasta_file):
 # uncomment the line below to test in an interactive shell
 ##%%
 
-def get_key_from_res_range(res_range, as_list=False):
+def get_key_from_res_range(res_range: list, as_list=False):
     """Returns a residue range string from a list of residue numbers.
 
     Args:
@@ -171,7 +171,7 @@ def get_patches_from_matrix(matrix, chain1, chain2):
 
     """
 
-    assert np.unique(matrix).tolist() == [0, 1]; "Matrix must be binary"
+    assert np.unique(matrix).tolist() == [0, 1]; "Matrix must be binary and non-empty"
 
     # Required inner functions
     ##%%

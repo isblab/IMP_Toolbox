@@ -70,7 +70,7 @@ class RigidBodies(_Initialize):
         """
 
         pae_path = self.data_file_path
-        pae_matrix = parse_pae_file(pae_path)
+        pae_matrix = parse_pae_file(pae_file=pae_path)
 
         if self.library == "igraph":
             f = domains_from_pae_matrix_igraph
@@ -93,10 +93,10 @@ class RigidBodies(_Initialize):
             if isinstance(domain, frozenset):
                 domain = list(domain)
 
-            rb_dict = self.domain_to_rb_dict(domain)
+            rb_dict = self.domain_to_rb_dict(domain=domain)
 
             if plddt_filter:
-                rb_dict = self.filter_plddt(rb_dict)
+                rb_dict = self.filter_plddt(rb_dict=rb_dict)
 
             domains[idx] = rb_dict
 
@@ -150,9 +150,10 @@ class RigidBodies(_Initialize):
             confident_residues = []
             for chain_res_idx, plddt_score in enumerate(self.plddt_dict[chain_id]):
                 res_num = chain_res_idx + 1
-                res_num = self.renumber.renumber_chain_res_num(res_num, chain_id)
-                # if self.af_offset and chain_id in self.af_offset:
-                #     res_num = res_num + self.af_offset[chain_id][0] - 1
+                res_num = self.renumber.renumber_chain_res_num(
+                    chain_res_num=res_num,
+                    chain_id=chain_id
+                )
 
                 if res_num in rb_res_pos_list and plddt_score >= self.plddt_cutoff:
                     confident_residues.append(res_num)
@@ -195,7 +196,7 @@ class RigidBodies(_Initialize):
 
                     for chain_id, res_list in rb_dict.items():
                         if len(res_list) > 0:
-                            f.write(f"{chain_id}: {get_key_from_res_range(res_list)}\n")
+                            f.write(f"{chain_id}: {get_key_from_res_range(res_range=res_list)}\n")
 
                     f.write("\n")
 

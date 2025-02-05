@@ -88,3 +88,4 @@ if __name__ == "__main__":
                 save_plot=True,
                 plot_type="both",
             )
+        print("-------------------------------")

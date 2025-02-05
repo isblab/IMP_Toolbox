@@ -46,16 +46,12 @@ class AfParser:
         af_offset: dict | None = None,
     ):
 
-        # AF2/3 structure file path.
-        self.struct_file_path = struct_file_path
-        # AF2/3 structure data file path.
-        self.data_file_path = data_file_path
-        # methods to parse data file contents
-        self.dataparser = DataParser(data_file_path)
+        self.struct_file_path = struct_file_path  # AF2/3 structure file path.
+        self.data_file_path = data_file_path  # AF2/3 structure data file path.
+        self.dataparser = DataParser(data_file_path=data_file_path)  # methods to parse data file contents
 
         if struct_file_path:
-            # methods to parse structure
-            self.structureparser = StructureParser(struct_file_path)
+            self.structureparser = StructureParser(struct_file_path=struct_file_path)  # methods to parse structure
 
         self.renumber = RenumberResidues(
             af_offset=af_offset
@@ -65,6 +61,12 @@ class AfParser:
     def create_interchain_mask(self, lengths_dict: Dict):
         """
         Create a binary 2D mask for selecting only interchain interactions.
+
+        Args:
+            lengths_dict (Dict): dict containing the chain lengths. {chain_id: length}
+
+        Returns:
+            interchain_mask (np.array): binary 2D mask for selecting only interchain interactions.
         """
 
         sys_len = lengths_dict.pop("total")
@@ -93,24 +95,36 @@ class AfParser:
         min_pae indicates whether the minimum error in the interaction with some residue.
 
         If mask_intrachain, only interchain interactions are considered.
+
+        Args:
+            avg_pae (np.array): average PAE matrix.
+            lengths_dict (Dict): dict containing the chain lengths. {chain_id: length}
+            mask_intrachain (bool): mask intrachain interactions.
+            return_dict (bool): return min_pae_dict or min_pae.
+
+        Returns:
+            min_pae_dict (Dict): dict containing the min PAE values for each chain.
+            min_pae (np.array): min PAE values for all residues
         """
 
         if mask_intrachain:
-            interchain_mask = self.create_interchain_mask(lengths_dict)
+            interchain_mask = self.create_interchain_mask(lengths_dict=lengths_dict)
             avg_pae = avg_pae * interchain_mask
+
         min_pae = np.min(avg_pae, axis=1)
 
         min_pae_dict = {}
         start = 0
+
         for chain in lengths_dict:
             if chain != "total":
                 end = start + lengths_dict[chain]
                 min_pae_dict[chain] = min_pae[start:end]
-
                 start = end
 
         if return_dict:
             return min_pae_dict
+
         else:
             return min_pae
 
@@ -134,6 +148,12 @@ class DataParser:
         Parse the AF2/3 data file. \n
         AF2 data file is saved as a .pkl file \n
         whereas for AF3 it's stored as .json.
+
+        Args:
+            data_file_path (str): path to the data file.
+
+        Returns:
+            data (Dict): data dict from the data file.
         """
 
         ext = os.path.splitext(self.data_file_path)[1]
@@ -166,8 +186,8 @@ class DataParser:
             res_dict (Dict): dict containing the residue positions for each chain.
         """
 
-        token_chain_ids = self.get_token_chain_ids(data)
-        token_res_ids = self.get_token_res_ids(data)
+        token_chain_ids = self.get_token_chain_ids(data=data)
+        token_res_ids = self.get_token_res_ids(data=data)
 
         res_dict = {}
 
@@ -272,6 +292,12 @@ class DataParser:
     def get_pae(self, data: Dict):
         """
         Return the PAE matrix from the data dict. \n
+
+        Args:
+            data (Dict): data dict from the data file.
+
+        Returns:
+            pae (np.array): PAE matrix.
         """
 
         # For AF2.
@@ -289,6 +315,12 @@ class DataParser:
     def get_avg_pae(self, pae: np.ndarray):
         """
         Return the average PAE matrix. \n
+
+        Args:
+            pae (np.array): PAE matrix.
+
+        Returns:
+            avg_pae (np.array): average PAE matrix.
         """
 
         avg_pae = (pae + pae.T) / 2
@@ -309,12 +341,20 @@ class StructureParser:
 
     def __init__(self, struct_file_path: str):
         self.struct_file_path = struct_file_path
-        self.structure = self.get_structure(self.get_parser())
+        self.structure = self.get_structure(
+            parser=self.get_parser()
+        )
 
 
     def get_parser(self):
         """
         Get the required parser (PDB/CIF) for the input file.
+
+        Args:
+            struct_file_path (str): path to the structure file.
+
+        Returns:
+            parser (Bio.PDB.PDBParser | Bio.PDB.MMCIFParser): parser object.
         """
 
         ext = os.path.splitext(self.struct_file_path)[1]
@@ -332,10 +372,19 @@ class StructureParser:
     def get_structure(self, parser: Bio.PDB.PDBParser):
         """
         Return the Biopython Structure object for the input file.
+
+        Args:
+            parser (Bio.PDB.PDBParser | Bio.PDB.MMCIFParser): parser object.
+
+        Returns:
+            structure (Bio.PDB.Structure.Structure): Biopython Structure object.
         """
 
         basename = os.path.basename(self.struct_file_path)
-        structure = parser.get_structure(basename, self.struct_file_path)
+        structure = parser.get_structure(
+            basename,
+            self.struct_file_path
+        )
 
         return structure
 
@@ -343,6 +392,13 @@ class StructureParser:
     def get_residues(self):
         """
         Get all residues in the structure.
+
+        Args:
+            structure (Bio.PDB.Structure.Structure): Biopython Structure object.
+
+        Yields:
+            residue (Bio.PDB.Residue.Residue): Biopython residue object. \n
+            chain_id (str): chain ID.
         """
 
         for model in self.structure:
@@ -359,6 +415,15 @@ class StructureParser:
             1. residue or nucleotide or ion position \n
             2. Ca-coordinate or representative atom coordinate \n
             3. Ca-pLDDT or representative atom pLDDT
+
+        Args:
+            residue (Bio.PDB.Residue.Residue): Biopython residue object.
+            quantity (str): quantity to extract.
+
+        Returns:
+            res_id (int): residue position. \n
+            coords (np.array): coordinates of the representative atom. \n
+            plddt (float): pLDDT value
         """
 
         symbol = residue.get_resname()
@@ -433,6 +498,9 @@ class StructureParser:
         """
         Get the chain IDs for all residues.
 
+        Args:
+            res_dict (Dict): dict containing the residue positions for each chain.
+
         Returns:
             token_chain_ids (list): list of chain IDs for all tokens.
         """
@@ -448,6 +516,9 @@ class StructureParser:
     def get_token_res_ids(self, res_dict: Dict):
         """
         Get the residue IDs for all residues.
+
+        Args:
+            res_dict (Dict): dict containing the residue positions for each chain.
 
         Returns:
             token_res_ids (list): list of residue IDs for all tokens.
@@ -465,6 +536,9 @@ class StructureParser:
         """
         Create a dict containing the length of all chains in the system \n
         and the total length of the system.
+
+        Args:
+            res_dict (Dict): dict containing the residue positions for each chain.
 
         Returns:
             lengths_dict (Dict): dict containing the chain lengths. {chain_id: length}
@@ -491,7 +565,10 @@ class StructureParser:
         coords_dict = {}
 
         for residue, chain_id in self.get_residues():
-            coords = self.extract_perresidue_quantity(residue, "coords")
+            coords = self.extract_perresidue_quantity(
+                residue=residue,
+                quantity="coords"
+            )
 
             if chain_id not in coords_dict.keys():
                 coords_dict[chain_id] = np.array(coords)
@@ -514,7 +591,10 @@ class StructureParser:
         plddt_dict = {}
 
         for residue, chain_id in self.get_residues():
-            plddt = self.extract_perresidue_quantity(residue, "plddt")
+            plddt = self.extract_perresidue_quantity(
+                residue=residue,
+                quantity="plddt"
+            )
 
             if chain_id not in plddt_dict.keys():
                 plddt_dict[chain_id] = np.array([plddt])
@@ -539,7 +619,14 @@ class RenumberResidues:
         self,
         structure: Bio.PDB.Structure.Structure,
     ):
-        """Renumber the residues in the structure based on the offset."""
+        """Renumber the residues in the structure based on the offset.
+
+        Args:
+            structure (Bio.PDB.Structure.Structure): Biopython Structure object.
+
+        Returns:
+            structure (Bio.PDB.Structure.Structure): Biopython Structure object with renumbered residues.
+        """
 
         for model in structure:
             for chain in model:
@@ -570,7 +657,7 @@ class RenumberResidues:
             af_offset (dict): offset dictionary
 
         Returns:
-            int: renumbered residue number
+            chain_res_num (int): renumbered residue number
         """
 
         if self.af_offset and chain_id in self.af_offset:
@@ -589,6 +676,12 @@ class RenumberResidues:
         However, if the prediction is done on a fragment of the protein, the numbering will be different. \n
         This function offsets the interacting region to the numbering of the predicted structure. \n
         By default, the offset is assumed to be 0.
+
+        Args:
+            region_of_interest (Dict): dict containing the region of interest for each chain.
+
+        Returns:
+            renumbered_region_of_interest (Dict): dict containing the renumbered region of interest for each chain.
 
         Example:
             consider a prediction involving proteins A (100 aa) and B (50 aa). \n
@@ -634,11 +727,19 @@ class RenumberResidues:
         res_idx = 0
         for chain_id, res_pos_list in res_dict.items():
             for res_pos in res_pos_list:
+
                 res_num = res_pos[0]
-                if self.af_offset and chain_id in self.af_offset:
-                    res_num += self.af_offset[chain_id][0] - 1
+
+                res_num = self.renumber_chain_res_num(
+                    chain_res_num=res_num,
+                    chain_id=chain_id,
+                )
+                # if self.af_offset and chain_id in self.af_offset:
+                #     res_num += self.af_offset[chain_id][0] - 1
+
                 idx_to_num[chain_id][res_idx] = res_num
                 num_to_idx[chain_id][res_num] = res_idx
+
                 res_idx += 1
 
         return idx_to_num, num_to_idx

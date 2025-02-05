@@ -40,53 +40,6 @@ class Interaction(_Initialize):
 
         self.save_plot = False
         self.save_table = False
-        # print(self.num_to_idx)
-
-    def save_ppair_interaction(
-        self,
-        region_of_interest: Dict,
-        save_plot: bool = False,
-        plot_type: str = "static",
-    ):
-        """Save the interacting patches for the given region of interest of the protein pair.
-
-        Args:
-            region_of_interest (Dict): Dictionary containing the chain IDs and the residue indices for the region of interest.
-            save_plot (bool, optional): Outputs the plot if True. Defaults to False.
-            plot_type (str, optional): Type of plot to be saved. Defaults to "static"; options: ["static", "interactive", "both"].
-        """
-
-        chain1, chain2 = list(region_of_interest.keys())
-        p1_region, p2_region = region_of_interest[chain1], region_of_interest[chain2]
-
-        contact_map = self.get_confident_interaction_map(
-            region_of_interest=region_of_interest
-        )
-
-        if np.unique(contact_map).size == 1:
-            print(f"No confident interactions found for {chain1}:{p1_region} and {chain2}:{p2_region}.")
-
-        else:
-            interacting_patches = self.get_interacting_patches(
-                contact_map=contact_map,
-                region_of_interest=region_of_interest,
-            )
-
-            file_name = "_".join([
-                f"{k}:{v[0]}-{v[1]}" for k, v in region_of_interest.items()
-            ])
-
-            save_map(
-                contact_map=contact_map,
-                patches=interacting_patches,
-                chain1=chain1,
-                chain2=chain2,
-                p1_region=p1_region,
-                p2_region=p2_region,
-                out_file=os.path.join(self.output_dir, f"patches_{file_name}.html"),
-                save_plot=save_plot,
-                plot_type=plot_type,
-            )
 
 
     def create_regions_of_interest(self):
@@ -143,14 +96,15 @@ class Interaction(_Initialize):
         """
 
         chain1, chain2 = list(region_of_interest.keys())
+        p1_region, p2_region = region_of_interest[chain1], region_of_interest[chain2]
 
         # chain1 start and end indices.
-        start_idx1 = self.num_to_idx[chain1][region_of_interest[chain1][0]]
-        end_idx1 = self.num_to_idx[chain1][region_of_interest[chain1][1]]
+        start_idx1 = self.num_to_idx[chain1][p1_region[0]]
+        end_idx1 = self.num_to_idx[chain1][p1_region[1]]
 
         # chain2 start and end indices.
-        start_idx2 = self.num_to_idx[chain2][region_of_interest[chain2][0]]
-        end_idx2 = self.num_to_idx[chain2][region_of_interest[chain2][1]]
+        start_idx2 = self.num_to_idx[chain2][p2_region[0]]
+        end_idx2 = self.num_to_idx[chain2][p2_region[1]]
 
         pae = self.avg_pae[start_idx1:end_idx1+1, start_idx2:end_idx2+1]
 
@@ -227,18 +181,27 @@ class Interaction(_Initialize):
         patches for the given contact map.
 
         Args:
-            contact_map (np.array): _description_
-            region_of_interest (dict): _description_
+            contact_map (np.array): binary contact map.
+            region_of_interest (dict): region of interest for the protein pair.
 
         Returns:
-            _type_: _description_
+            patches (dict): interacting patches for the given region of interest of the protein pair.
         """
 
         patches = {}
 
         chain1, chain2 = region_of_interest.keys()
+        p1_region, p2_region = region_of_interest[chain1], region_of_interest[chain2]
 
-        patches_df = get_patches_from_matrix(contact_map, chain1=chain1, chain2=chain2)
+        if np.unique(contact_map).tolist() == [0]: # No interactions found.
+            print(f"No interacting patches found for {chain1}:{p1_region} and {chain2}:{p2_region}.")
+            return patches
+
+        patches_df = get_patches_from_matrix(
+            matrix=contact_map,
+            chain1=chain1,
+            chain2=chain2
+        )
 
         for patch_idx, patch in patches_df.iterrows():
 
@@ -257,3 +220,48 @@ class Interaction(_Initialize):
             }
 
         return patches
+
+
+    def save_ppair_interaction(
+        self,
+        region_of_interest: Dict,
+        save_plot: bool = False,
+        plot_type: str = "static",
+    ):
+        """Save the interacting patches for the given region of interest of the protein pair.
+
+        Args:
+            region_of_interest (Dict): Dictionary containing the chain IDs and the residue indices for the region of interest.
+            save_plot (bool, optional): Outputs the plot if True. Defaults to False.
+            plot_type (str, optional): Type of plot to be saved. Defaults to "static"; options: ["static", "interactive", "both"].
+        """
+
+        chain1, chain2 = list(region_of_interest.keys())
+        p1_region, p2_region = region_of_interest[chain1], region_of_interest[chain2]
+
+        contact_map = self.get_confident_interaction_map(
+            region_of_interest=region_of_interest
+        )
+
+        interacting_patches = self.get_interacting_patches(
+            contact_map=contact_map,
+            region_of_interest=region_of_interest,
+        )
+
+        if len(interacting_patches) > 0:
+
+            file_name = "_".join([
+                f"{k}:{v[0]}-{v[1]}" for k, v in region_of_interest.items()
+            ])
+
+            save_map(
+                contact_map=contact_map,
+                patches=interacting_patches,
+                chain1=chain1,
+                chain2=chain2,
+                p1_region=p1_region,
+                p2_region=p2_region,
+                out_file=os.path.join(self.output_dir, f"patches_{file_name}.html"),
+                save_plot=save_plot,
+                plot_type=plot_type,
+            )
