@@ -222,7 +222,9 @@ af_rigid = RigidBodies(
     data_path=data_path,
     af_offset=af_offset,
 )
+```
 
+```python
 # parameters to vary
 af_rigid.plddt_cutoff = 70
 af_rigid.pae_cutoff = 5 # the maximum PAE value allowed between entities for them to be clustered into the same domain.
@@ -230,12 +232,18 @@ af_rigid.pae_power = 1
 af_rigid.resolution = 0.5 # default value in ChimeraX
 # lower value of resolution results in larger domains
 af_rigid.library = "igraph" # "networkx" is slower
+```
 
+- `resolution` parameter can be varied to get different results (higher values will result in stricter clusters and thus smaller pseudo-domains)
+
+```python
 domains = af_rigid.predict_domains(
     num_res=5, # minimum number of residues in a domain
     num_proteins=2, # minimum number of proteins in a domain
 )
 ```
+- `num_proteins=2` ensures that only those pseudo-domains that have at-least two proteins are in the output.
+- `num_res=5` ensures that each chain within a pseudo-domain has at least 5 residues.
 - This will results in a list of dictionaries where each dict represents a pseudo-domain in the following format.
 
 ```python
@@ -244,10 +252,8 @@ rb1 = {
   "B": [50, 51, 52, 53, 54, 55, 56]
 }
 ```
-- `num_proteins=2` ensures that only those pseudo-domains that have at-least two proteins are in the output.
-- `num_res=5` ensures that each chain within a pseudo-domain has at least 5 residues.
 
-- You can additionally apply pLDDT cutoff to remove low confidence residues from the structure.
+- You can additionally apply pLDDT cutoff (`plddt_filter=True`) to remove low confidence residues from the structure.
 
 ```python
 domains = af_rigid.predict_domains(
@@ -255,7 +261,7 @@ domains = af_rigid.predict_domains(
     num_proteins=2, # minimum number of proteins in a domain
     plddt_filter=True, # filter domains based on pLDDT score
 )
-# save the rigid bodies in txt format
+
 af_rigid.save_rigid_bodies(
     domains=domains,
     output_dir=args.output,
@@ -263,7 +269,7 @@ af_rigid.save_rigid_bodies(
     save_structure=True, # if set to True, you will get each rigid body as a separate PDB
 )
 ```
-
+- Output will be a `.txt` file with residue ranges for each rigid body/ pseudo-domain.
 - If you have multiple structures to analyse, you can specify the paths and af_offset in a single `.yaml` file. See the following example in the examples directory.
 
   - `af_rigid_bodies.py`
@@ -340,43 +346,39 @@ af_interaction.pae_cutoff = 5
 af_interaction.interaction_map_type = "contact" # or "distance"
 af_interaction.contact_threshold = 8
 ```
-
-- If one wants to check interaction within 20-40 residues of "A" and 50-70 residues of "B", interaction region can be defined as follows:
+- **Note:** to get interacting patches `interaction_map_type` has to be `"contact"`
+- If one wants to check interaction within 20-40 residues of "A" and 50-70 residues of "B", region -f interest can be defined as follows:
 
 ```python
-interacting_region = {
+region_of_interest = {
   "A": [20, 40],
   "B": [50, 70]
 }
 
 af_interaction.save_interaction_info(
-    interacting_region=interacting_region,
+    region_of_interest=region_of_interest,
     save_plot=True,
     plot_type="interactive",
-    save_table=True,
-    interface_only=True,
 )
 ```
-- Alternatively, one can use `create_interacting_regions` to make interacting regions for all possible chain-pairs within the structure.
+- Alternatively, one can use `create_regions_of_interest` to make interacting regions for all possible chain-pairs within the structure.
 
 ```python
-interacting_regions_ = af_interaction.create_interacting_regions()
+regions_of_interest_ = af_interaction.create_regions_of_interest()
 
-for interacting_region in interacting_regions_:
+for region_of_interest in regions_of_interest_:
 
     af_interaction.save_interaction_info(
-        interacting_region=interacting_region,
+        region_of_interest=region_of_interest,
         save_plot=True,
         plot_type="static",
-        save_table=True,
-        interface_only=True,
     )
 
 ```
-- Interacting patches will be saved in a `.csv` file
+- Interacting patches for each region of interest will be saved in a `.csv` file
 - `save_plot=True` gives either of the following results.
   - if `plot_type=interactive`: `.html` file for each chain-pair
   - if `plot_type=static`: `.png` file for each chain-pair
-- `save_table=True` gives either of the followign results
-  - if `interface_only=True`: `.csv` file with range of interface residues for each chain in the pair
-  - if `interface_only=False`: `.csv` file with residue-residue pairs of interacting chains
+  - if `plot_type=both`: both interactive sand static plots will be saved
+
+![alt text](image.png)
