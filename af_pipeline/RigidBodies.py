@@ -100,8 +100,14 @@ class RigidBodies(_Initialize):
 
             domains[idx] = rb_dict
 
-        domains = [rb_dict for rb_dict in domains if len(rb_dict) >= num_proteins]
+        # Filter out domains with less than num_proteins proteins
+        domains = [
+            rb_dict
+            for rb_dict in domains
+            if len(rb_dict) >= num_proteins
+        ]
 
+        # Filter out domains with less than num_res residues
         domains = [
             rb_dict
             for rb_dict in domains
@@ -135,35 +141,44 @@ class RigidBodies(_Initialize):
         rb_dict = defaultdict(list)
 
         for res_idx in domain:
-            chain_id = self.token_chain_ids[res_idx]
-            res_pos = self.idx_to_num[chain_id][res_idx] # this can be modified to not use token_chain_ids
-            rb_dict[chain_id].append(res_pos)
+
+            res_num = self.idx_to_num[res_idx].get("res_num")
+            chain_id = self.idx_to_num[res_idx].get("chain_id")
+
+            rb_dict[chain_id].append(res_num)
 
         return rb_dict
 
 
     def filter_plddt(self, rb_dict: dict):
-        """Filter the residues in the rigid bodies based on the pLDDT cutoff."""
+        """Filter the residues in the rigid bodies based on the pLDDT cutoff.
+        - If the pLDDT score of a residue is less than the cutoff, it is removed from the rigid body.
+        Args:
+            rb_dict (dict): dictionary of rigid bodies
 
-        for chain_id, rb_res_pos_list in rb_dict.items():
+        Returns:
+            rb_dict (dict): dictionary of rigid bodies with residues filtered based on the pLDDT cutoff
+        """
+
+        # Filter the residues in each chain in the rigid body based on the pLDDT cutoff
+        for chain_id, rb_res_num_list in rb_dict.items():
 
             confident_residues = []
-            for chain_res_idx, plddt_score in enumerate(self.plddt_dict[chain_id]):
-                res_num = chain_res_idx + 1
-                res_num = self.renumber.renumber_chain_res_num(
-                    chain_res_num=res_num,
-                    chain_id=chain_id
-                )
 
-                if res_num in rb_res_pos_list and plddt_score >= self.plddt_cutoff:
+            for res_num in rb_res_num_list:
+                res_idx = self.num_to_idx[chain_id][res_num]
+                plddt_score = self.plddt_dict[res_idx]
+
+                if plddt_score >= self.plddt_cutoff:
                     confident_residues.append(res_num)
 
             rb_dict[chain_id] = confident_residues
 
+        # Remove chains which have no confident residues
         empty_chains = []
 
         for chain_id, confident_residues in rb_dict.items():
-            if not confident_residues:
+            if len(confident_residues) == 0:
                 empty_chains.append(chain_id)
 
         for chain_id in empty_chains:
@@ -172,7 +187,13 @@ class RigidBodies(_Initialize):
         return rb_dict
 
 
-    def save_rigid_bodies(self, domains: list, output_dir: str, output_format: str = "txt", save_structure: bool = True):
+    def save_rigid_bodies(
+        self,
+        domains: list,
+        output_dir: str,
+        output_format: str = "txt",
+        save_structure: bool = True
+    ):
         """Save the rigid bodies to a text file."""
 
         output_dir = os.path.join(output_dir)
@@ -195,12 +216,16 @@ class RigidBodies(_Initialize):
                     f.write(f"Rigid Body {idx}\n")
 
                     for chain_id, res_list in rb_dict.items():
+
                         if len(res_list) > 0:
-                            f.write(f"{chain_id}: {get_key_from_res_range(res_range=res_list)}\n")
+                            f.write(
+                                f"{chain_id}: {get_key_from_res_range(res_range=res_list)}\n"
+                            )
 
                     f.write("\n")
 
         if save_structure:
+
             structure = self.renumber.renumber_structure(
                 structure=self.structureparser.structure,
             )

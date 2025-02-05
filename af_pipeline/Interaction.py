@@ -1,4 +1,3 @@
-from copy import deepcopy
 import os
 from typing import Dict
 import numpy as np
@@ -51,35 +50,48 @@ class Interaction(_Initialize):
         """
 
         regions_of_interest = []
-
+        token_chain_ids = self.dataparser.get_token_chain_ids(
+            data=self.dataparser.get_data_dict()
+        )
         chain_pairs = set()
 
-        for chain1 in self.res_dict:
-            for chain2 in self.res_dict:
+        for chain1 in set(token_chain_ids):
+            for chain2 in set(token_chain_ids):
                 if chain1 != chain2:
-                    pair = tuple(sorted((chain1, chain2)))
+                    pair = tuple(sorted([chain1, chain2]))
                     chain_pairs.add(pair)
 
         chain_pairs = list(chain_pairs)
 
         for chain1, chain2 in chain_pairs:
 
-            if self.af_offset:
-                ch1_start = self.af_offset[chain1][0] if chain1 in self.af_offset else 1
-                ch2_start = self.af_offset[chain2][0] if chain2 in self.af_offset else 1
-            else:
-                ch1_start = 1
-                ch2_start = 1
-
-            ch1_end = ch1_start + len(self.res_dict[chain1]) - 1
-            ch2_end = ch2_start + len(self.res_dict[chain2]) - 1
-
-            regions_of_interest.append(
-                {
-                    chain1: (ch1_start, ch1_end),
-                    chain2: (ch2_start, ch2_end),
-                }
+            ch1_start = self.renumber.renumber_chain_res_num(
+                chain_res_num=1,
+                chain_id=chain1
             )
+            ch1_end = self.renumber.renumber_chain_res_num(
+                chain_res_num=self.lengths_dict[chain1],
+                chain_id=chain1
+            )
+            ch2_start = self.renumber.renumber_chain_res_num(
+                chain_res_num=1,
+                chain_id=chain2
+            )
+            ch2_end = self.renumber.renumber_chain_res_num(
+                chain_res_num=self.lengths_dict[chain2],
+                chain_id=chain2
+            )
+
+            region_of_interest = {
+                chain1: [ch1_start, ch1_end],
+                chain2: [ch2_start, ch2_end],
+            }
+
+            # region_of_interest = self.renumber.renumber_region_of_interest(
+            #     region_of_interest=region_of_interest,
+            # )
+
+            regions_of_interest.append(region_of_interest)
 
         return regions_of_interest
 
@@ -108,23 +120,16 @@ class Interaction(_Initialize):
 
         pae = self.avg_pae[start_idx1:end_idx1+1, start_idx2:end_idx2+1]
 
-        region_of_interest = self.renumber.renumber_region_of_interest(
-            region_of_interest=region_of_interest,
-        )
+        coords1 = np.array(self.coords_dict[start_idx1:end_idx1+1])
+        coords2 = np.array(self.coords_dict[start_idx2:end_idx2+1])
 
-        mol1_res1, mol1_res2 = region_of_interest[chain1]
-        mol2_res1, mol2_res2 = region_of_interest[chain2]
-
-        coords1 = self.coords_dict[chain1][mol1_res1-1:mol1_res2, :]
-        coords2 = self.coords_dict[chain2][mol2_res1-1:mol2_res2, :]
-
-        plddt1 = self.plddt_dict[chain1][mol1_res1-1:mol1_res2]
-        plddt2 = self.plddt_dict[chain2][mol2_res1-1:mol2_res2]
+        plddt1 = np.array(self.plddt_dict[start_idx1:end_idx1+1])
+        plddt2 = np.array(self.plddt_dict[start_idx2:end_idx2+1])
 
         # Create a contact map or distance map as specified.
         interaction_map = get_interaction_map(
-            coords1=coords1,
-            coords2=coords2,
+            coords1=coords1.reshape(-1, 3),
+            coords2=coords2.reshape(-1, 3),
             contact_threshold=self.contact_threshold,
             map_type=self.interaction_map_type
         )
@@ -132,7 +137,12 @@ class Interaction(_Initialize):
         return interaction_map, plddt1, plddt2, pae
 
 
-    def apply_confidence_cutoffs(self, plddt1: np.array, plddt2: np.array, pae: np.array):
+    def apply_confidence_cutoffs(
+        self,
+        plddt1: np.array,
+        plddt2: np.array,
+        pae: np.array
+    ):
         """
         mask low-confidence interactions.
 
@@ -141,6 +151,7 @@ class Interaction(_Initialize):
             pae (np.array): binary matrix for pae values <= pae_cutoff
         """
 
+        plddt1, plddt2 = plddt1.reshape(-1, 1), plddt2.reshape(-1,1)
         plddt1 = np.where(plddt1 >= self.plddt_cutoff, 1, 0)
         plddt2 = np.where(plddt2 >= self.plddt_cutoff, 1, 0)
         plddt_matrix = plddt1 * plddt2.T
@@ -215,8 +226,16 @@ class Interaction(_Initialize):
             ch2_patch = np.array(ch2_patch) + region_of_interest[chain2][0]
 
             patches[patch_idx] = {
-                chain1: f"{ch1_patch[0]}-{ch1_patch[-1]}" if len(ch1_patch) > 1 else str(ch1_patch[0]),
-                chain2: f"{ch2_patch[0]}-{ch2_patch[-1]}" if len(ch2_patch) > 1 else str(ch2_patch[0]),
+                chain1: (
+                    f"{ch1_patch[0]}-{ch1_patch[-1]}"
+                    if len(ch1_patch) > 1
+                    else str(ch1_patch[0])
+                ),
+                chain2: (
+                    f"{ch2_patch[0]}-{ch2_patch[-1]}"
+                    if len(ch2_patch) > 1
+                    else str(ch2_patch[0])
+                ),
             }
 
         return patches

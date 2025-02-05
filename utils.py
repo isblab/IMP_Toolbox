@@ -91,7 +91,11 @@ def read_fasta(fasta_file):
             seq_id = line[1:].strip()
         else:
             seq = line.strip()
-            all_sequences[seq_id] = seq if seq_id not in all_sequences else all_sequences[seq_id] + seq
+            all_sequences[seq_id] = (
+                seq
+                if seq_id not in all_sequences
+                else all_sequences[seq_id] + seq
+            )
 
     return all_sequences
 
@@ -292,7 +296,11 @@ def get_patches_from_matrix(matrix, chain1, chain2):
         for set1 in list_of_sets:
             for idx, one_set in one_sets.items():
                 if set1.issubset(one_set):
-                    new_one_sets[idx].append(set1) if set1 not in new_one_sets[idx] else None
+                    (
+                        new_one_sets[idx].append(set1)
+                        if set1 not in new_one_sets[idx]
+                        else None
+                    )
 
         return new_one_sets
     # test
