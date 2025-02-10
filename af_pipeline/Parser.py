@@ -288,11 +288,11 @@ class DataParser:
         """
 
         # For AF2.
-        if "predicted_aligned_error" in data.keys():
+        if "predicted_aligned_error" in data:
             pae = np.array(data["predicted_aligned_error"])
 
         # For AF3.
-        elif "pae" in data.keys():
+        elif "pae" in data:
             pae = np.array(data["pae"])
 
         else:
@@ -524,7 +524,7 @@ class StructureParser:
 
         coords_list = []
 
-        for residue, chain_id in self.get_residues():
+        for residue, _chain_id in self.get_residues():
 
             coords = self.extract_perresidue_quantity(
                 residue=residue,
@@ -545,7 +545,7 @@ class StructureParser:
 
         plddt_list = []
 
-        for residue, chain_id in self.get_residues():
+        for residue, _chain_id in self.get_residues():
 
             plddt = self.extract_perresidue_quantity(
                 residue=residue,
@@ -678,9 +678,9 @@ class RenumberResidues:
         idx_to_num = {}
         num_to_idx = defaultdict(dict)
 
-        res_idx = 0
-
-        for chain_id, res_num in zip(token_chain_ids, token_res_ids):
+        for res_idx, (chain_id, res_num) in enumerate(
+            zip(token_chain_ids, token_res_ids)
+        ):
 
             res_num = self.renumber_chain_res_num(
                 chain_res_num=res_num,
@@ -693,7 +693,5 @@ class RenumberResidues:
             }
 
             num_to_idx[chain_id][res_num] = res_idx
-
-            res_idx += 1
 
         return idx_to_num, num_to_idx

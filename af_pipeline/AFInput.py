@@ -1,9 +1,11 @@
 import os
 import json
 import random
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Final
 from af_pipeline.af_constants import PTM, DNA_MOD, RNA_MOD, LIGAND, ION, ENTITY_TYPES
 
+# constants
+SEED_MULTIPLIER: Final[int] = 10
 
 class AFInput:
     """ Class to handle the creation of AlphaFold input files
@@ -16,6 +18,11 @@ class AFInput:
         nucleic_acid_sequences: Dict[str, str] | None = None,
         proteins: Dict[str, str] = {},
     ):
+        if not input_yml:
+            raise ValueError("Input yaml file is empty")
+        if not protein_sequences:
+            raise ValueError("Protein sequences are empty")
+
         self.input_yml = input_yml
         self.proteins = proteins
         self.protein_sequences = protein_sequences
@@ -115,7 +122,10 @@ class AFCycle:
 
     def update_cycle(self):
         """Update the cycle with the jobs
-        for each job, based on the provided info, use the AFJob class to create a job
+
+        For each job in jobs_info, creates an AFJob instance and uses it to create
+        a job dictionary. The job dictionary is then seeded to create multiple jobs
+        based on model seeds.
         """
 
         for job_info in self.jobs_info:
@@ -276,7 +286,7 @@ class AFJob:
     def generate_seeds(self, num_seeds: int) -> List[int]:
         """Generate model seeds"""
 
-        model_seeds = random.sample(range(1, 10 * num_seeds), num_seeds)
+        model_seeds = random.sample(range(1, SEED_MULTIPLIER * num_seeds), num_seeds)
 
         return model_seeds
 

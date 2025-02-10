@@ -67,7 +67,7 @@ job_cycle:
   1. if `isinstance(modelSeeds, int)` -> `modelSeeds = random.sample(range(1, 10 * num_seeds), num_seeds)`
   2. if `isinstance(modelSeeds, list)` -> list taken as is
 
-  Each seed in the list will considered as a new job.
+  Each seed in the list will be considered as a new job.
 - Input `yaml` file can contain multiple cycles, each with multiple jobs
 
 ```python
@@ -241,7 +241,7 @@ domains = af_rigid.predict_domains(
 ```
 - `num_proteins=2` ensures that only those pseudo-domains that have at-least two proteins are in the output.
 - `num_res=5` ensures that each chain within a pseudo-domain has at least 5 residues.
-- This will results in a list of dictionaries where each dict represents a pseudo-domain in the following format.
+- This will result in a list of dictionaries where each dict represents a pseudo-domain in the following format.
 
 ```python
 rb1 = {
@@ -344,7 +344,7 @@ af_interaction.interaction_map_type = "contact" # or "distance"
 af_interaction.contact_threshold = 8
 ```
 - **Note:** to get interacting patches `interaction_map_type` has to be `"contact"`
-- If one wants to check interaction within 20-40 residues of "A" and 50-70 residues of "B", region -f interest can be defined as follows:
+- If one wants to check interaction within 20-40 residues of "A" and 50-70 residues of "B", region of interest can be defined as follows:
 
 ```python
 region_of_interest = {

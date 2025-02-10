@@ -1,9 +1,10 @@
 import os
 from typing import Dict
+import warnings
 import numpy as np
 from af_pipeline._Initialize import _Initialize
-from utils import get_interaction_map, get_patches_from_matrix
-from utils import save_map
+from utils import get_interaction_map, get_patches_from_matrix, save_map
+
 
 class Interaction(_Initialize):
     """ Class to handle interaction data for the predicted structure. \n
@@ -205,7 +206,9 @@ class Interaction(_Initialize):
         p1_region, p2_region = region_of_interest[chain1], region_of_interest[chain2]
 
         if np.unique(contact_map).tolist() == [0]: # No interactions found.
-            print(f"No interacting patches found for {chain1}:{p1_region} and {chain2}:{p2_region}.")
+            warnings.warn(
+                f"No interacting patches found for {chain1}:{p1_region} and {chain2}:{p2_region}."
+            )
             return patches
 
         patches_df = get_patches_from_matrix(
