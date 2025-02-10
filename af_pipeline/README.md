@@ -120,7 +120,6 @@ classDiagram
     class DataParser {
         - __init__(self, data_file_path) None
         + get_data_dict(self)
-        + get_residue_positions(self, data)
         + get_token_chain_ids(self, data)
         + get_token_res_ids(self, data)
         + get_chain_lengths(self, data)
@@ -134,10 +133,8 @@ classDiagram
         + get_structure(self, parser)
         + get_residues(self)
         + extract_perresidue_quantity(self, residue, quantity)
-        + get_residue_positions(self)
-        + get_token_chain_ids(self, res_dict)
-        + get_token_res_ids(self, res_dict)
-        + get_chain_lengths(self, res_dict)
+        + get_token_chain_res_ids(self)
+        + get_chain_lengths(self, token_chain_ids)
         + get_ca_coordinates(self)
         + get_ca_plddt(self)
     }
@@ -147,7 +144,7 @@ classDiagram
         + renumber_structure(self, structure)
         + renumber_chain_res_num(self, chain_res_num, chain_id)
         + renumber_region_of_interest(self, region_of_interest)
-        + residue_map(self, res_dict)
+        + residue_map(self, token_chain_ids, token_res_ids)
     }
 
     ResidueSelect --|> `Bio.PDB.Select`
@@ -381,4 +378,4 @@ for region_of_interest in regions_of_interest_:
   - if `plot_type=static`: `.png` file for each chain-pair
   - if `plot_type=both`: both interactive sand static plots will be saved
 
-![alt text](image.png)
+![alt text](af_pipeline_organization.png)
