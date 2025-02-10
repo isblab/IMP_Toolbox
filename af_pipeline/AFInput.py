@@ -80,7 +80,11 @@ class AFInput:
             print(f"{len(job_set)} jobs written for {file_name}_set_{i}")
 
 
-    def write_job_files(self, job_cycles: Dict[str, List[Dict[str, Any]]], output_dir: str = "./output/af_input"):
+    def write_job_files(
+        self,
+        job_cycles: Dict[str, List[Dict[str, Any]]],
+        output_dir: str = "./output/af_input"
+    ):
         """Write job files to the output directory
 
         Args:
@@ -94,7 +98,8 @@ class AFInput:
             os.makedirs(output_dir, exist_ok=True)
             self.write_to_json(
                 sets_of_20=sets_of_20,
-                file_name=job_cycle
+                file_name=job_cycle,
+                output_dir=output_dir,
             )
 
         print("\nAll job files written to", output_dir)

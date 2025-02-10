@@ -1,17 +1,13 @@
-# Pre-processing scripts
+# Pre-processing
 This directory contains scripts to aid the preprocessing of the input data to IMP
+
+Refer to the respective examples in `IMP_Toolbox/examples`
 
 With these scripts, you can -
 - find sequences for your proteins (assuming you have uniprot ids)
 - find best structures for your proteins in the PDB
 - perform pairwise sequence alignment
-- create job files for AF-server
-- find rigid bodies from the monomer predictions
-- find confident regions in a binary complex
 
-<<<<<<< HEAD
-Whatever you need should be in the `input` and what you should get should be in the `output`
-=======
 ## sequence
 ### Find protein sequence
 #### Description
@@ -80,4 +76,3 @@ df = bs.make_best_structures_df(best_structures)
 Refer to:
 - `fetch_best_structures.py` in IMP_Toolbox/examples for usage
 ###
->>>>>>> origin/v1
