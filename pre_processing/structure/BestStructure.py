@@ -88,6 +88,8 @@ class BestStructures:
             dict: best structures for given proteins
         """
 
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
         if os.path.exists(save_path) and overwrite == False:
             best_structures = read_json(save_path)
 

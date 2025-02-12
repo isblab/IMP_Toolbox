@@ -22,6 +22,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default="./input/proteins.json",
+        help="Path to input json file containing proteins and their uniprot ids",
     )
 
     args.add_argument(
@@ -30,6 +31,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default="./output/protein_sequences.fasta",
+        help="Path to output fasta file containing protein sequences",
     )
 
     args = args.parse_args()

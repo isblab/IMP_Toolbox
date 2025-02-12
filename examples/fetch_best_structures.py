@@ -2,6 +2,7 @@
 # input: json file with protein names and uniprot ids ({protein_name: uniprot_id})
 # output: csv and json files with best structures
 
+import os
 import sys
 from argparse import ArgumentParser
 from set_up import IMP_TOOLBOX
@@ -48,7 +49,9 @@ if __name__ == "__main__":
     bs = BestStructures(uniprot_ids=uniprot_ids)
 
     best_structures = bs.fetch_best_structures(
-        save_path="./output/best_structures.json",
+        save_path=os.path.join(
+            os.path.dirname(args.output),
+            os.path.basename(args.output).replace(".csv", ".json")),
         overwrite=args.overwrite
     )
 

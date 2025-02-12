@@ -53,11 +53,13 @@ if __name__ == "__main__":
     proteins = read_json(args.uniprot)
     protein_sequences = read_fasta(args.protein_sequences)
     nucleic_acid_sequences = read_fasta(args.nucleotide_sequences) if args.nucleotide_sequences else None
-    input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
+    input_yml = yaml.load(open(args.input), Loader=yaml.FullLoader)
 
     # nucleic_acid_sequences or proteins is not a required argument to AFInput
     # if proteins is not provided, the protein sequences will be used to create the job cycles
     # headers in protein sequences should match the entity names in the input yaml file if the proteins are not provided
+
+    print(args.protein_sequences)
 
     af_input = AFInput(
         protein_sequences=protein_sequences,
