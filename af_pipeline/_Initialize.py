@@ -45,22 +45,22 @@ class _Initialize(AfParser):
         self.avg_pae = self.dataparser.get_avg_pae(pae=self.pae)
 
         if self.struct_file_path:
-            token_chain_ids, token_res_ids = self.structureparser.get_token_chain_res_ids()
+            self.token_chain_ids, self.token_res_ids = self.structureparser.get_token_chain_res_ids()
             # Chain lengths for each chain.
-            self.lengths_dict = self.structureparser.get_chain_lengths(token_chain_ids)
+            self.lengths_dict = self.structureparser.get_chain_lengths(self.token_chain_ids)
             # Ca-coords of all residues for each chain.
             self.coords_dict = self.structureparser.get_ca_coordinates()
             # Ca-plddt of all residues for each chain.
             self.plddt_dict = self.structureparser.get_ca_plddt()
 
         else:
-            token_chain_ids = self.dataparser.get_token_chain_ids(data=data)
-            token_res_ids = self.dataparser.get_token_res_ids(data=data)
+            self.token_chain_ids = self.dataparser.get_token_chain_ids(data=data)
+            self.token_res_ids = self.dataparser.get_token_res_ids(data=data)
             self.lengths_dict = self.dataparser.get_chain_lengths(data=data)
 
         self.sanity_check()
         self.idx_to_num, self.num_to_idx = self.renumber.residue_map(
-            token_chain_ids, token_res_ids
+            self.token_chain_ids, self.token_res_ids
         )
 
 
