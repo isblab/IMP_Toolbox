@@ -600,6 +600,13 @@ def generate_cmap(n, scheme="soft-warm"):
     colors = set()
     start = time.time()
 
+    assert n > 0; "Number of colors must be greater than 0"
+    if n != 2:
+        assert scheme != "binary"; "Binary scheme is only valid for 2 colors"
+
+    if n == 2 and scheme == "binary":
+        return ["black", "green"]
+
     while len(colors) < n:
         if scheme == "standard":
             r = random.randint(0, 255)
@@ -671,7 +678,7 @@ def plot_map(contact_map: np.array, chain1: str, chain2: str, p1_region: tuple, 
 
     colorscale = generate_cmap(
         n=num_unique_patches,
-        scheme="standard"
+        scheme="binary" if num_unique_patches == 2 else "soft-warm",
     )
 
     if plot_type == "interactive":
