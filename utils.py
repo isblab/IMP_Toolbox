@@ -754,6 +754,8 @@ def save_map(
     out_file: str,
     save_plot=False,
     plot_type="static",
+    p1_name: str | None = None,
+    p2_name: str | None = None,
 ):
     """Save the interacting patches and the contact map to a file.
 
@@ -789,7 +791,12 @@ def save_map(
         ch2_res_range = patch[chain2]
         df_rows.append([ch1_res_range, ch2_res_range])
 
-    df = pd.DataFrame(df_rows, columns=[f"{chain1}", f"{chain2}"])
+    column_names = [f"{chain1}", f"{chain2}"]
+    if p1_name and p2_name:
+        column_names = [f"{p1_name}_{chain1}", f"{p2_name}_{chain2}"]
+
+    df = pd.DataFrame(df_rows, columns=column_names)
+
     df.to_csv(csv_outfile, index=False, header=True, sep=",")
 
     if save_plot:
@@ -797,8 +804,8 @@ def save_map(
             from utils import plot_map
             fig = plot_map(
                 contact_map=contact_map,
-                chain1=chain1,
-                chain2=chain2,
+                chain1=chain1 if p1_name is None else f"{p1_name}_{chain1}",
+                chain2=chain2 if p2_name is None else f"{p2_name}_{chain2}",
                 p1_region=p1_region,
                 p2_region=p2_region,
                 plot_type="interactive",
@@ -817,8 +824,8 @@ def save_map(
             from utils import plot_map
             fig = plot_map(
                 contact_map=contact_map,
-                chain1=chain1,
-                chain2=chain2,
+                chain1=chain1 if p1_name is None else f"{p1_name}_{chain1}",
+                chain2=chain2 if p2_name is None else f"{p2_name}_{chain2}",
                 p1_region=p1_region,
                 p2_region=p2_region,
                 plot_type="static",

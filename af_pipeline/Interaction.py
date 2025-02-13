@@ -30,7 +30,6 @@ class Interaction(_Initialize):
 
         dir_name = os.path.basename(struct_file_path).split(".")[0]
         output_dir = os.path.join(output_dir, f"{dir_name}_patches")
-        os.makedirs(output_dir, exist_ok=True)
 
         self.interaction_map_type = "contact"  # Either contact/distance.
         self.contact_threshold = 8  # Distance threshold in (Angstorm) to define a contact between residue pairs.
@@ -51,9 +50,7 @@ class Interaction(_Initialize):
         """
 
         regions_of_interest = []
-        token_chain_ids = self.dataparser.get_token_chain_ids(
-            data=self.dataparser.get_data_dict()
-        )
+        token_chain_ids = self.token_chain_ids
         chain_pairs = set()
 
         for chain1 in set(token_chain_ids):
@@ -249,6 +246,8 @@ class Interaction(_Initialize):
         region_of_interest: Dict,
         save_plot: bool = False,
         plot_type: str = "static",
+        p1_name: str | None = None,
+        p2_name: str | None = None,
     ):
         """Save the interacting patches for the given region of interest of the protein pair.
 
@@ -270,11 +269,31 @@ class Interaction(_Initialize):
             region_of_interest=region_of_interest,
         )
 
+        if p1_name and p2_name:
+            p_names = {
+                chain1: p1_name,
+                chain2: p2_name,
+            }
+            dir_name_to_replace = "_".join([p1_name, p2_name])
+        else:
+            p_names = {
+                chain1: chain1,
+                chain2: chain2,
+            }
+            dir_name_to_replace = None
+
+
         if len(interacting_patches) > 0:
 
             file_name = "_".join([
-                f"{k}:{v[0]}-{v[1]}" for k, v in region_of_interest.items()
+                f"{p_names[k]}:{v[0]}-{v[1]}" for k, v in region_of_interest.items()
             ])
+
+            if dir_name_to_replace:
+                dir_name = os.path.basename(self.struct_file_path).split(".")[0]
+                self.output_dir = self.output_dir.replace(dir_name, dir_name_to_replace)
+
+            os.makedirs(self.output_dir, exist_ok=True)
 
             save_map(
                 contact_map=contact_map,
