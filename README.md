@@ -1,7 +1,7 @@
 # IMP_Toolbox
 
 - See [Modeling with IMP](https://docs.google.com/document/d/1gaG83RsEBQNemuWwhra0TP0c0jg_WwdeZI1yD_S3RPQ/edit?usp=sharing) for helpful tips while starting.
-- To use IMP_Toolbox, clone this repository and add the path to `~/.bash_profile`. You can then use it as a module (e.g. `from IMP_Toolbox import af_pipeline`).
+- To use IMP_Toolbox, clone this repository and add the path to `~/.bash_profile`. You can then use its subdirectories as a module (e.g. `from af_pipeline import AFInput`).
 ```bash
 # replace the path and add it at the end of ~/.bash_profile
 export PYTHONPATH=/path/to/IMP_Toolbox:$PYTHONPATH
