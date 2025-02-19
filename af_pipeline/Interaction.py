@@ -248,6 +248,7 @@ class Interaction(_Initialize):
         plot_type: str = "static",
         p1_name: str | None = None,
         p2_name: str | None = None,
+        concat_resisues: bool = True,
     ):
         """Save the interacting patches for the given region of interest of the protein pair.
 
@@ -305,4 +306,5 @@ class Interaction(_Initialize):
                 out_file=os.path.join(self.output_dir, f"patches_{file_name}.html"),
                 save_plot=save_plot,
                 plot_type=plot_type,
+                concat_resisues=concat_resisues,
             )

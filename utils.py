@@ -743,6 +743,32 @@ def plot_map(contact_map: np.array, chain1: str, chain2: str, p1_region: tuple, 
 
     return fig
 
+def get_res_range_from_key(res_range: str):
+    """Convert a residue range string to a list of residue numbers
+
+    Args:
+        res_range (str): residue range string
+
+    Returns:
+        res_range_list (list): list of residue numbers
+
+    Example:
+    get_res_range_from_key("1-3,5-7") -> [1, 2, 3, 5, 6, 7]
+    """
+
+    res_range_list = []
+
+    for res_range in res_range.split(","):
+
+        if "-" in res_range:
+            start, end = map(int, res_range.split("-"))
+            res_range_list.extend(list(range(start, end+1)))
+
+        else:
+            res_range_list.append(int(res_range))
+
+    return res_range_list
+
 
 def save_map(
     contact_map: np.array,
@@ -756,6 +782,7 @@ def save_map(
     plot_type="static",
     p1_name: str | None = None,
     p2_name: str | None = None,
+    concat_resisues: bool = True,
 ):
     """Save the interacting patches and the contact map to a file.
 
@@ -789,7 +816,15 @@ def save_map(
     for _, patch in patches.items():
         ch1_res_range = patch[chain1]
         ch2_res_range = patch[chain2]
-        df_rows.append([ch1_res_range, ch2_res_range])
+        if concat_resisues:
+            df_rows.append([ch1_res_range, ch2_res_range])
+
+        else:
+            ch1_res_range = get_res_range_from_key(ch1_res_range)
+            ch2_res_range = get_res_range_from_key(ch2_res_range)
+            for res1 in ch1_res_range:
+                for res2 in ch2_res_range:
+                    df_rows.append([res1, res2])
 
     column_names = [f"{chain1}", f"{chain2}"]
     if p1_name and p2_name:
