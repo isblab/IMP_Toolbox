@@ -87,5 +87,6 @@ if __name__ == "__main__":
                 region_of_interest=region_of_interest,
                 save_plot=True,
                 plot_type="both",
+                concat_resisues=True,
             )
         print("-------------------------------")
