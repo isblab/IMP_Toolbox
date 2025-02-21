@@ -46,7 +46,7 @@ if __name__ == "__main__":
         type=dict,
         help="Offset for the AF residues",
         default={
-            "A": [1021, 1850],
+            "A": [1021, 1950],
             "B": [1021, 1950]
         }
     )
