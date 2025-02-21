@@ -1,5 +1,7 @@
 from collections import defaultdict
 import warnings
+import Bio.PDB
+import Bio.PDB.Structure
 import numpy as np
 import os
 import json
@@ -326,10 +328,15 @@ class StructureParser:
     7. plddt_list: dict containing the pLDDT values for each chain.
     """
 
-    def __init__(self, struct_file_path: str):
+    def __init__(
+        self,
+        struct_file_path: str,
+        preserve_header_footer: bool = False
+    ):
         self.struct_file_path = struct_file_path
+        self.preserve_header_footer = preserve_header_footer
         self.structure = self.get_structure(
-            parser=self.get_parser()
+            parser=self.get_parser(),
         )
 
 
@@ -349,6 +356,9 @@ class StructureParser:
         if "pdb" in ext:
             parser = PDBParser()
 
+            if self.preserve_header_footer:
+                raise Exception("Header can only be preserved for CIF files.")
+
         elif "cif" in ext:
             parser = MMCIFParser()
 
@@ -358,7 +368,10 @@ class StructureParser:
         return parser
 
 
-    def get_structure(self, parser: Bio.PDB.PDBParser):
+    def get_structure(
+        self,
+        parser: Bio.PDB.PDBParser | Bio.PDB.MMCIFParser,
+    ):
         """
         Return the Biopython Structure object for the input file.
 
@@ -375,6 +388,65 @@ class StructureParser:
             basename,
             self.struct_file_path
         )
+
+
+        if self.preserve_header_footer:
+            structure = self.add_header_footer(
+                structure=structure,
+                struct_file_path=self.struct_file_path
+            )
+
+        return structure
+
+
+    def add_header_footer(
+        self,
+        structure: Bio.PDB.Structure.Structure,
+        struct_file_path: str
+    ):
+        """ Add the header and footer information to the structure object.
+
+        Args:
+            structure (Bio.PDB.Structure.Structure): Biopython Structure object.
+            struct_file_path (str): path to the structure file.
+
+        Returns:
+            structure (Bio.PDB.Structure.Structure): Biopython Structure object with 'header_footer'.
+        """
+
+        with open(struct_file_path, "r") as f:
+            lines = f.readlines()
+
+        header_info = []
+        header_section = ""
+
+        for line in lines:
+            header_section += line
+
+            if line.startswith("#"):
+                header_info.append(header_section)
+                header_section = ""
+
+            if line.startswith("_atom_site"):
+                break
+
+        footer_info = []
+        footer_section = ""
+
+        for line in lines[::-1]:
+            footer_section = line + footer_section
+
+            if line.startswith("#"):
+                footer_info.append(footer_section)
+                footer_section = ""
+
+            if line.startswith("ATOM"):
+                break
+
+        structure.header_footer = {
+            "header": header_info,
+            "footer": footer_info,
+        }
 
         return structure
 
