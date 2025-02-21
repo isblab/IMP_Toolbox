@@ -1,3 +1,4 @@
+import numpy as np
 from af_pipeline._Initialize import _Initialize
 from af_pipeline.pae_to_domains.pae_to_domains import (
     parse_pae_file,
@@ -7,7 +8,7 @@ from af_pipeline.pae_to_domains.pae_to_domains import (
 import os
 from collections import defaultdict
 from af_pipeline.Parser import ResidueSelect
-from utils import get_key_from_res_range, save_pdb
+from utils import get_key_from_res_range, save_pdb, convert_false_to_true
 
 
 class RigidBodies(_Initialize):
@@ -35,6 +36,7 @@ class RigidBodies(_Initialize):
         self.pae_cutoff = 5
         self.resolution = 0.5
         self.plddt_cutoff = 70
+        self.patch_threshold = 10
 
 
     def predict_domains(
@@ -96,7 +98,10 @@ class RigidBodies(_Initialize):
             rb_dict = self.domain_to_rb_dict(domain=domain)
 
             if plddt_filter:
-                rb_dict = self.filter_plddt(rb_dict=rb_dict)
+                rb_dict = self.filter_plddt(
+                    rb_dict=rb_dict,
+                    patch_threshold=self.patch_threshold,
+                )
 
             domains[idx] = rb_dict
 
@@ -150,11 +155,16 @@ class RigidBodies(_Initialize):
         return rb_dict
 
 
-    def filter_plddt(self, rb_dict: dict):
+    def filter_plddt(
+        self,
+        rb_dict: dict,
+        patch_threshold: int = 5,
+    ):
         """Filter the residues in the rigid bodies based on the pLDDT cutoff.
         - If the pLDDT score of a residue is less than the cutoff, it is removed from the rigid body.
         Args:
             rb_dict (dict): dictionary of rigid bodies
+            patch_threshold (int): minimum number of contiguous residues for which the pLDDT score is above the cutoff
 
         Returns:
             rb_dict (dict): dictionary of rigid bodies with residues filtered based on the pLDDT cutoff
@@ -165,14 +175,40 @@ class RigidBodies(_Initialize):
 
             confident_residues = []
 
-            for res_num in rb_res_num_list:
-                res_idx = self.num_to_idx[chain_id][res_num]
-                plddt_score = self.plddt_dict[res_idx]
+            rb_res_num_arr = np.array(sorted(rb_res_num_list))
 
-                if plddt_score >= self.plddt_cutoff:
-                    confident_residues.append(res_num)
+            plddt_res_num_arr = np.array([self.num_to_idx[chain_id][res_num] for res_num in rb_res_num_list])
 
-            rb_dict[chain_id] = confident_residues
+            plddt_filtered = np.array(self.plddt_dict)[plddt_res_num_arr] >= self.plddt_cutoff
+
+
+            plddt_filtered = convert_false_to_true(
+                arr=plddt_filtered,
+                threshold=patch_threshold,
+            )
+
+            confident_residues = rb_res_num_arr[plddt_filtered]
+
+            tf_array_chain = np.isin(np.arange(len(self.token_chain_ids)), confident_residues)
+
+            tf_array_chain = convert_false_to_true(
+                arr=tf_array_chain,
+                threshold=patch_threshold,
+            )
+
+            confident_residues = rb_res_num_arr[tf_array_chain[rb_res_num_arr - 1]]
+
+            rb_dict[chain_id] = confident_residues.tolist()
+            # print(confident_residues)
+
+            # for res_num in rb_res_num_list:
+            #     res_idx = self.num_to_idx[chain_id][res_num]
+            #     plddt_score = self.plddt_dict[res_idx]
+
+            #     if plddt_score >= self.plddt_cutoff:
+            #         confident_residues.append(res_num)
+
+            # rb_dict[chain_id] = confident_residues
 
         # Remove chains which have no confident residues
         empty_chains = []
@@ -231,10 +267,12 @@ class RigidBodies(_Initialize):
             )
 
             for idx, rb_dict in enumerate(domains):
-                output_path = os.path.join(output_dir, f"rigid_body_{idx}.pdb")
+                output_path = os.path.join(output_dir, f"rigid_body_{idx}.cif")
 
                 save_pdb(
                     structure=structure,
                     out_file=output_path,
                     res_select_obj=ResidueSelect(rb_dict),
+                    save_type="cif",
+                    preserve_header_footer=False,
                 )
