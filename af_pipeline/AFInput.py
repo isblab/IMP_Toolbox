@@ -1,11 +1,13 @@
 import os
 import json
 import random
-from typing import List, Dict, Any, Final
+from typing import List, Dict, Any, Final, Tuple
+import warnings
 from af_pipeline.af_constants import PTM, DNA_MOD, RNA_MOD, LIGAND, ION, ENTITY_TYPES
 
 # constants
 SEED_MULTIPLIER: Final[int] = 10
+
 
 class AFInput:
     """ Class to handle the creation of AlphaFold input files
@@ -29,7 +31,7 @@ class AFInput:
         self.nucleic_acid_sequences = nucleic_acid_sequences
 
 
-    def create_job_cycles(self) -> Dict[str, List[Dict[str, Any]]]:
+    def create_job_cycles(self, pred_type:str = "AF3") -> Dict[str, List[Dict[str, Any]]]:
         """Create job cycles from the input yaml file
         each job cycle is a list of jobs with each job being a dictionary
 
@@ -38,21 +40,125 @@ class AFInput:
         """
 
         job_cycles = {}
+
         for job_cycle, jobs_info in self.input_yml.items():
 
             print("Creating job cycle", job_cycle, "\n")
 
-            af_cycle = AFCycle(
-                jobs_info=jobs_info,
-                protein_sequences=self.protein_sequences,
-                nucleic_acid_sequences=self.nucleic_acid_sequences,
-                proteins=self.proteins,
-            )
+            if pred_type == "AF3":
 
-            af_cycle.update_cycle()
-            job_cycles[job_cycle] = af_cycle.job_list
+                af_cycle = AFCycle(
+                    jobs_info=jobs_info,
+                    protein_sequences=self.protein_sequences,
+                    nucleic_acid_sequences=self.nucleic_acid_sequences,
+                    proteins=self.proteins,
+                )
+
+                af_cycle.update_cycle()
+                job_cycles[job_cycle] = af_cycle.job_list
+
+            if pred_type == "AF2":
+
+                job_list = []
+
+                for job_info in jobs_info:
+                    fasta_dict = {}
+                    job_name = job_info.get("name")
+
+                    headers = [
+                        entity["name"]
+                        for entity
+                        in job_info["entities"]
+                        if entity["type"] == "proteinChain"
+                    ]
+                    ranges = [
+                        entity.get("range", None)
+                        for entity
+                        in job_info["entities"]
+                        if entity["type"] == "proteinChain"
+                    ]
+
+                    # get the protein sequence for each header
+                    for header in headers:
+                        try:
+                            fasta_dict[header] = self.protein_sequences[
+                                header
+                            ]
+                        except KeyError:
+                            try:
+                                fasta_dict[header] = self.protein_sequences[
+                                    self.proteins[header]
+                                ]
+                            except KeyError:
+                                raise Exception(
+                                    f"Could not find the entity sequence for {header}"
+                                )
+
+                    # update the fasta sequences based on the ranges
+                    for i, header in enumerate(headers):
+                        if ranges[i]:
+                            start, end = ranges[i]
+                            fasta_dict[header] = fasta_dict[header][start-1:end]
+
+                    # create a job name based on the headers and ranges if not provided
+                    if not job_name:
+                        job_name = ""
+                        for header, rang in zip(headers, ranges):
+                            if rang:
+                                job_name += f"{header}_{rang[0]}to{rang[1]}_"
+                            else:
+                                job_name += f"{header}_1to{len(fasta_dict[header])}_"
+
+                    job_name = job_name[:-1] if job_name[-1] == "_" else job_name
+
+                    # warn if any entity is not a proteinChain
+                    if any(
+                        [
+                            entity_type != "proteinChain"
+                            for entity_type in
+                            [
+                                entity["type"]
+                                for entity in job_info["entities"]
+                            ]
+                        ]
+                    ):
+                        warnings.warn(
+                            f"""
+                            AF2 only supports proteinChain entities.
+                            Will skip the entities which are not proteins.
+                            {job_name} will be created with only proteinChain entities.
+                            """
+                        )
+
+                    job_list.append((fasta_dict, job_name))
+
+                job_cycles[job_cycle] = job_list
 
         return job_cycles
+
+
+    def write_to_fasta(
+        self,
+        fasta_dict: Dict[str, str],
+        file_name: str,
+        output_dir: str = "./output/af_input",
+    ):
+        """Write the fasta sequences to a file
+
+        Args:
+            fasta_dict (dict): dictionary of fasta sequences
+            file_name (str): name of the file
+            output_dir (str, optional): Defaults to "./output".
+        """
+
+        os.makedirs(output_dir, exist_ok=True)
+        save_path = os.path.join(output_dir, f"{file_name}.fasta")
+
+        with open(save_path, "w") as f:
+            for header, sequence in fasta_dict.items():
+                f.write(f">{header}\n{sequence}\n")
+
+        print(f"Fasta file written to {save_path}")
 
 
     def write_to_json(
@@ -82,8 +188,9 @@ class AFInput:
 
     def write_job_files(
         self,
-        job_cycles: Dict[str, List[Dict[str, Any]]],
-        output_dir: str = "./output/af_input"
+        job_cycles: Dict[str, List[Dict[str, Any]]] | Dict[str, List[Tuple[Dict[str, str], str]]],
+        output_dir: str = "./output/af_input",
+        pred_type: str = "AF3",
     ):
         """Write job files to the output directory
 
@@ -93,14 +200,28 @@ class AFInput:
         """
 
         for job_cycle, jobs in job_cycles.items():
-            sets_of_20 = [jobs[i : i + 20] for i in range(0, len(jobs), 20)]
 
-            os.makedirs(output_dir, exist_ok=True)
-            self.write_to_json(
-                sets_of_20=sets_of_20,
-                file_name=job_cycle,
-                output_dir=output_dir,
-            )
+            if pred_type == "AF3":
+
+                sets_of_20 = [jobs[i : i + 20] for i in range(0, len(jobs), 20)]
+                os.makedirs(output_dir, exist_ok=True)
+
+                self.write_to_json(
+                    sets_of_20=sets_of_20,
+                    file_name=job_cycle,
+                    output_dir=output_dir,
+                )
+
+            elif pred_type == "AF2":
+
+                for fasta_dict, job_name in jobs:
+                    os.makedirs(output_dir, exist_ok=True)
+
+                    self.write_to_fasta(
+                        fasta_dict=fasta_dict,
+                        file_name=job_name,
+                        output_dir=output_dir,
+                    )
 
         print("\nAll job files written to", output_dir)
 
@@ -176,6 +297,7 @@ class AFCycle:
             for seed in job_dict["modelSeeds"]:
                 job_copy = job_dict.copy()
                 job_copy["modelSeeds"] = [seed]
+                job_copy["name"] = f"{job_dict['name']}_{seed}"
                 self.job_list.append(job_copy)
 
 

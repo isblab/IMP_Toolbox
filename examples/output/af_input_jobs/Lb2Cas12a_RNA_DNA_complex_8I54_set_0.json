@@ -1,6 +1,6 @@
 [
     {
-        "name": "Lb2Cas12a_RNA_DNA_complex",
+        "name": "Lb2Cas12a_RNA_DNA_complex_1",
         "modelSeeds": [
             1
         ],
@@ -62,7 +62,7 @@
         ]
     },
     {
-        "name": "Lb2Cas12a_RNA_DNA_complex",
+        "name": "Lb2Cas12a_RNA_DNA_complex_2",
         "modelSeeds": [
             2
         ],

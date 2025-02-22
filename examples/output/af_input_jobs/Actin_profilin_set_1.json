@@ -1,8 +1,8 @@
 [
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_220",
         "modelSeeds": [
-            109
+            220
         ],
         "sequences": [
             {
@@ -24,9 +24,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_283",
         "modelSeeds": [
-            13
+            283
         ],
         "sequences": [
             {
@@ -48,9 +48,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_153",
         "modelSeeds": [
-            81
+            153
         ],
         "sequences": [
             {
@@ -72,9 +72,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_44",
         "modelSeeds": [
-            212
+            44
         ],
         "sequences": [
             {
@@ -96,31 +96,7 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
-        "modelSeeds": [
-            139
-        ],
-        "sequences": [
-            {
-                "proteinChain": {
-                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
-                    "glycans": [],
-                    "modifications": [],
-                    "count": 1
-                }
-            },
-            {
-                "proteinChain": {
-                    "sequence": "LLGTGKIDRA",
-                    "glycans": [],
-                    "modifications": [],
-                    "count": 1
-                }
-            }
-        ]
-    },
-    {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_14",
         "modelSeeds": [
             14
         ],
@@ -144,9 +120,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_7",
         "modelSeeds": [
-            190
+            7
         ],
         "sequences": [
             {
@@ -168,9 +144,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_19",
         "modelSeeds": [
-            226
+            19
         ],
         "sequences": [
             {
@@ -192,9 +168,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_234",
         "modelSeeds": [
-            236
+            234
         ],
         "sequences": [
             {
@@ -216,9 +192,33 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_240",
         "modelSeeds": [
-            30
+            240
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_271",
+        "modelSeeds": [
+            271
         ],
         "sequences": [
             {

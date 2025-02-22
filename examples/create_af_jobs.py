@@ -59,8 +59,6 @@ if __name__ == "__main__":
     # if proteins is not provided, the protein sequences will be used to create the job cycles
     # headers in protein sequences should match the entity names in the input yaml file if the proteins are not provided
 
-    print(args.protein_sequences)
-
     af_input = AFInput(
         protein_sequences=protein_sequences,
         input_yml=input_yml,
@@ -68,8 +66,11 @@ if __name__ == "__main__":
         proteins=proteins,
     )
 
-    job_cycles = af_input.create_job_cycles()
+    job_cycles = af_input.create_job_cycles(
+        pred_type="AF3"
+    )
     af_input.write_job_files(
         job_cycles=job_cycles,
-        output_dir=args.output
+        output_dir=args.output,
+        pred_type="AF3"
     )
