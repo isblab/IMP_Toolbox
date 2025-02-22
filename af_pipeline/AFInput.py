@@ -214,13 +214,16 @@ class AFInput:
 
             elif pred_type == "AF2":
 
+                os.makedirs(
+                    os.path.join(output_dir, job_cycle),
+                    exist_ok=True
+                )
                 for fasta_dict, job_name in jobs:
-                    os.makedirs(output_dir, exist_ok=True)
 
                     self.write_to_fasta(
                         fasta_dict=fasta_dict,
                         file_name=job_name,
-                        output_dir=output_dir,
+                        output_dir=os.path.join(output_dir, job_cycle),
                     )
 
         print("\nAll job files written to", output_dir)
