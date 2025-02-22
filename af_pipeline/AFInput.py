@@ -30,7 +30,6 @@ class AFInput:
         self.protein_sequences = protein_sequences
         self.nucleic_acid_sequences = nucleic_acid_sequences
 
-
     def create_job_cycles(self, pred_type:str = "AF3") -> Dict[str, List[Dict[str, Any]]]:
         """Create job cycles from the input yaml file
         each job cycle is a list of jobs with each job being a dictionary
@@ -57,60 +56,11 @@ class AFInput:
                 af_cycle.update_cycle()
                 job_cycles[job_cycle] = af_cycle.job_list
 
-            if pred_type == "AF2":
+            elif pred_type == "AF2" or pred_type == "ColabFold":
 
                 job_list = []
 
                 for job_info in jobs_info:
-                    fasta_dict = {}
-                    job_name = job_info.get("name")
-
-                    headers = [
-                        entity["name"]
-                        for entity
-                        in job_info["entities"]
-                        if entity["type"] == "proteinChain"
-                    ]
-                    ranges = [
-                        entity.get("range", None)
-                        for entity
-                        in job_info["entities"]
-                        if entity["type"] == "proteinChain"
-                    ]
-
-                    # get the protein sequence for each header
-                    for header in headers:
-                        try:
-                            fasta_dict[header] = self.protein_sequences[
-                                header
-                            ]
-                        except KeyError:
-                            try:
-                                fasta_dict[header] = self.protein_sequences[
-                                    self.proteins[header]
-                                ]
-                            except KeyError:
-                                raise Exception(
-                                    f"Could not find the entity sequence for {header}"
-                                )
-
-                    # update the fasta sequences based on the ranges
-                    for i, header in enumerate(headers):
-                        if ranges[i]:
-                            start, end = ranges[i]
-                            fasta_dict[header] = fasta_dict[header][start-1:end]
-
-                    # create a job name based on the headers and ranges if not provided
-                    if not job_name:
-                        job_name = ""
-                        for header, rang in zip(headers, ranges):
-                            if rang:
-                                job_name += f"{header}_{rang[0]}to{rang[1]}_"
-                            else:
-                                job_name += f"{header}_1to{len(fasta_dict[header])}_"
-
-                    job_name = job_name[:-1] if job_name[-1] == "_" else job_name
-
                     # warn if any entity is not a proteinChain
                     if any(
                         [
@@ -124,18 +74,105 @@ class AFInput:
                     ):
                         warnings.warn(
                             f"""
-                            AF2 only supports proteinChain entities.
+                            AF2/ ColabFold only supports proteinChain entities.
                             Will skip the entities which are not proteins.
                             {job_name} will be created with only proteinChain entities.
                             """
                         )
 
-                    job_list.append((fasta_dict, job_name))
+                    fasta_dict = {}
+                    job_name = job_info.get("name")
+
+                    def get_entity_info(
+                        info_type: str,
+                        default_val: Any
+                        ) -> List[Dict[str, Any]]:
+                        """Get the entity information
+
+                        Args:
+                            info_type (str): type of information to get
+                            default_val (Any): default value if not found
+
+                        Returns:
+                            List[Dict[str, Any]]: list of entity information
+                        """
+
+                        return [
+                            entity.get(info_type, default_val)
+                            for entity in job_info["entities"]
+                            if entity["type"] == "proteinChain"
+                        ]
+
+                    headers = get_entity_info("name", None)
+                    ranges = get_entity_info("range", None)
+                    counts = get_entity_info("count", 1)
+
+                    sequences_to_add = {}
+
+                    for i, header in enumerate(headers):
+                        for count_ in range(1, counts[i] + 1):
+                            try:
+
+                                sequences_to_add[f"{header}_{count_}"] = (
+                                    self.protein_sequences[header]
+                                )
+
+                            except KeyError:
+                                try:
+                                    sequences_to_add[f"{header}_{count_}"] = (
+                                        self.protein_sequences[self.proteins[header]]
+                                    )
+
+                                except KeyError:
+                                    raise Exception(
+                                        f"Could not find the entity sequence for {header}"
+                                    )
+
+                    for i, header in enumerate(headers):
+                        for count_ in range(counts[i]):
+                            if ranges[i]:
+                                start, end = ranges[i]
+
+                                sequences_to_add[f"{header}_{count_+1}"] = (
+                                    sequences_to_add[f"{header}_{count_+1}"][
+                                        start - 1 : end
+                                    ]
+                                )
+
+                    if not job_name:
+                        job_name = ""
+
+                        for header, sequence in sequences_to_add.items():
+                            job_name += f"{header}_1to{len(sequence)}_"
+
+                    job_name = job_name[:-1] if job_name[-1] == "_" else job_name
+
+                    if pred_type == "ColabFold":
+
+                        fasta_dict[job_name] = ":\n".join(
+                            list(sequences_to_add.values())
+                        )
+
+                        job_list.append((fasta_dict, job_name))
+
+                    elif pred_type == "AF2":
+
+                        fasta_dict = sequences_to_add
+
+                        job_list.append((fasta_dict, job_name))
 
                 job_cycles[job_cycle] = job_list
 
-        return job_cycles
+            else:
+                raise ValueError(
+                    """
+                    Invalid prediction type.
+                    Supported prediction types are 'AF2', 'AF3' and 'ColabFold'.
+                    """
+                )
 
+
+        return job_cycles
 
     def write_to_fasta(
         self,
@@ -160,7 +197,6 @@ class AFInput:
 
         print(f"Fasta file written to {save_path}")
 
-
     def write_to_json(
         self,
         sets_of_20: List[List[Dict[str, Any]]],
@@ -184,7 +220,6 @@ class AFInput:
                 json.dump(job_set, f, indent=4)
 
             print(f"{len(job_set)} jobs written for {file_name}_set_{i}")
-
 
     def write_job_files(
         self,
@@ -212,7 +247,7 @@ class AFInput:
                     output_dir=output_dir,
                 )
 
-            elif pred_type == "AF2":
+            elif pred_type == "AF2" or pred_type == "ColabFold":
 
                 os.makedirs(
                     os.path.join(output_dir, job_cycle),
@@ -225,6 +260,14 @@ class AFInput:
                         file_name=job_name,
                         output_dir=os.path.join(output_dir, job_cycle),
                     )
+
+            else:
+                raise ValueError(
+                    """
+                    Invalid prediction type.
+                    Supported prediction types are 'AF2', 'AF3' and 'ColabFold'.
+                    """
+                )
 
         print("\nAll job files written to", output_dir)
 
