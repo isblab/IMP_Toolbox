@@ -81,8 +81,9 @@ class AFInput:
                         )
 
                     fasta_dict = {}
-                    job_name = job_info.get("name")
+                    job_name = job_info.get("name", None)
 
+                    # get the information for each proteinChain
                     def get_entity_info(
                         info_type: str,
                         default_val: Any
@@ -107,45 +108,92 @@ class AFInput:
                     ranges = get_entity_info("range", None)
                     counts = get_entity_info("count", 1)
 
-                    sequences_to_add = {}
+                    def get_entity_sequences(
+                        ranges: List[Tuple[int, int]] = ranges,
+                        headers: List[str] = headers,
+                    ) -> List[str]:
+                        """ Get the entity sequences
 
-                    for i, header in enumerate(headers):
-                        for count_ in range(1, counts[i] + 1):
+                        Args:
+                            ranges (List[Tuple[int, int]], optional): _description_. Defaults to ranges.
+
+                        Raises:
+                            Exception: _description_
+
+                        Returns:
+                            List[str]: _description_
+                        """
+
+                        sequences = []
+
+                        for header in headers:
                             try:
-
-                                sequences_to_add[f"{header}_{count_}"] = (
-                                    self.protein_sequences[header]
-                                )
-
+                                sequences.append(self.protein_sequences[header])
                             except KeyError:
                                 try:
-                                    sequences_to_add[f"{header}_{count_}"] = (
-                                        self.protein_sequences[self.proteins[header]]
-                                    )
-
+                                    sequences.append(self.protein_sequences[self.proteins[header]])
                                 except KeyError:
                                     raise Exception(
                                         f"Could not find the entity sequence for {header}"
                                     )
 
-                    for i, header in enumerate(headers):
-                        for count_ in range(counts[i]):
-                            if ranges[i]:
-                                start, end = ranges[i]
+                        for i, range_ in enumerate(ranges):
+                            if range_:
+                                start, end = range_
+                                sequences[i] = sequences[i][start - 1 : end]
 
-                                sequences_to_add[f"{header}_{count_+1}"] = (
-                                    sequences_to_add[f"{header}_{count_+1}"][
-                                        start - 1 : end
-                                    ]
-                                )
+                        return sequences
 
+                    sequences = get_entity_sequences(ranges=ranges, headers=headers)
+
+                    job_dict = {
+                        "job_name": job_name,
+                        "entities": [],
+                    }
+
+                    for entity_count, (header, sequence, range_, count_) in enumerate(
+                        zip(headers, sequences, ranges, counts)
+                    ):
+
+                        for count_ in range(1, count_ + 1):
+
+                            job_dict["entities"].append(
+                                {
+                                    "header": header,
+                                    "sequence": sequence,
+                                    "range": range_ if range_ else [1, len(sequence)],
+                                    "count": count_,
+                                }
+                            )
+
+                    # generate job name if not provided
                     if not job_name:
                         job_name = ""
 
-                        for header, sequence in sequences_to_add.items():
-                            job_name += f"{header}_1to{len(sequence)}_"
+                        for entity in job_dict["entities"]:
+                            header = entity["header"]
+                            start, end = entity["range"]
+                            count = entity["count"]
 
-                    job_name = job_name[:-1] if job_name[-1] == "_" else job_name
+                            to_add = f"{header}_{count}_{start}to{end}_"
+
+                            if to_add not in job_name:
+                                job_name += to_add
+
+                        job_name = job_name[:-1] if job_name[-1] == "_" else job_name
+
+                    # create fasta dictionary for each job
+                    sequences_to_add = {}
+
+                    for entity in job_dict["entities"]:
+                        for entity_count in range(1, entity["count"] + 1):
+                            header = entity["header"]
+                            sequence = entity["sequence"]
+                            start, end = entity["range"]
+
+                            sequences_to_add[
+                                f"{header}_{entity_count}_{start}to{end}"
+                            ] = sequence
 
                     if pred_type == "ColabFold":
 
@@ -170,7 +218,6 @@ class AFInput:
                     Supported prediction types are 'AF2', 'AF3' and 'ColabFold'.
                     """
                 )
-
 
         return job_cycles
 
