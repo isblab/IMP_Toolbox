@@ -37,6 +37,7 @@ class RigidBodies(_Initialize):
         self.resolution = 0.5
         self.plddt_cutoff = 70
         self.patch_threshold = 10
+        self.double_patch = False
 
 
     def predict_domains(
@@ -101,6 +102,7 @@ class RigidBodies(_Initialize):
                 rb_dict = self.filter_plddt(
                     rb_dict=rb_dict,
                     patch_threshold=self.patch_threshold,
+                    double_patch=self.double_patch,
                 )
 
             domains[idx] = rb_dict
@@ -159,6 +161,7 @@ class RigidBodies(_Initialize):
         self,
         rb_dict: dict,
         patch_threshold: int = 5,
+        double_patch: bool = False,
     ):
         """Filter the residues in the rigid bodies based on the pLDDT cutoff.
         - If the pLDDT score of a residue is less than the cutoff, it is removed from the rigid body.
@@ -189,14 +192,27 @@ class RigidBodies(_Initialize):
 
             confident_residues = rb_res_num_arr[plddt_filtered]
 
-            tf_array_chain = np.isin(np.arange(len(self.token_chain_ids)), confident_residues)
+            if double_patch:
 
-            tf_array_chain = convert_false_to_true(
-                arr=tf_array_chain,
-                threshold=patch_threshold,
-            )
+                tf_array_chain = np.isin(np.arange(len(self.token_chain_ids)), confident_residues)
 
-            confident_residues = rb_res_num_arr[tf_array_chain[rb_res_num_arr - 1]]
+                tf_array_chain = convert_false_to_true(
+                    arr=tf_array_chain,
+                    threshold=patch_threshold,
+                )
+
+                # confident residues are the ones that have true values in tf_array_chain
+                # and they are between min and max values of rb_res_num_arr
+
+                min_rb_res_num = np.min(rb_res_num_arr)
+                max_rb_res_num = np.max(rb_res_num_arr)
+
+                contiguous_rb_res_num_arr = np.arange(min_rb_res_num, max_rb_res_num + 1)
+                confident_residues = contiguous_rb_res_num_arr[tf_array_chain[contiguous_rb_res_num_arr - 1]]
+
+                # confident_residues = rb_res_num_arr[tf_array_chain[rb_res_num_arr - 1]]
+
+            print(confident_residues)
 
             rb_dict[chain_id] = confident_residues.tolist()
             # print(confident_residues)
