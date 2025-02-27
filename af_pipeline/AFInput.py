@@ -10,6 +10,7 @@ SEED_MULTIPLIER: Final[int] = 10
 
 
 class AlphaFold2:
+    """ Class to handle the creation of AlphaFold2 input files"""
 
     def __init__(
         self,
@@ -22,11 +23,15 @@ class AlphaFold2:
         self.protein_sequences = protein_sequences
         self.input_yml = input_yml
 
-    def create_af2_job_cycles(self):
-        """ Create job cycles for AlphaFold2
+    def create_af2_job_cycles(self)-> Dict[str, List[Tuple[Dict[str, str], str]]]:
+        """Create job cycles for AlphaFold2
+
+        each job cycle is a list of jobs. \n
+        each job is a tuple of `sequences_to_add` and `job_name`. \n
+        `sequences_to_add` is a dictionary of fasta sequences {header: sequence} \n
 
         Returns:
-            job_cycles (dict): dictionary of job cycles (job_cycle: jobs)
+            job_cycles (dict): dictionary of job cycles {(}job_cycle: job_list}
         """
 
         job_cycles = {}
@@ -36,7 +41,9 @@ class AlphaFold2:
             job_list = []
 
             for job_info in jobs_info:
-                sequences_to_add, job_name = self.generate_job_entities(job_info=job_info)
+                sequences_to_add, job_name = self.generate_job_entities(
+                    job_info=job_info
+                )
                 job_list.append((sequences_to_add, job_name))
 
             job_cycles[job_cycle] = job_list
@@ -52,9 +59,9 @@ class AlphaFold2:
         """Write the fasta sequences to a file
 
         Args:
-            fasta_dict (dict): dictionary of fasta sequences
+            fasta_dict (dict): dictionary of fasta sequences {header: sequence}
             file_name (str): name of the file
-            output_dir (str, optional): Defaults to "./output".
+            output_dir (str, optional): Directory to save the fasta file. Defaults to "./output/af_input".
         """
 
         os.makedirs(output_dir, exist_ok=True)
@@ -64,7 +71,7 @@ class AlphaFold2:
             for header, sequence in fasta_dict.items():
                 f.write(f">{header}\n{sequence}\n")
 
-        print(f"Fasta file written to {save_path}")
+        print(f"\nFasta file written to {save_path}")
 
     def write_job_files(
         self,
@@ -74,15 +81,15 @@ class AlphaFold2:
         """Write job files to the output directory
 
         Args:
-            job_cycles (dict): dictionary of job cycles (job_cycle: jobs)
+            job_cycles (dict): dictionary of job cycles {job_cycle: job_list}
             output_dir (str, optional): Defaults to "./output/af_input".
         """
 
-        for job_cycle, jobs in job_cycles.items():
+        for job_cycle, job_list in job_cycles.items():
 
             os.makedirs(os.path.join(output_dir, job_cycle), exist_ok=True)
 
-            for fasta_dict, job_name in jobs:
+            for fasta_dict, job_name in job_list:
 
                 self.write_to_fasta(
                     fasta_dict=fasta_dict,
@@ -92,20 +99,25 @@ class AlphaFold2:
 
         print("\nAll job files written to", output_dir)
 
-    def generate_job_entities(self, job_info):
-        """ Generate job entities
+
+    def generate_job_entities(
+        self,
+        job_info: Dict[str, Any],
+    ) -> Tuple[Dict[str, str], str]:
+        """Generate job entities
+
+        job entities are the collection of entities within a job. \n
+        Each entity is a proteinChain with a header and sequence. \n
 
         Args:
-            job_info (dict): job information
+            job_info (dict): job information (name, range, count, type)
 
         Returns:
             Tuple[Dict[str, str], str]: sequences_to_add, job_name
         """
 
+        # get the job name if provided
         job_name = job_info.get("name", None)
-
-        # warn if any entity is not a proteinChain
-        self.warning_not_protien(job_info, job_name)
 
         # get the information for each proteinChain
         headers = self.get_entity_info(job_info, "name", None)
@@ -145,11 +157,13 @@ class AlphaFold2:
                 sequence = entity["sequence"]
                 start, end = entity["range"]
 
-                sequences_to_add[
-                            f"{header}_{entity_count}_{start}to{end}"
-                        ] = sequence
+                sequences_to_add[f"{header}_{entity_count}_{start}to{end}"] = sequence
+
+        # warn if any of the entities is not a proteinChain
+        self.warning_not_protien(job_info, job_name)
 
         return (sequences_to_add, job_name)
+
 
     def get_entity_info(
         self,
@@ -157,15 +171,17 @@ class AlphaFold2:
         info_type: str,
         default_val: Any
         ) -> List[Dict[str, Any]]:
-        """Get the entity information
+        """ Get the entity information
+
+        Get the required information for each entity in the job
 
         Args:
-            job_info (dict): job information
-            info_type (str): type of information to get
+            job_info (dict): job information (name, range, count, type)
+            info_type (str): type of information to get (name, range, count, type)
             default_val (Any): default value if not found
 
         Returns:
-            List[Dict[str, Any]]: list of entity information
+            List[Dict[str, Any]]: list of entity information for the given type
         """
 
         return [
@@ -174,6 +190,7 @@ class AlphaFold2:
             if entity["type"] == "proteinChain"
         ]
 
+
     def get_entity_sequences(
         self,
         ranges: List[Tuple[int, int]],
@@ -181,12 +198,18 @@ class AlphaFold2:
     ) -> List[str]:
         """ Get the entity sequences
 
+        First try to get the sequence from the protein_sequences dictionary. \n
+        If not found, try to get the sequence from the proteins dictionary. \n
+        If not found, raise an exception.
+
+        If a range is provided, get the sequence within the range.
+
         Args:
-            ranges (List[Tuple[int, int]], optional): _description_
-            headers (List[str]): _description_
+            ranges (list): [start, end] of the entities
+            headers (list): fasta headers
 
         Returns:
-            List[str]: _description_
+            sequences (list): list of entity sequences
         """
 
         sequences = []
@@ -209,8 +232,14 @@ class AlphaFold2:
 
         return sequences
 
-    def generate_job_name(self, job_dict: Dict[str, Any]) -> str:
-        """ Generate job name
+
+    def generate_job_name(
+        self,
+        job_dict: Dict[str, Any],
+    ) -> str:
+        """ Generate job name (if not provided)
+
+        see :py:mod:`AFInput.generate_job_entities` for the job dictionary format.
 
         Args:
             job_dict (dict): job dictionary
@@ -235,15 +264,22 @@ class AlphaFold2:
 
         return job_name
 
-    def warning_not_protien(self, job_info: Dict[str, Any], job_name: str):
+
+    def warning_not_protien(
+        self,
+        job_info: Dict[str, Any],
+        job_name: str
+    ):
         """Warn if entity is not a protein
+
+        AF2/ ColabFold only supports proteinChain entities. \n
+        Will skip the entities which are not proteins. \n
 
         Args:
             job_info (dict): job information
             job_name (str): job name
         """
 
-        # warn if any entity is not a proteinChain
         if any(
             [
                 entity_type != "proteinChain"
@@ -283,11 +319,15 @@ class ColabFold(AlphaFold2):
             proteins=proteins,
         )
 
-    def create_colabfold_job_cycles(self):
+    def create_colabfold_job_cycles(self) -> Dict[str, List[Tuple[Dict[str, str], str]]]:
         """ Create job cycles for ColabFold
 
+        each job cycle is a list of jobs. \n
+        each job is a tuple of `sequences_to_add` and `job_name`. \n
+        `sequences_to_add` is a dictionary of fasta sequences {header: sequence} \n
+
         Returns:
-            job_cycles (dict): dictionary of job cycles (job_cycle: jobs)
+            job_cycles (dict): dictionary of job cycles {job_cycle: job_list}
         """
 
         job_cycles = {}
@@ -297,13 +337,11 @@ class ColabFold(AlphaFold2):
             job_list = []
 
             for job_info in jobs_info:
-                sequences_to_add, job_name = self.generate_job_entities(job_info)
+                sequences_to_add, job_name = self.generate_job_entities(
+                    job_info=job_info
+                )
 
-                fasta_dict = {
-                    job_name: ":\n".join(
-                        list(sequences_to_add.values())
-                    )
-                }
+                fasta_dict = {job_name: ":\n".join(list(sequences_to_add.values()))}
 
                 job_list.append((fasta_dict, job_name))
 
@@ -330,11 +368,14 @@ class AlphaFold3:
         self.input_yml = input_yml
 
 
-    def create_af3_job_cycles(self):
+    def create_af3_job_cycles(self) -> Dict[str, List[Dict[str, Any]]]:
         """ Create job cycles for AlphaFold3
 
+        each job cycle is a list of jobs with each job being a dictionary
+        see :py:mod:`AFCycle.seed_jobs` or `AFJob.create_job` for the job dictionary format
+
         Returns:
-            job_cycles (dict): dictionary of job cycles (job_cycle: jobs)
+            job_cycles (dict): dictionary of job cycles {job_cycle: job_list}
         """
 
         job_cycles = {}
@@ -367,7 +408,7 @@ class AlphaFold3:
         Args:
             sets_of_20 (list): list of lists, each list containing 20 jobs
             file_name (str): name of the file
-            output_dir (str, optional): Defaults to "./output".
+            output_dir (str, optional): Directory to save the job_files. Defaults to "./output/af_input".
         """
 
         os.makedirs(output_dir, exist_ok=True)
@@ -382,19 +423,19 @@ class AlphaFold3:
 
     def write_job_files(
         self,
-        job_cycles: Dict[str, List[Dict[str, Any]]] | Dict[str, List[Tuple[Dict[str, str], str]]],
+        job_cycles: Dict[str, List[Dict[str, Any]]],
         output_dir: str = "./output/af_input",
     ):
         """Write job files to the output directory
 
         Args:
-            job_cycles (dict): dictionary of job cycles (job_cycle: jobs)
-            output_dir (str, optional): Defaults to "./output".
+            job_cycles (dict): dictionary of job cycles {job_cycle: job_list}
+            output_dir (str, optional): Directory to save the job_files. Defaults to "./output/af_input".
         """
 
-        for job_cycle, jobs in job_cycles.items():
+        for job_cycle, job_list in job_cycles.items():
 
-            sets_of_20 = [jobs[i : i + 20] for i in range(0, len(jobs), 20)]
+            sets_of_20 = [job_list[i : i + 20] for i in range(0, len(job_list), 20)]
             os.makedirs(output_dir, exist_ok=True)
 
             self.write_to_json(
@@ -444,7 +485,10 @@ class AFCycle:
             self.seed_jobs(job_dict)
 
 
-    def seed_jobs(self, job_dict: Dict[str, Any]):
+    def seed_jobs(
+        self,
+        job_dict: Dict[str, Any],
+    ):
         """ Create a job for each model seed
 
         Args:
