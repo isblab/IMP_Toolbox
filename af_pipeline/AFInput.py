@@ -10,7 +10,7 @@ SEED_MULTIPLIER: Final[int] = 10
 
 
 class AlphaFold2:
-    """ Class to handle the creation of AlphaFold2 input files"""
+    """Class to handle the creation of AlphaFold2 input files"""
 
     def __init__(
         self,
@@ -23,7 +23,7 @@ class AlphaFold2:
         self.protein_sequences = protein_sequences
         self.input_yml = input_yml
 
-    def create_af2_job_cycles(self)-> Dict[str, List[Tuple[Dict[str, str], str]]]:
+    def create_af2_job_cycles(self) -> Dict[str, List[Tuple[Dict[str, str], str]]]:
         """Create job cycles for AlphaFold2
 
         each job cycle is a list of jobs. \n
@@ -99,7 +99,6 @@ class AlphaFold2:
 
         print("\nAll job files written to", output_dir)
 
-
     def generate_job_entities(
         self,
         job_info: Dict[str, Any],
@@ -164,14 +163,13 @@ class AlphaFold2:
 
         return (sequences_to_add, job_name)
 
-
     def get_entity_info(
         self,
         job_info: Dict[str, Any],
         info_type: str,
         default_val: Any
-        ) -> List[Dict[str, Any]]:
-        """ Get the entity information
+    ) -> List[Dict[str, Any]]:
+        """Get the entity information
 
         Get the required information for each entity in the job
 
@@ -190,13 +188,12 @@ class AlphaFold2:
             if entity["type"] == "proteinChain"
         ]
 
-
     def get_entity_sequences(
         self,
         ranges: List[Tuple[int, int]],
         headers: List[str],
     ) -> List[str]:
-        """ Get the entity sequences
+        """Get the entity sequences
 
         First try to get the sequence from the protein_sequences dictionary. \n
         If not found, try to get the sequence from the proteins dictionary. \n
@@ -221,9 +218,7 @@ class AlphaFold2:
                 try:
                     sequences.append(self.protein_sequences[self.proteins[header]])
                 except KeyError:
-                    raise Exception(
-                        f"Could not find the entity sequence for {header}"
-                    )
+                    raise Exception(f"Could not find the entity sequence for {header}")
 
         for i, range_ in enumerate(ranges):
             if range_:
@@ -232,12 +227,11 @@ class AlphaFold2:
 
         return sequences
 
-
     def generate_job_name(
         self,
         job_dict: Dict[str, Any],
     ) -> str:
-        """ Generate job name (if not provided)
+        """Generate job name (if not provided)
 
         see :py:mod:`AFInput.generate_job_entities` for the job dictionary format.
 
@@ -264,7 +258,6 @@ class AlphaFold2:
 
         return job_name
 
-
     def warning_not_protien(
         self,
         job_info: Dict[str, Any],
@@ -283,11 +276,7 @@ class AlphaFold2:
         if any(
             [
                 entity_type != "proteinChain"
-                for entity_type in
-                [
-                    entity["type"]
-                    for entity in job_info["entities"]
-                ]
+                for entity_type in [entity["type"] for entity in job_info["entities"]]
             ]
         ):
             warnings.warn(
@@ -300,7 +289,7 @@ class AlphaFold2:
 
 
 class ColabFold(AlphaFold2):
-    """ Class to handle the creation of ColabFold input files"""
+    """Class to handle the creation of ColabFold input files"""
 
     def __init__(
         self,
@@ -319,8 +308,10 @@ class ColabFold(AlphaFold2):
             proteins=proteins,
         )
 
-    def create_colabfold_job_cycles(self) -> Dict[str, List[Tuple[Dict[str, str], str]]]:
-        """ Create job cycles for ColabFold
+    def create_colabfold_job_cycles(
+        self,
+    ) -> Dict[str, List[Tuple[Dict[str, str], str]]]:
+        """Create job cycles for ColabFold
 
         each job cycle is a list of jobs. \n
         each job is a tuple of `sequences_to_add` and `job_name`. \n
@@ -351,8 +342,7 @@ class ColabFold(AlphaFold2):
 
 
 class AlphaFold3:
-    """Class to handle the creation of AlphaFold3 input files
-    """
+    """Class to handle the creation of AlphaFold3 input files"""
 
     def __init__(
         self,
@@ -367,9 +357,8 @@ class AlphaFold3:
         self.nucleic_acid_sequences = nucleic_acid_sequences
         self.input_yml = input_yml
 
-
     def create_af3_job_cycles(self) -> Dict[str, List[Dict[str, Any]]]:
-        """ Create job cycles for AlphaFold3
+        """Create job cycles for AlphaFold3
 
         each job cycle is a list of jobs with each job being a dictionary
         see :py:mod:`AFCycle.seed_jobs` or `AFJob.create_job` for the job dictionary format
@@ -446,7 +435,7 @@ class AlphaFold3:
 
 
 class AFCycle:
-    """ An AlphaFold cycle \n
+    """An AlphaFold cycle \n
     A cycle is a list of jobs
     """
 
@@ -458,12 +447,11 @@ class AFCycle:
         proteins: Dict[str, str] = {},
     ):
 
-        self.jobs_info = jobs_info # all jobs within the cycle
+        self.jobs_info = jobs_info  # all jobs within the cycle
         self.proteins = proteins
         self.protein_sequences = protein_sequences
         self.nucleic_acid_sequences = nucleic_acid_sequences
         self.job_list = []
-
 
     def update_cycle(self):
         """Update the cycle with the jobs
@@ -484,12 +472,11 @@ class AFCycle:
             job_dict = af_job.create_job()
             self.seed_jobs(job_dict)
 
-
     def seed_jobs(
         self,
         job_dict: Dict[str, Any],
     ):
-        """ Create a job for each model seed
+        """Create a job for each model seed
 
         Args:
             job_dict (dict): job dictionary in the following format:
@@ -524,7 +511,7 @@ class AFCycle:
 
 
 class AFJob:
-    """ AlphaFold job constructor \n
+    """AlphaFold job constructor \n
     A job is a dictionary with the following keys
     - name
     - modelSeeds
@@ -547,7 +534,6 @@ class AFJob:
         self.model_seeds = []
         self.af_sequences = []
         self.name_fragments = []
-
 
     def create_job(self) -> Dict[str, Any]:
         """Create a job from the job info
@@ -576,12 +562,10 @@ class AFJob:
 
         return job_dict
 
-
     def update_job_name(self):
         """Create a job from the job info"""
 
         self.job_name = self.job_info.get("name")
-
 
     def update_model_seeds(self):
         """Update the model seeds
@@ -594,10 +578,11 @@ class AFJob:
         """
 
         model_seeds = self.job_info.get("modelSeeds")
+
         if "modelSeeds" in self.job_info:
 
             if isinstance(model_seeds, int):
-                self.model_seeds = self.generate_seeds(num_seeds = model_seeds)
+                self.model_seeds = self.generate_seeds(num_seeds=model_seeds)
 
             elif isinstance(model_seeds, list):
                 self.model_seeds = model_seeds
@@ -605,14 +590,13 @@ class AFJob:
             else:
                 raise Exception("modelSeeds must be an integer or a list")
 
-
     def update_af_sequences(self):
         """Update the AF sequences
         - For each entity, create an AFSequence object
         - Get the name fragment for each entity (used in job name if job name is not provided)
         """
 
-        for entity_info in self.job_info["entities"]: # add af_sequence for each entity
+        for entity_info in self.job_info["entities"]:  # add af_sequence for each entity
             af_sequence = AFSequence(
                 entity_info=entity_info,
                 protein_sequences=self.protein_sequences,
@@ -624,13 +608,11 @@ class AFJob:
 
             self.name_fragments.append(af_sequence.get_name_fragment())
 
-
     def generate_job_name(self):
         """Generate a job name"""
 
         job_name = "_".join(self.name_fragments)
         self.job_name = job_name
-
 
     def generate_seeds(self, num_seeds: int) -> List[int]:
         """Generate model seeds"""
@@ -674,8 +656,7 @@ class Entity:
             entity_name=self.entity_name
         )
 
-
-    def get_entity_count(self):
+    def get_entity_count(self)-> int:
         """Get the count of the entity
 
         Returns:
@@ -686,9 +667,8 @@ class Entity:
 
         return entity_count
 
-
-    def get_real_sequence(self):
-        """ Get the real sequence of the entity
+    def get_real_sequence(self)-> str:
+        """Get the real sequence of the entity
         - For proteinChain, get the sequence from the protein_sequences
         - For dnaSequence and rnaSequence, get the sequence from the nucleic_acid_sequences
 
@@ -698,6 +678,8 @@ class Entity:
         Returns:
             str: amino acid or nucleic acid sequence of the entity
         """
+
+        real_sequence = None
 
         if self.entity_type == "proteinChain":
 
@@ -716,13 +698,9 @@ class Entity:
         elif self.entity_type in ["dnaSequence", "rnaSequence"]:
             real_sequence = self.nucleic_acid_sequences[self.entity_name]
 
-        else:
-            real_sequence = None
-
         return real_sequence
 
-
-    def get_entity_range(self):
+    def get_entity_range(self)-> Tuple[int, int]:
         """Get the range of the entity
         what part of the sequence to use? (defined by start and end)
         - If range is provided, use that
@@ -742,22 +720,22 @@ class Entity:
             start, end = self.entity_info["range"]
 
         else:
+            start, end = 1, 1
+
             if self.real_sequence:
                 start, end = 1, len(self.real_sequence)
 
-            else:
-                start, end = 1, 1
-
         return start, end
 
-
-    def get_glycans(self):
+    def get_glycans(self)-> List[Dict[str, Any]]:
         """Get the glycans of the protein chains
         - If glycans are provided, use those else return an empty list
             - For proteinChain, get the glycans from the entity_info dictionary
         """
 
-        if self.entity_type == "proteinChain" and "glycans" in self.entity_info :
+        glycans = []
+
+        if self.entity_type == "proteinChain" and "glycans" in self.entity_info:
             glycans = self.entity_info["glycans"]
             glycans = [
                 {
@@ -767,13 +745,9 @@ class Entity:
                 for glycan in glycans
             ]
 
-        else:
-            glycans = []
-
         return glycans
 
-
-    def get_modifications(self):
+    def get_modifications(self)-> List[Dict[str, Any]]:
         """Get the modifications of the entity
 
         - If modifications are provided, use those else empty list
@@ -812,7 +786,6 @@ class Entity:
 
         return modifications
 
-
     @staticmethod
     def sanity_check_entity_type(entity_type):
         """Sanity check the entity
@@ -822,20 +795,14 @@ class Entity:
         if entity_type not in ENTITY_TYPES:
             raise Exception(f"Invalid entity type {entity_type}")
 
-
     @staticmethod
     def sanity_check_small_molecule(entity_type, entity_name):
         """Sanity check the small molecules"""
 
-        if (
-            entity_type == "ligand"
-            and entity_name not in LIGAND
-        ) or (
-            entity_type == "ion"
-            and entity_name not in ION
+        if (entity_type == "ligand" and entity_name not in LIGAND) or (
+            entity_type == "ion" and entity_name not in ION
         ):
             raise Exception(f"Invalid small molecule {entity_name}")
-
 
     def sanity_check_glycans(self):
         """Sanity check the glycans
@@ -854,9 +821,8 @@ class Entity:
                         f"Invalid glycan position at {glyc_pos} in {self.entity_name}"
                     )
 
-        elif self.entity_type != "proteinChain" and len(self.glycans) > 0:
+        if self.entity_type != "proteinChain" and len(self.glycans) > 0:
             raise Exception("Glycosylation is not supported for this entity type")
-
 
     def sanity_check_modifications(self):
         """Sanity check the modifications
@@ -865,52 +831,46 @@ class Entity:
         - modifications are only supported for proteinChain, dnaSequence, rnaSequence; raise exception otherwise
         """
 
-        if self.entity_type in ["proteinChain", "dnaSequence", "rnaSequence"] and len(self.modifications) > 0:
-
-            # check if the modification type is valid
-            if self.entity_type == "proteinChain":
-                if not all(
-                    [
-                        mod["ptmType"] in PTM
-                        for mod in self.modifications
-                    ]
-                ):
-                    raise Exception("Invalid modification type")
-
-            elif self.entity_type == "dnaSequence":
-                if not all(
-                    [
-                        mod["modificationType"] in DNA_MOD
-                        for mod in self.modifications
-                    ]
-                ):
-                    raise Exception("Invalid modification type")
-
-            elif self.entity_type == "rnaSequence":
-                if not all(
-                    [
-                        mod["modificationType"] in RNA_MOD
-                        for mod in self.modifications
-                    ]
-                ):
-                    raise Exception("Invalid modification type")
-
-            # check if the modification position is valid
-            for mod in self.modifications:
-                mod_pos = (
-                    mod["ptmPosition"]
-                    if self.entity_type == "proteinChain"
-                    else mod["basePosition"]
-                )
-
-                if mod_pos < 1 or mod_pos > len(self.real_sequence):
-                    raise Exception(
-                        f"Invalid modification at {mod_pos} in {self.entity_name}"
-                    )
-
-        elif self.entity_type not in ["proteinChain", "dnaSequence", "rnaSequence"] and len(self.modifications) > 0:
+        if (
+            self.entity_type not in ["proteinChain", "dnaSequence", "rnaSequence"]
+            and len(self.modifications) > 0
+        ):
             raise Exception("Modifications are not supported for this entity type")
 
+        # if (
+        #     self.entity_type in ["proteinChain", "dnaSequence", "rnaSequence"]
+        #     and len(self.modifications) > 0
+        # ):
+
+        # check if the modification type is valid
+        if self.entity_type == "proteinChain":
+            if not all([mod["ptmType"] in PTM for mod in self.modifications]):
+                raise Exception("Invalid modification type")
+
+        elif self.entity_type == "dnaSequence":
+            if not all(
+                [mod["modificationType"] in DNA_MOD for mod in self.modifications]
+            ):
+                raise Exception("Invalid modification type")
+
+        elif self.entity_type == "rnaSequence":
+            if not all(
+                [mod["modificationType"] in RNA_MOD for mod in self.modifications]
+            ):
+                raise Exception("Invalid modification type")
+
+        # check if the modification position is valid
+        for mod in self.modifications:
+            mod_pos = (
+                mod["ptmPosition"]
+                if self.entity_type == "proteinChain"
+                else mod["basePosition"]
+            )
+
+            if mod_pos < 1 or mod_pos > len(self.real_sequence):
+                raise Exception(
+                    f"Invalid modification at {mod_pos} in {self.entity_name}"
+                )
 
     def fill_up_entity(self):
         """Fill up the entity with the required information"""
@@ -923,7 +883,7 @@ class Entity:
 
 
 class AFSequence(Entity):
-    """ AlphaFold sequence constructor \n
+    """AlphaFold sequence constructor \n
     A sequence is an entity ready to be used in the AlphaFold job \n
     'sequences' key in AF job holds a list of sequences \n
     each sequence is a dictionary with following keys:
@@ -960,8 +920,7 @@ class AFSequence(Entity):
         self.count = self.entity_count
         self.real_sequence = self.update_real_sequence()
 
-
-    def create_af_sequence(self):
+    def create_af_sequence(self)-> Dict[str, Any]:
         """Create an AF sequence dictionary
 
         Returns:
@@ -1012,16 +971,12 @@ class AFSequence(Entity):
 
         elif self.type in ["ligand", "ion"]:
             af_sequence_dict = {
-                self.type: {
-                    self.type: self.name,
-                    "count": self.count
-                }
+                self.type: {self.type: self.name, "count": self.count}
             }
 
         return af_sequence_dict
 
-
-    def update_real_sequence(self):
+    def update_real_sequence(self)-> str:
         """Update the real sequence of the entity
 
         real sequence is:
@@ -1040,8 +995,7 @@ class AFSequence(Entity):
 
         return real_sequence
 
-
-    def get_name_fragment(self):
+    def get_name_fragment(self)-> str:
         """Get the name fragments of the entity"""
 
         return f"{self.name}_{self.count}_{self.start}to{self.end}"
