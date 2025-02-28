@@ -116,6 +116,26 @@ af_input.write_job_files(job_cycles=job_cycles)
 <span style="font-size: 18px"><b>AlphaFold2</b></span>
 </summary>
 
+```mermaid
+---
+config:
+  class:
+    hideEmptyMembersBox: True
+---
+classDiagram
+  class AlphaFold2 {
+      - __init__(self, input_yml, protein_sequences, proteins) None
+      + create_af2_job_cycles(self) Dict[str, List[Tuple[Dict[str, str], str]]]
+      + write_to_fasta(self, fasta_dict, file_name, output_dir)
+      + write_job_files(self, job_cycles, output_dir)
+      + generate_job_entities(self, job_info) Tuple[Dict[str, str], str]
+      + get_entity_info(self, job_info, info_type, default_val) List[Dict[str, Any]]
+      + get_entity_sequences(self, ranges, headers) List[str]
+      + generate_job_name(self, job_dict) str
+      + warning_not_protien(self, job_info, job_name)
+  }
+```
+
 **Input:** `.yaml` file in the same format as AlphaFold3.
 
 **Output:** `.fasta` file in the following format.
@@ -175,6 +195,20 @@ af_input.write_job_files(job_cycles=job_cycles)
 <summary>
 <span style="font-size: 18px"><b>ColabFold</b></span>
 </summary>
+
+```mermaid
+---
+config:
+  class:
+    hideEmptyMembersBox: True
+---
+classDiagram
+  class ColabFold {
+    - __init__(self, input_yml, protein_sequences, proteins) None
+    + create_colabfold_job_cycles(self) Dict[str, List[Tuple[Dict[str, str], str]]]
+  }
+  ColabFold <|-- AlphaFold2
+```
 
 **Input:** `.yaml` file in the same format as AlphaFold3.
 
