@@ -5,7 +5,27 @@ This directory contains scripts to aid in alphafold related workflows
 ## AFinput
 ### Create job files for AF server
 #### Description
-- A general script to create job files for AF server.
+- A general script to create job files for AF server or fasta files for AlphaFold2/ ColabFold.
+
+<details>
+<summary>
+<span style="font-size: 18px"> <b>AlphaFold 3 (AlphaFold server)</b></span>
+</summary>
+
+```mermaid
+---
+config:
+    class:
+        hideEmptyMembersBox: true
+---
+classDiagram
+  class AlphaFold3 {
+      - __init__(self, input_yml, protein_sequences, nucleic_acid_sequences, proteins) None
+      + create_af3_job_cycles(self) Dict[str, List[Dict[str, Any]]]
+      + write_to_json(self, sets_of_20, file_name, output_dir)
+      + write_job_files(self, job_cycles, output_dir)
+  }
+```
 
 **Input:** `.yaml` file in the following format.
 
@@ -71,14 +91,14 @@ job_cycle:
 - Input `yaml` file can contain multiple cycles, each with multiple jobs
 
 ```python
-from af_pipeline.AFinput import AFInput
+from af_pipeline.AFinput import AlphaFold3
 
 proteins = read_json("./input/proteins.json")
 protein_sequences = read_fasta("./input/protein_sequences.fasta")
 nucleic_acid_sequences = read_fasta("./input/nucleic_acid_sequences.fasta")
 input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
 
-af_input = AFInput(
+af_input = AlphaFold3(
     protein_sequences=protein_sequences, # required (output of fetch_sequences.py)
     input_yml=input_yml, # required
     nucleic_acid_sequences=nucleic_acid_sequences, # optional only in case of DNA or RNA sequences
@@ -86,12 +106,138 @@ af_input = AFInput(
 )
 
 af_input.output_dir = args.output
-job_cycles = af_input.create_job_cycles()
+job_cycles = af_input.create_af3_job_cycles()
+af_input.write_job_files(job_cycles=job_cycles)
+```
+</details>
+
+<details>
+<summary>
+<span style="font-size: 18px"><b>AlphaFold2</b></span>
+</summary>
+
+**Input:** `.yaml` file in the same format as AlphaFold3.
+
+**Output:** `.fasta` file in the following format.
+
+```fasta
+> seq1_header
+sequence1
+> seq2_header
+sequence2
+> seq3_header
+sequence3
+```
+
+- Entities with type other than `proteinChain` will be ignored and only protein chains will be used to create the fasta file.
+- Any modification of the protein will also be ignored.
+- `Modelseeds` will also be ignored.
+
+```yaml
+# example input file for AlphaFold2
+
+job_cycle:
+  - entities:
+    - name: "Act1"
+      type: "proteinChain"
+      range: [10, 375]
+      count: 1
+    - name: "Cdc3"
+      type: "proteinChain"
+      range: [1, 20]
+      count: 1
+```
+
+- `range` and `count` are optional.
+
+
+```python
+from af_pipeline.AFinput import AlphaFold2
+
+proteins = read_json("./input/proteins.json")
+protein_sequences = read_fasta("./input/protein_sequences.fasta")
+input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
+
+af_input = AlphaFold2(
+    protein_sequences=protein_sequences, # required (output of fetch_sequences.py)
+    input_yml=input_yml, # required
+    proteins=proteins, # optional if protein_sequences have protein names as headers and they match with input yaml
+)
+
+af_input.output_dir = args.output
+job_cycles = af_input.create_af2_job_cycles()
+af_input.write_job_files(job_cycles=job_cycles)
+```
+</details>
+
+
+<details>
+<summary>
+<span style="font-size: 18px"><b>ColabFold</b></span>
+</summary>
+
+**Input:** `.yaml` file in the same format as AlphaFold3.
+
+**Output:** `.fasta` file in the following format.
+
+```fasta
+> header or job name
+sequence1:
+sequence2:
+sequence3
+```
+
+- This class inherits from `AlphaFold2`, only `crete_colabfold_job_cycles` is different
+
+```yaml
+# example input file for ColabFold
+
+job_cycle:
+  - entities:
+    - name: "Act1"
+      type: "proteinChain"
+      range: [10, 375]
+      count: 1
+    - name: "Cdc3"
+      type: "proteinChain"
+      range: [1, 20]
+      count: 1
+```
+
+- `range` and `count` are optional.
+
+
+```python
+from af_pipeline.AFinput import ColabFold
+
+proteins = read_json("./input/proteins.json")
+protein_sequences = read_fasta("./input/protein_sequences.fasta")
+input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
+
+af_input = ColabFold(
+    protein_sequences=protein_sequences, # required (output of fetch_sequences.py)
+    input_yml=input_yml, # required
+    proteins=proteins, # optional if protein_sequences have protein names as headers and they match with input yaml
+)
+
+af_input.output_dir = args.output
+job_cycles = af_input.create_colabfold_job_cycles()
 af_input.write_job_files(job_cycles=job_cycles)
 ```
 
-Check the following examples in the examples directory for usage.
-- `create_af_jobs.py`
+</details>
+
+- Check `create_af_jobs.py` in the examples directory for usage.
+- In all the above cases, if `job_name` is not provided, it will be generated as follows.
+
+```python
+# if we have two proteins
+# 1. "Act1" with no range specified and count 1 and "Cdc3" with range [1, 20] and count 2.
+job_name = "Act1_1_1to375_Cdc3_2_1to20"
+```
+> [!NOTE]
+> For AlphaFold server, there is a 100 char limit for `job_name`, so it is advised to provide the `job_name` in the input `.yaml` file for multiprotien complexes.
+
 
 ## Parser and _Initialize
 - `Parser.py` has a number of methods to parse alphafold-predicted structure and the corresponding data file.
@@ -128,9 +274,10 @@ classDiagram
     }
 
     class StructureParser {
-        - __init__(self, struct_file_path) None
+        - __init__(self, struct_file_path, preserve_header_footer) None
         + get_parser(self)
         + get_structure(self, parser)
+        + add_header_footer(self, structure, struct_file_path)
         + get_residues(self)
         + extract_perresidue_quantity(self, residue, quantity)
         + get_token_chain_res_ids(self)
@@ -182,13 +329,13 @@ config:
 classDiagram
     class RigidBodies {
         - __init__(self, data_path, structure_path, af_offset) None
-        + domain_to_rb_dict(self, domain)
-        + filter_plddt(self, rb_dict)
         + predict_domains(self, num_res, num_proteins, plddt_filter)
-        + save_rigid_bodies(self, domains, output_dir, output_format, save_structure)
+        + domain_to_rb_dict(self, domain)
+        + filter_plddt(self, rb_dict, patch_threshold)
+        + save_rigid_bodies(self, domains, output_dir, output_format, save_structure, no_plddt_filter_for_structure)
     }
 
-    RigidBodies --|> `_Initialize`
+    RigidBodies --|> `af_pipeline._Initialize._Initialize`
 ```
 
 **Input:**
@@ -231,7 +378,7 @@ af_rigid.resolution = 0.5 # default value in ChimeraX
 af_rigid.library = "igraph" # "networkx" is slower
 ```
 
-- `resolution` parameter can be varied to get different results (higher values will result in stricter clusters and thus smaller pseudo-domains)
+- `resolution` parameter can be varied to get different results (**higher** values will result in **stricter clusters** and thus **smaller pseudo-domains**)
 
 ```python
 domains = af_rigid.predict_domains(
@@ -251,6 +398,7 @@ rb1 = {
 ```
 
 - You can additionally apply pLDDT cutoff (`plddt_filter=True`) to remove low confidence residues from the structure.
+- setting `no_plddt_filter_for_structure=True` ignores the pLDDT filter in the rigid body in the `.pdb` or `.cif` format but not in the `.txt` format.
 
 ```python
 domains = af_rigid.predict_domains(
@@ -264,6 +412,7 @@ af_rigid.save_rigid_bodies(
     output_dir=args.output,
     output_format="txt",
     save_structure=True, # if set to True, you will get each rigid body as a separate PDB
+    no_plddt_filter_for_structure=True, # if set to True, pLDDT filter will be ignored for saving the PDB
 )
 ```
 - Output will be a `.txt` file with residue ranges for each rigid body/ pseudo-domain.
