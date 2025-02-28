@@ -207,7 +207,7 @@ classDiagram
     - __init__(self, input_yml, protein_sequences, proteins) None
     + create_colabfold_job_cycles(self) Dict[str, List[Tuple[Dict[str, str], str]]]
   }
-  ColabFold <|-- AlphaFold2
+  ColabFold --|> AlphaFold2
 ```
 
 **Input:** `.yaml` file in the same format as AlphaFold3.
