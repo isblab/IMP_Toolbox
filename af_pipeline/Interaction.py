@@ -118,11 +118,11 @@ class Interaction(_Initialize):
 
         pae = self.avg_pae[start_idx1:end_idx1+1, start_idx2:end_idx2+1]
 
-        coords1 = np.array(self.coords_dict[start_idx1:end_idx1+1])
-        coords2 = np.array(self.coords_dict[start_idx2:end_idx2+1])
+        coords1 = np.array(self.coords_list[start_idx1:end_idx1+1])
+        coords2 = np.array(self.coords_list[start_idx2:end_idx2+1])
 
-        plddt1 = np.array(self.plddt_dict[start_idx1:end_idx1+1])
-        plddt2 = np.array(self.plddt_dict[start_idx2:end_idx2+1])
+        plddt1 = np.array(self.plddt_list[start_idx1:end_idx1+1])
+        plddt2 = np.array(self.plddt_list[start_idx2:end_idx2+1])
 
         # Create a contact map or distance map as specified.
         interaction_map = get_interaction_map(

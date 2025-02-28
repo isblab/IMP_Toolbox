@@ -37,7 +37,6 @@ class RigidBodies(_Initialize):
         self.resolution = 0.5
         self.plddt_cutoff = 70
         self.patch_threshold = 10
-        self.double_patch = False
 
 
     def predict_domains(
@@ -102,7 +101,6 @@ class RigidBodies(_Initialize):
                 rb_dict = self.filter_plddt(
                     rb_dict=rb_dict,
                     patch_threshold=self.patch_threshold,
-                    double_patch=self.double_patch,
                 )
 
             domains[idx] = rb_dict
@@ -161,7 +159,6 @@ class RigidBodies(_Initialize):
         self,
         rb_dict: dict,
         patch_threshold: int = 5,
-        double_patch: bool = False,
     ):
         """Filter the residues in the rigid bodies based on the pLDDT cutoff.
         - If the pLDDT score of a residue is less than the cutoff, it is removed from the rigid body.
@@ -178,53 +175,28 @@ class RigidBodies(_Initialize):
 
             confident_residues = []
 
+            # sorted list of residue numbers in the rigid body
             rb_res_num_arr = np.array(sorted(rb_res_num_list))
 
+            # sorted list of residue indices in the rigid body
             plddt_res_num_arr = np.array([self.num_to_idx[chain_id][res_num] for res_num in rb_res_num_list])
 
-            plddt_filtered = np.array(self.plddt_dict)[plddt_res_num_arr] >= self.plddt_cutoff
+            # True/False array based on the pLDDT cutoff
+            # for e.g. plddt_arr = [70, 78, 90, 65, 65, 80, 90]
+            # tf_plddt_filtered = [True, True, True, False, False, True, True] for cutoff = 70
+            tf_plddt_filtered = np.array(self.plddt_list)[plddt_res_num_arr] >= self.plddt_cutoff
 
-
-            plddt_filtered = convert_false_to_true(
-                arr=plddt_filtered,
+            # Convert the pLDDT scores to True/False based on the threshold
+            # for e.g. if arr = [True, False, False, False, True, True] and threshold = 3
+            # the output will be [True, True, True, True, True, True]
+            tf_plddt_filtered = convert_false_to_true(
+                arr=tf_plddt_filtered,
                 threshold=patch_threshold,
             )
 
-            confident_residues = rb_res_num_arr[plddt_filtered]
-
-            if double_patch:
-
-                tf_array_chain = np.isin(np.arange(len(self.token_chain_ids)), confident_residues)
-
-                tf_array_chain = convert_false_to_true(
-                    arr=tf_array_chain,
-                    threshold=patch_threshold,
-                )
-
-                # confident residues are the ones that have true values in tf_array_chain
-                # and they are between min and max values of rb_res_num_arr
-
-                min_rb_res_num = np.min(rb_res_num_arr)
-                max_rb_res_num = np.max(rb_res_num_arr)
-
-                contiguous_rb_res_num_arr = np.arange(min_rb_res_num, max_rb_res_num + 1)
-                confident_residues = contiguous_rb_res_num_arr[tf_array_chain[contiguous_rb_res_num_arr - 1]]
-
-                # confident_residues = rb_res_num_arr[tf_array_chain[rb_res_num_arr - 1]]
-
-            print(confident_residues)
-
+            # Get the residue numbers of the confident residues
+            confident_residues = rb_res_num_arr[tf_plddt_filtered]
             rb_dict[chain_id] = confident_residues.tolist()
-            # print(confident_residues)
-
-            # for res_num in rb_res_num_list:
-            #     res_idx = self.num_to_idx[chain_id][res_num]
-            #     plddt_score = self.plddt_dict[res_idx]
-
-            #     if plddt_score >= self.plddt_cutoff:
-            #         confident_residues.append(res_num)
-
-            # rb_dict[chain_id] = confident_residues
 
         # Remove chains which have no confident residues
         empty_chains = []

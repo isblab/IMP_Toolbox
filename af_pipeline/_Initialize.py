@@ -49,9 +49,9 @@ class _Initialize(AfParser):
             # Chain lengths for each chain.
             self.lengths_dict = self.structureparser.get_chain_lengths(self.token_chain_ids)
             # Ca-coords of all residues for each chain.
-            self.coords_dict = self.structureparser.get_ca_coordinates()
+            self.coords_list = self.structureparser.get_ca_coordinates()
             # Ca-plddt of all residues for each chain.
-            self.plddt_dict = self.structureparser.get_ca_plddt()
+            self.plddt_list = self.structureparser.get_ca_plddt()
 
         else:
             self.token_chain_ids = self.dataparser.get_token_chain_ids(data=data)

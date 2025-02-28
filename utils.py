@@ -1048,9 +1048,13 @@ def convert_false_to_true(arr: np.ndarray | list, threshold:int=5):
 
 # # Example usage
 # import numpy as np
-# my_array = [False, False, False, False, False, False, True, False, False, False, True, False, True]
+# my_array = [True, False, True, False, False, False, True, False, True, False]
 
-# result = convert_false_to_true(my_array)
+# result = convert_false_to_true(my_array, threshold=2)
+# print(result)
+# Output: [ True  True  True False False False  True  True  True  True]
 
-# print(result)  # Output: [True, True, True, True, True, True, True, True, True, True] 
+# result = convert_false_to_true(my_array, threshold=3)
+# print(result)
+# Output: [ True  True  True  True  True  True  True  True  True  True]
 #%%
