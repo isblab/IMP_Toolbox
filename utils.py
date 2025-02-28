@@ -100,6 +100,23 @@ def read_fasta(fasta_file):
 
     return all_sequences
 
+def fill_up_the_blanks(li: list):
+    """Fill up the blanks in a list
+
+    Args:
+        li (list): list with missing numbers
+
+    Returns:
+        new_li (list): list with all the missing numbers filled up between the minimum and maximum values
+    """
+
+    min_li_val = min(li)
+    max_li_val = max(li)
+
+    new_li = [x for x in range(min_li_val, max_li_val+1)]
+
+    return new_li
+
 # uncomment the line below to test in an interactive shell
 ##%%
 

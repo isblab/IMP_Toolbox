@@ -8,7 +8,7 @@ from af_pipeline.pae_to_domains.pae_to_domains import (
 import os
 from collections import defaultdict
 from af_pipeline.Parser import ResidueSelect
-from utils import get_key_from_res_range, save_pdb, convert_false_to_true
+from utils import get_key_from_res_range, save_pdb, convert_false_to_true, fill_up_the_blanks
 
 
 class RigidBodies(_Initialize):
@@ -216,7 +216,8 @@ class RigidBodies(_Initialize):
         domains: list,
         output_dir: str,
         output_format: str = "txt",
-        save_structure: bool = True
+        save_structure: bool = True,
+        no_plddt_filter_for_structure: bool = False,
     ):
         """Save the rigid bodies to a text file."""
 
@@ -243,7 +244,7 @@ class RigidBodies(_Initialize):
 
                         if len(res_list) > 0:
                             f.write(
-                                f"{chain_id}: {get_key_from_res_range(res_range=res_list)}\n"
+                                f"{chain_id}:{get_key_from_res_range(res_range=res_list)}\n"
                             )
 
                     f.write("\n")
@@ -255,6 +256,13 @@ class RigidBodies(_Initialize):
             )
 
             for idx, rb_dict in enumerate(domains):
+
+                if no_plddt_filter_for_structure:
+                    for chain_id, res_list in rb_dict.items():
+                        if len(res_list) > 0:
+                            res_list = fill_up_the_blanks(res_list)
+                            rb_dict[chain_id] = res_list
+
                 output_path = os.path.join(output_dir, f"rigid_body_{idx}.cif")
 
                 save_pdb(
