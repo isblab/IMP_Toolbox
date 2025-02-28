@@ -1,8 +1,12 @@
+from calendar import c
+from collections import defaultdict
 import os
 import json
 import random
 from typing import List, Dict, Any, Final, Tuple
 import warnings
+
+from traitlets import default
 from af_pipeline.af_constants import PTM, DNA_MOD, RNA_MOD, LIGAND, ION, ENTITY_TYPES
 
 # constants
@@ -244,15 +248,20 @@ class AlphaFold2:
 
         job_name = ""
 
+        fragments = defaultdict(list)
+
         for entity in job_dict["entities"]:
             header = entity["header"]
             start, end = entity["range"]
             count = entity["count"]
 
-            to_add = f"{header}_{count}_{start}to{end}_"
+            fragments[f"{header}_{start}to{end}"].append(count)
 
-            if to_add not in job_name:
-                job_name += to_add
+        fragments = {k: max(v) for k, v in fragments.items()}
+
+        for header, count in fragments.items():
+            header_, range_ = header.split("_")
+            job_name += f"{header_}_{count}_{range_}_"
 
         job_name = job_name[:-1] if job_name[-1] == "_" else job_name
 
