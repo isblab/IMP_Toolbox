@@ -382,16 +382,14 @@ class AlphaFold3:
 
             print("Creating job cycle", job_cycle, "\n")
 
-            for job_info in jobs_info:
-                af_cycle = AFCycle(
-                    jobs_info=[job_info],
-                    protein_sequences=self.protein_sequences,
-                    nucleic_acid_sequences=self.nucleic_acid_sequences,
-                    proteins=self.proteins,
-                )
-
-                af_cycle.update_cycle()
-                job_cycles[job_cycle] = af_cycle.job_list
+            af_cycle = AFCycle(
+                jobs_info=jobs_info,
+                protein_sequences=self.protein_sequences,
+                nucleic_acid_sequences=self.nucleic_acid_sequences,
+                proteins=self.proteins,
+            )
+            af_cycle.update_cycle()
+            job_cycles[job_cycle] = af_cycle.job_list
 
         return job_cycles
 
