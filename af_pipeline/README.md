@@ -566,7 +566,7 @@ for region_of_interest in regions_of_interest_:
 
 ## Tips to improve the coverage of Alphafold predictions
 
-Here, coverage refers to the number of residues confidently modeled (at regular pLDDT >70 and PAE>10 cutoffs). 
+Here, coverage refers to the number of residues confidently modeled (at regular pLDDT >= 70 and PAE <= 10 cutoffs). 
 1. For AF3, run jobs with more number of seeds. The more the merrier.
 2. Use sequence truncations in place of full-length sequences if there is previous data that supports the truncation.
 3. Model the sequence for a larger complex. Some interfaces that are expected (due to their presence in the rigid body/ pseudo-domain) might not be confident after applying the pLDDT cutoff. One can do either of the following to get better coverage.
