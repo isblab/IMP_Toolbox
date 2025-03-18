@@ -353,6 +353,7 @@ classDiagram
 ### Description
 - Given an AF-prediction, extract all pseudo rigid domains from it.
 - It is a wrapper over Tristan Croll's `pae_to_domains.py` script. (See pae_to_domains for more details)
+- See [this](https://pmc.ncbi.nlm.nih.gov/articles/PMC9629492/) paper for more details about the method.
 
 ```mermaid
 ---
