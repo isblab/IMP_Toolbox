@@ -562,3 +562,18 @@ for region_of_interest in regions_of_interest_:
   - if `plot_type=both`: both interactive sand static plots will be saved
 
 ![alt text](af_pipeline_organization.png)
+
+## Tips to improve the coverage of Alphafold predictions
+
+Here, coverage refers to the number of residues confidently modeled (at regular pLDDT >70 and PAE>10 cutoffs). 
+
+1. Use sequence truncations in place of full length sequences if there is previous data on the truncation.
+2. Model the sequence for a larger complex. Some interfaces that are expected might not be confident. One can do either of the following to get better coverage.
+   - refine the input to Alphafold by truncating the sequences to the regions that show up as PAE domains using RigidBodies class that gets domains from Tristan Crol's script. This simply eliminates the sequence regions that do not interact with any protein in the complex.
+   - use lower pLDDT cutoffs for disordered regions. Other studies (e.g. https://doi.org/10.1093/bioinformatics/btae491) have suggested lower pLDDT cutoffs (e.g. 50) for disordered regions. 
+
+
+
+
+
+
