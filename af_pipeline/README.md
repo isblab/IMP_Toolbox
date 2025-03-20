@@ -573,6 +573,15 @@ Here, coverage refers to the number of residues confidently modeled (at regular 
    - refine the input to Alphafold by truncating the sequences to the regions that show up as PAE domains using RigidBodies class that gets pseudo-domains from Tristan Croll's script. This simply eliminates the low-confidence regions (sequence regions that quite possibly do not interact with any protein in the complex or are not part of the rigid body/ pseudo-domain).
    - use lower pLDDT cutoffs for disordered regions. Other studies (e.g. https://doi.org/10.1093/bioinformatics/btae491) have suggested lower pLDDT cutoffs (e.g. 50) for disordered regions.
 
+## Recommendations for getting oligomeric state from Alphafold
+
+Ref: https://www.biorxiv.org/content/10.1101/2025.03.10.642518v1.full
+
+1. Run jobs for different oligomeric states from AF2 and AF3.
+2. If mean of the maximum ipTM score of each oligomeric state < 0.32 AF2 (0.24 AF3)  it is a monomer. 
+3. Look at the max iPTM score of any model in the oligomeric state to assign oligomeric state.
+4. The oligomeric state prediction is likely to be accurate if  : a) no low ipTM scores across all oligomeric states (incorrectly assigned states had low iPTMs across all states) b)  the monomeric pLDDT is high in AFDB and c) there are no abnormally long alpha helices in the monomeric structure.
+
 
 
 
