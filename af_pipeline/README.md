@@ -567,11 +567,27 @@ for region_of_interest in regions_of_interest_:
 ## Tips to improve the coverage of Alphafold predictions
 
 Here, coverage refers to the number of residues confidently modeled (at regular pLDDT >= 70 and PAE <= 10 or 12 cutoffs). 
-1. For AF3, run jobs with more number of seeds. The more the merrier.
-2. Use sequence truncations in place of full-length sequences if there is previous data that supports the truncation.
-3. Model the sequence for a larger complex. Some interfaces that are expected (due to their presence in the rigid body/ pseudo-domain) might not be confident after applying the pLDDT cutoff. One can do either of the following to get better coverage.
-   - refine the input to Alphafold by truncating the sequences to the regions that show up as PAE domains using RigidBodies class that gets pseudo-domains from Tristan Croll's script. This simply eliminates the low-confidence regions (sequence regions that quite possibly do not interact with any protein in the complex or are not part of the rigid body/ pseudo-domain).
-   - use lower pLDDT cutoffs for disordered regions. Other studies (e.g. https://doi.org/10.1093/bioinformatics/btae491) have suggested lower pLDDT cutoffs (e.g. 50) for disordered regions.
+
+1. **Getting more models** Run jobs with more number of seeds. The more the merrier.
+
+2. **Sequence truncations, using truncations from initial models of a larger complex** 
+
+i. Use sequence delineation (truncation) for Alphafold input in place of full-length sequences if there is previous data that supports the delineation.
+
+ii. Sometimes, interfaces that are modeled confidently in a small subcomplex are not confident in models of larger complexes. This is noticed for interfaces involving disordered regions in particular. One can then obtain an initial model of the large complex with the larger sequence range.  The pseudo-rigid domains from this model (output of RigidBodies) can be used to delineate the sequence inputs to a subsequent Alphafold prediction, where these interfaces are more likely to be confidently modeled. This simply eliminates the low-confidence regions and sequence regions that possibly do not interact with any protein in the complex. 
+
+3. **Relaxing PAE cutoff and relaxing PAE-based definition of pseudo-rigid domains** 
+
+i. One can relax the PAE cutoff to 12, used in prior studies. 
+
+ii. One can additionally use a less conservative community-detected method on the PAE matrix, such as fast label propogation. 
+
+__Note__ that the PAE cutoffs in i. are only used for defining domains based on the PAE matrix, and not for identifying residue-residue contacts. Which means they can be more lenient. 
+After doing i. and/or ii. one can calculate average mean PAE on the final rigid body to make sure the mean PAE is small (less than 10). 
+
+4. **Relaxing pLDDT cutoff** 
+
+One can additionally use lower pLDDT cutoffs for disordered regions (=50).  
 
 ## Recommendations for getting oligomeric state from Alphafold
 
