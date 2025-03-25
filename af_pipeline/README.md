@@ -574,14 +574,14 @@ Here, coverage refers to the number of residues confidently modeled (at regular 
 
 i. Use sequence delineation (truncation) for Alphafold input in place of full-length sequences if there is previous data that supports the delineation.
 
-ii. Sometimes, interfaces that are modeled confidently in a small subcomplex are not confident in models of larger complexes. This is noticed for interfaces involving disordered regions in particular. One can then obtain an initial model of the large complex with the larger sequence range.  The pseudo-rigid domains from this model (output of RigidBodies) can be used to delineate the sequence inputs to a subsequent Alphafold prediction, where these interfaces are more likely to be confidently modeled. This simply eliminates the low-confidence regions and sequence regions that possibly do not interact with any protein in the complex. 
+ii. Sometimes, interfaces that are modeled confidently in a small subcomplex are not confident in models of larger complexes. This is noticed for interfaces involving disordered regions in particular. One can then obtain an initial model of the large complex with the larger sequence range.  The pseudo-rigid domains from this model (output of RigidBodies) can be used to delineate the sequence inputs to a subsequent second-round Alphafold prediction, where these interfaces are more likely to be confidently modeled. The first step simply eliminates the low-confidence regions and sequence regions that possibly do not interact with any protein in the complex. 
 
 3. **Relaxing PAE cutoff and relaxing PAE-based definition of pseudo-rigid domains** 
 
 One can relax the PAE cutoff to 12, used in prior studies.  
 
 __Note__ that the PAE cutoffs  are only used for defining domains based on the PAE matrix, and not for identifying residue-residue contacts. Which means they can be more lenient. 
-After getting rigid bodies, one can calculate average mean PAE on the final rigid body to make sure the mean PAE is small (less than 10). 
+After getting rigid bodies, one can calculate average interface PAE on the final rigid body to make sure the average interface PAE is small (less than 10). 
 
 4. **Relaxing pLDDT cutoff** 
 
@@ -603,8 +603,6 @@ by taking the median iPTM of available predictions and subtracting the median ab
 2.	actifPTM or ipSAE [#TODO add references]
 
 3.	LIS [#TODO add references]
-
-![image](https://github.com/user-attachments/assets/e71b9c4d-684b-471e-a467-9276bf320c20)
 
 
 
