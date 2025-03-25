@@ -578,12 +578,10 @@ ii. Sometimes, interfaces that are modeled confidently in a small subcomplex are
 
 3. **Relaxing PAE cutoff and relaxing PAE-based definition of pseudo-rigid domains** 
 
-i. One can relax the PAE cutoff to 12, used in prior studies. 
+One can relax the PAE cutoff to 12, used in prior studies.  
 
-ii. One can additionally use a less conservative community-detected method on the PAE matrix, such as fast label propogation. 
-
-__Note__ that the PAE cutoffs in i. are only used for defining domains based on the PAE matrix, and not for identifying residue-residue contacts. Which means they can be more lenient. 
-After doing i. and/or ii. one can calculate average mean PAE on the final rigid body to make sure the mean PAE is small (less than 10). 
+__Note__ that the PAE cutoffs  are only used for defining domains based on the PAE matrix, and not for identifying residue-residue contacts. Which means they can be more lenient. 
+After getting rigid bodies, one can calculate average mean PAE on the final rigid body to make sure the mean PAE is small (less than 10). 
 
 4. **Relaxing pLDDT cutoff** 
 
