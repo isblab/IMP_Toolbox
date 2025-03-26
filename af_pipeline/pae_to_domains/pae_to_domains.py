@@ -1,6 +1,9 @@
 # Author: Tristan Croll
 # Github: https://github.com/tristanic/pae_to_domains
 
+from random import random
+
+
 def parse_pae_file(pae_file):
     #! modified to handle both AF2 and AF3 PAE formats
 
@@ -40,6 +43,33 @@ def parse_pae_file(pae_file):
         raise ValueError('Invalid PAE JSON format.')
 
     return matrix
+
+def domains_from_pae_matrix_label_propagation(pae_matrix, pae_power=1, pae_cutoff=5, random_seed=1):
+    try:
+        import networkx
+    except ImportError:
+        print('ERROR: This method requires NetworkX to be installed. Please install it using "pip install networkx" '
+            'in a Python >=3.6 environment and try again.')
+        import sys
+        sys.exit()
+    import numpy
+    weights = 1/pae_matrix**pae_power
+    
+    g = networkx.Graph()
+    size = weights.shape[0]
+    g.add_nodes_from(range(size))
+    print(pae_cutoff)
+    edges = numpy.argwhere(pae_matrix < pae_cutoff)
+    sel_weights = weights[edges.T[0], edges.T[1]]
+    wedges = [(i,j,w) for (i,j),w in zip(edges,sel_weights)]
+    g.add_weighted_edges_from(wedges)
+
+    from networkx.algorithms import community
+    
+    clusters = list(community.fast_label_propagation_communities(g, weight='weight' ,seed=random_seed))
+    clusters = [list(c) for c in clusters]
+    # print(clusters)
+    return clusters
 
 def domains_from_pae_matrix_networkx(pae_matrix, pae_power=1, pae_cutoff=5, graph_resolution=1):
     '''
