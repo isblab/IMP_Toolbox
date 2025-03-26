@@ -576,6 +576,8 @@ i. Use sequence delineation (truncation) for Alphafold input in place of full-le
 
 ii. Sometimes, interfaces that are modeled confidently in a small subcomplex are not confident in models of larger complexes. This is noticed for interfaces involving disordered regions in particular. One can then obtain an initial model of the large complex with the larger sequence range.  The pseudo-rigid domains from this model (output of RigidBodies) can be used to delineate the sequence inputs to a subsequent second-round Alphafold prediction, where these interfaces are more likely to be confidently modeled. The first step simply eliminates the low-confidence regions and sequence regions that possibly do not interact with any protein in the complex. 
 
+iii. In some cases, adding flanking regions (+/- 5 residues) might slightly improve prediction confidence. (#TODO: add reference)
+
 3. **Relaxing PAE cutoff and relaxing PAE-based definition of pseudo-rigid domains** 
 
 One can relax the PAE cutoff to 12, used in prior studies.  
