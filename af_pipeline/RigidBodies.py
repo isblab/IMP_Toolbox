@@ -1,14 +1,18 @@
+from pprint import pprint
 import numpy as np
 from af_pipeline._Initialize import _Initialize
+from af_pipeline.Interaction import Interaction
 from af_pipeline.pae_to_domains.pae_to_domains import (
     parse_pae_file,
     domains_from_pae_matrix_igraph,
     domains_from_pae_matrix_networkx,
+    domains_from_pae_matrix_label_propagation
 )
 import os
 from collections import defaultdict
 from af_pipeline.Parser import ResidueSelect
-from utils import get_key_from_res_range, save_pdb, convert_false_to_true, fill_up_the_blanks
+from utils import get_key_from_res_range, save_pdb, convert_false_to_true, fill_up_the_blanks, get_interaction_map
+from itertools import combinations
 
 
 class RigidBodies(_Initialize):
@@ -23,6 +27,7 @@ class RigidBodies(_Initialize):
         data_path: str,
         structure_path: str | None = None,
         af_offset: dict | None = None,
+        idr_chains: list = [],
     ):
 
         super().__init__(
@@ -36,7 +41,10 @@ class RigidBodies(_Initialize):
         self.pae_cutoff = 5
         self.resolution = 0.5
         self.plddt_cutoff = 70
+        self.plddt_cutoff_idr = 50
         self.patch_threshold = 10
+        self.random_seed = 99
+        self.idr_chains = idr_chains
 
 
     def predict_domains(
@@ -65,8 +73,8 @@ class RigidBodies(_Initialize):
 
         A rigid body dictionary is of the form:
         - {
-            chain_id1: [res_num, ...],
-            chain_id2: [res_num, ...],
+            ch1: [res_num, ...],
+            ch2: [res_num, ...],
             ...
         }
         """
@@ -80,15 +88,28 @@ class RigidBodies(_Initialize):
         elif self.library == "networkx":
             f = domains_from_pae_matrix_networkx
 
+        elif self.library == "label_propagation":
+            f = domains_from_pae_matrix_label_propagation
+
         else:
             raise ValueError("Invalid library specified. Use 'igraph' or 'networkx")
 
-        domains = f(
-            pae_matrix,
-            pae_power=self.pae_power,
-            pae_cutoff=self.pae_cutoff,
-            graph_resolution=self.resolution,
-        )
+        if f == domains_from_pae_matrix_igraph or f == domains_from_pae_matrix_networkx:
+            domains = f(
+                pae_matrix,
+                pae_power=self.pae_power,
+                pae_cutoff=self.pae_cutoff,
+                graph_resolution=self.resolution,
+            )
+        elif f == domains_from_pae_matrix_label_propagation:
+            domains = f(
+                pae_matrix,
+                pae_power=self.pae_power,
+                pae_cutoff=self.pae_cutoff,
+                # random_seed=99,
+                # random_seed=9,
+                random_seed=self.random_seed,
+            )
 
         for idx, domain in enumerate(domains):
 
@@ -158,7 +179,7 @@ class RigidBodies(_Initialize):
     def filter_plddt(
         self,
         rb_dict: dict,
-        patch_threshold: int = 5,
+        patch_threshold: int = 0,
     ):
         """Filter the residues in the rigid bodies based on the pLDDT cutoff.
         - If the pLDDT score of a residue is less than the cutoff, it is removed from the rigid body.
@@ -184,7 +205,10 @@ class RigidBodies(_Initialize):
             # True/False array based on the pLDDT cutoff
             # for e.g. plddt_arr = [70, 78, 90, 65, 65, 80, 90]
             # tf_plddt_filtered = [True, True, True, False, False, True, True] for cutoff = 70
-            tf_plddt_filtered = np.array(self.plddt_list)[plddt_res_num_arr] >= self.plddt_cutoff
+            if chain_id in self.idr_chains:
+                tf_plddt_filtered = np.array(self.plddt_list)[plddt_res_num_arr] >= self.plddt_cutoff_idr
+            else:
+                tf_plddt_filtered = np.array(self.plddt_list)[plddt_res_num_arr] >= self.plddt_cutoff
 
             # Convert the pLDDT scores to True/False based on the threshold
             # for e.g. if arr = [True, False, False, False, True, True] and threshold = 3
@@ -272,3 +296,240 @@ class RigidBodies(_Initialize):
                     save_type="cif",
                     preserve_header_footer=False,
                 )
+
+
+    def get_interface_residues(
+        self,
+        domains: list,
+        contact_threshold: int = 8,
+        as_matrix: bool = False,
+    ):
+        """Get the interface residues / interface residue pairs for each interface in each rigid body.
+        Each interface is defined by a tuple of chain IDs.
+
+        Args:
+            domains (list): List of rigid bodies
+            contact_threshold (int, optional): Defaults to 8.
+            as_matrix (bool, optional): Defaults to False.
+
+        Returns:
+            all_interface_residues (dict): Interface residues for each chain in each rigid body.
+        """
+
+        # CB coordinates of all residues for each chain.
+        coords = np.array(self.coords_list)
+
+        # all v all contact map
+        contact_map = get_interaction_map(
+            coords1=coords,
+            coords2=coords,
+            contact_threshold=contact_threshold,
+            map_type="contact",
+        )
+
+        # (chain1, chain2): ([ch1_res_idx], [chain2_res_indices])
+        all_interface_residues = defaultdict(dict)
+
+        for rb_idx, rb_dict in enumerate(domains):
+
+            unique_chains_in_rb = [chain_id for chain_id in rb_dict if rb_dict[chain_id]]
+
+            if len(unique_chains_in_rb) < 2:
+                continue
+
+            unique_chain_pairs = sorted(list(combinations(unique_chains_in_rb, 2)))
+
+            for chain_pair in unique_chain_pairs:
+
+                ch1, ch2 = chain_pair
+
+                # convert residue numbers to residue indices
+                ch1_res_idx = [
+                    self.num_to_idx[ch1][res_num] for res_num in rb_dict[ch1]
+                ]
+                ch2_res_idx = [
+                    self.num_to_idx[ch2][res_num] for res_num in rb_dict[ch2]
+                ]
+
+                chain_pair_contact_map = np.zeros_like(contact_map)
+
+                chain_pair_contact_map[np.ix_(ch1_res_idx, ch2_res_idx)] = 1
+                chain_pair_contact_map[np.ix_(ch2_res_idx, ch1_res_idx)] = 1
+
+                # 1 if both residues are in rigid body and make contact, 0 otherwise
+                chain_pair_contact_map = chain_pair_contact_map * contact_map
+
+                # if residue pairs are needed, do this
+                if as_matrix:
+
+                    all_interface_residues[rb_idx][chain_pair] = chain_pair_contact_map
+                    continue
+
+                contact_res_indices = np.unique(np.where(chain_pair_contact_map == 1)[0])
+
+                ch1_contact_res_idx = list(
+                    set(ch1_res_idx).intersection(contact_res_indices)
+                )
+                ch2_contact_res_idx = list(
+                    set(ch2_res_idx).intersection(contact_res_indices)
+                )
+
+                if len(ch1_contact_res_idx+ch2_contact_res_idx) > 0:
+                    all_interface_residues[rb_idx][chain_pair] = (
+                        ch1_contact_res_idx,
+                        ch2_contact_res_idx,
+                    )
+                    print(
+                        f"Number of interface residues between {ch1},{ch2} ="
+                        f" {ch1}: {len(ch1_contact_res_idx)}"
+                        f" {ch2}: {len(ch2_contact_res_idx)}"
+                        f" Total: {len(ch1_contact_res_idx + ch2_contact_res_idx)}"
+                    )
+            print("-"*50)
+
+        return all_interface_residues
+
+
+    def get_iplddt(
+        self,
+        all_interface_residues: dict,
+    ):
+        """Get the interface pLDDT values for each interface in each rigid body.
+
+        Args:
+            all_interface_residues (dict): Chain wise interface residues for each interface in each rigid body.
+
+        Returns:
+            all_iplddt_values (dict): Interface pLDDT values for each interface in each rigid body.
+        """
+
+        if len(self.idr_chains) == 0:
+            return None
+
+        all_iplddt_values = defaultdict(list)
+
+        for rb_idx, interface_res_dict in all_interface_residues.items():
+
+            for chain_pair, interface_residues in interface_res_dict.items():
+
+                ch1_contact_res_idx, ch2_contact_res_idx = interface_residues
+
+                ch1_plddt_vals = [
+                    self.plddt_list[res_idx] for res_idx in ch1_contact_res_idx
+                ]
+                ch2_plddt_vals = [
+                    self.plddt_list[res_idx] for res_idx in ch2_contact_res_idx
+                ]
+
+                all_iplddt_values[rb_idx].extend(ch1_plddt_vals)
+                all_iplddt_values[rb_idx].extend(ch2_plddt_vals)
+
+                print(
+                    f"Average ipLDDT between {chain_pair[0]},{chain_pair[1]} = {np.mean(ch1_plddt_vals + ch2_plddt_vals):.2f}"
+                )
+            print("-"*50)
+            print(f"Average ipLDDT for rigid body {rb_idx} = {np.mean(all_iplddt_values[rb_idx]):.2f}")
+
+        return all_iplddt_values
+
+
+    def get_idr_plddt(
+        self,
+        all_interface_residues: dict,
+    ):
+        """Get the average pLDDT values of the interface residues in IDR chains in each rigid body.
+
+        Args:
+            all_interface_residues (dict): Chain wise interface residues for each interface in each rigid body.
+
+        Returns:
+            all_idr_plddt_dict (dict): Average pLDDT values of the interface residues in IDR chains in each rigid body.
+        """
+
+        if len(self.idr_chains) == 0:
+            return None
+
+        all_idr_plddt_dict = {}
+
+        for rb_idx, interface_res_dict in all_interface_residues.items():
+
+            all_idr_plddt_dict[rb_idx] = defaultdict(list)
+
+            for chain_pair, interface_residues in interface_res_dict.items():
+
+                ch1, ch2 = chain_pair
+                ch1_contact_res_idx, ch2_contact_res_idx = interface_residues
+
+                ch1_plddt_vals = [
+                    self.plddt_list[res_idx] for res_idx in ch1_contact_res_idx
+                ]
+                ch2_plddt_vals = [
+                    self.plddt_list[res_idx] for res_idx in ch2_contact_res_idx
+                ]
+
+                if ch1 in self.idr_chains:
+                    idr_chain = ch1
+                    all_idr_plddt_dict[rb_idx][ch1].extend(ch1_plddt_vals)
+
+                    idr_plddt, partner_chain = ch1_plddt_vals, ch2
+                    print(f"Average IDR pLDDT of {idr_chain} for its interface with {partner_chain} = {np.mean(idr_plddt):.2f}")
+
+                if ch2 in self.idr_chains:
+                    idr_chain = ch2
+                    all_idr_plddt_dict[rb_idx][ch2].extend(ch2_plddt_vals)
+
+                    idr_plddt, partner_chain = ch2_plddt_vals, ch1
+                    print(f"Average IDR pLDDT of {idr_chain} for its interface with {partner_chain} = {np.mean(idr_plddt):.2f}")
+
+            for chain_id, plddt_vals in all_idr_plddt_dict[rb_idx].items():
+                print(f"Average IDR pLDDT of {chain_id} in rigid body {rb_idx} is {np.mean(plddt_vals):.2f}")
+
+            all_idr_plddt_flat_list = [plddt for plddt_vals in all_idr_plddt_dict[rb_idx].values() for plddt in plddt_vals]
+
+            print("-"*50)
+            print(f"Average IDR pLDDT for rigid body {rb_idx} is {np.mean(all_idr_plddt_flat_list)}")
+            print("-"*50)
+
+        return all_idr_plddt_dict
+
+
+    def get_ipae(self, domains: list):
+        """Get the interface PAE values for each interface in each rigid body.
+
+        Args:
+            domains (list): List of rigid bodies
+
+        Returns:
+            all_ipae_values (dict): Interface PAE values for each interface in each rigid body.
+        """
+
+        # we need residue pairs for this
+        all_interface_residues = self.get_interface_residues(
+            domains=domains,
+            contact_threshold=8,
+            as_matrix=True
+        )
+
+        all_ipae_values = defaultdict(dict)
+
+        for rb_idx, interface_res_dict in all_interface_residues.items():
+
+            for chain_pair, chain_pair_contact_map in interface_res_dict.items():
+
+                chain_pair_pae_map = chain_pair_contact_map * self.pae
+                chain_pair_pae_vals = chain_pair_pae_map[chain_pair_pae_map != 0].tolist()
+
+                if len(chain_pair_pae_vals) > 0:
+                    all_ipae_values[rb_idx][chain_pair] = chain_pair_pae_vals
+
+                    print(
+                        f"Average iPAE between {chain_pair[0]},{chain_pair[1]} = {np.mean(chain_pair_pae_vals):.2f}"
+                    )
+
+            total_ipae_vals = [ipae_val for chain_pair in all_ipae_values[rb_idx].values() for ipae_val in chain_pair]
+
+            print("-"*50)
+            print(f"Average iPAE for rigid body {rb_idx} is {np.mean(total_ipae_vals):.2f}")
+            print("-"*50)
+
+        return all_ipae_values
