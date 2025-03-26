@@ -582,7 +582,7 @@ iii. In some cases, adding flanking regions (+/- 5 residues) might slightly impr
 
 One can relax the PAE cutoff to 12, used in prior studies.  
 
-> [NOTE]
+> [!NOTE]
 > The PAE cutoffs  are only used for defining domains based on the PAE matrix, and not for identifying residue-residue contacts. Which means they can be more lenient.
 > After getting rigid bodies, one can calculate the average interface PAE on the final rigid body to make sure the average interface PAE is small (less than 10).
 
