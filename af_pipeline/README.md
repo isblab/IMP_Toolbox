@@ -600,12 +600,13 @@ Ref: https://www.biorxiv.org/content/10.1101/2025.03.10.642518v1.full
 4. The oligomeric state prediction is likely to be accurate if  : a) no low ipTM scores across all oligomeric states (incorrectly assigned states had low iPTMs across all states) b)  the monomeric pLDDT is high in AFDB and c) there are no abnormally long alpha helices in the monomeric structure.
 
 ## Recommendations for getting PPIs from Alphafold
-1.	Penalized iPTM score of peptide-protein (<0.27: random) [Danneskiold-Samsøe et al 2024] . Penalized ipTM is calculated
-by taking the median iPTM of available predictions and subtracting the median absolute deviation (MAD) [Teufel et al 2022].
+1.	Penalized iPTM score of peptide-protein (<0.27: random) [Danneskiold-Samsøe et al Cell Sys 2024] . Penalized ipTM is calculated by taking the median iPTM of available predictions and subtracting the median absolute deviation (MAD) [Teufel et al JCIM 2022].
  
 2.	actifPTM or ipSAE [#TODO add references]
 
 3.	LIS [#TODO add references]
+   
+4.	minD from distogram [Omidi et al PNAS 2024]
 
 
 
