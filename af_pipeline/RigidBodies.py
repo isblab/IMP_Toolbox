@@ -533,3 +533,32 @@ class RigidBodies(_Initialize):
             print("-"*50)
 
         return all_ipae_values
+
+
+    def get_average_pLDDT(self, domains):
+        """Get the average pLDDT value of each rigid body.
+
+        Args:
+            domains (list): List of rigid bodies
+
+        Returns:
+            avg_plddt_values (list): Average pLDDT values of each rigid body
+        """
+
+        all_chain_plddt_dict = defaultdict(dict)
+
+        for rb_idx, rb_dict in enumerate(domains):
+
+            all_chain_plddt_dict[rb_idx] = defaultdict(list)
+
+            for chain_id, res_list in rb_dict.items():
+
+                all_chain_plddt_dict[rb_idx][chain_id].extend(
+                    [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
+                )
+                print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
+
+            all_chain_plddt_vals = [plddt for plddt_vals in all_chain_plddt_dict[rb_idx].values() for plddt in plddt_vals]
+            print(f"Average pLDDT for rigid body {rb_idx} = {np.mean(all_chain_plddt_vals):.2f}")
+
+        return all_chain_plddt_dict
