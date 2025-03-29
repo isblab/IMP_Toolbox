@@ -123,6 +123,7 @@ class RigidBodies(_Initialize):
                     rb_dict=rb_dict,
                     patch_threshold=self.patch_threshold,
                 )
+            #TODO shouldnt we keep only residues that pass plddt ? i.e. patch_threshold = 0 not 10, allowing IMP to fill in missing regions. 
 
             domains[idx] = rb_dict
 
@@ -162,7 +163,8 @@ class RigidBodies(_Initialize):
                 'B': [1, 2, 3, 4],
                 'C': [5, 6, 7, 8, 9]
             }
-        """
+        """ #TODO indices 0, 20 are not represented in output in example. 
+        #TODO shouldnt it be 'A': [1,2,3,4,5,6] for instance? 
 
         rb_dict = defaultdict(list)
 
@@ -278,13 +280,14 @@ class RigidBodies(_Initialize):
             structure = self.renumber.renumber_structure(
                 structure=self.structureparser.structure,
             )
+     
 
             for idx, rb_dict in enumerate(domains):
 
                 if no_plddt_filter_for_structure:
                     for chain_id, res_list in rb_dict.items():
                         if len(res_list) > 0:
-                            res_list = fill_up_the_blanks(res_list)
+                            res_list = fill_up_the_blanks(res_list)  
                             rb_dict[chain_id] = res_list
 
                 output_path = os.path.join(output_dir, f"rigid_body_{idx}.cif")
@@ -296,6 +299,7 @@ class RigidBodies(_Initialize):
                     save_type="cif",
                     preserve_header_footer=False,
                 )
+                #TODO rename function name to save_structure or something since we are using CIF not PDB
 
 
     def get_interface_residues(
@@ -317,6 +321,8 @@ class RigidBodies(_Initialize):
         """
 
         # CB coordinates of all residues for each chain.
+        #TODO I think this is CA currently not CB 
+        
         coords = np.array(self.coords_list)
 
         # all v all contact map
@@ -358,7 +364,7 @@ class RigidBodies(_Initialize):
 
                 # 1 if both residues are in rigid body and make contact, 0 otherwise
                 chain_pair_contact_map = chain_pair_contact_map * contact_map
-
+                
                 # if residue pairs are needed, do this
                 if as_matrix:
 
@@ -432,6 +438,8 @@ class RigidBodies(_Initialize):
 
         return all_iplddt_values
 
+    #TODO lots of duplication. 
+    #TODO merge functions that calculate interface pLDDT a) get_iplddt b) get_idr_plddt: calculate for all interfaces (chain pairs) by default. Have a flag to turn this off (turned on by default). 
 
     def get_idr_plddt(
         self,
@@ -482,7 +490,8 @@ class RigidBodies(_Initialize):
                     print(f"Average IDR pLDDT of {idr_chain} for its interface with {partner_chain} = {np.mean(idr_plddt):.2f}")
 
             for chain_id, plddt_vals in all_idr_plddt_dict[rb_idx].items():
-                print(f"Average IDR pLDDT of {chain_id} in rigid body {rb_idx} is {np.mean(plddt_vals):.2f}")
+                print(f"Average IDR pLDDT of {chain_id} in rigid body {rb_idx} is {np.mean(plddt_vals):.2f}") 
+                #TODO This is not the plDDT of IDR chain in rigid body. it is interface plDDT of IDR chain in rigid body. 
 
             all_idr_plddt_flat_list = [plddt for plddt_vals in all_idr_plddt_dict[rb_idx].values() for plddt in plddt_vals]
 
@@ -491,7 +500,7 @@ class RigidBodies(_Initialize):
             print("-"*50)
 
         return all_idr_plddt_dict
-
+    
 
     def get_ipae(self, domains: list):
         """Get the interface PAE values for each interface in each rigid body.
