@@ -11,7 +11,7 @@ from af_pipeline.pae_to_domains.pae_to_domains import (
 import os
 from collections import defaultdict
 from af_pipeline.Parser import ResidueSelect
-from utils import get_key_from_res_range, save_pdb, convert_false_to_true, fill_up_the_blanks, get_interaction_map
+from utils import get_key_from_res_range, save_structure_obj, convert_false_to_true, fill_up_the_blanks, get_interaction_map
 from itertools import combinations
 
 
@@ -42,7 +42,7 @@ class RigidBodies(_Initialize):
         self.resolution = 0.5
         self.plddt_cutoff = 70
         self.plddt_cutoff_idr = 50
-        self.patch_threshold = 10
+        self.patch_threshold = 0
         self.random_seed = 99
         self.idr_chains = idr_chains
 
@@ -124,6 +124,7 @@ class RigidBodies(_Initialize):
                     patch_threshold=self.patch_threshold,
                 )
             #TODO shouldnt we keep only residues that pass plddt ? i.e. patch_threshold = 0 not 10, allowing IMP to fill in missing regions. 
+            # Yes, it is  set to 0, but I was setting it to 0 while using the RigidBodies class. I've changed default to 0 in the function.
 
             domains[idx] = rb_dict
 
@@ -157,14 +158,19 @@ class RigidBodies(_Initialize):
 
         Example:
             if predicted structure has chains: A (20 aa), B (30 aa), C (50 aa) \n
+            such that, actual residue numbers are
+            A: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39] \n
+            B: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] \n
+            C: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] \n
             and detected domain is [0, 1, 2, 3, 4, 5, 20, 21, 22, 23, 54, 55, 56, 57, 58] \n
             rb_dict = {
-                'A': [1, 2, 3, 4, 5],
-                'B': [1, 2, 3, 4],
+                'A': [20, 21, 22, 23, 24, 25],
+                'B': [20, 21, 22, 23, 24],
                 'C': [5, 6, 7, 8, 9]
             }
-        """ #TODO indices 0, 20 are not represented in output in example. 
-        #TODO shouldnt it be 'A': [1,2,3,4,5,6] for instance? 
+        """ #TODO indices 0, 20 are not represented in output in example.
+        #TODO shouldnt it be 'A': [1,2,3,4,5,6] for instance?
+        # The function is correct I think. you can take a look at the RenumberResidues.residue_map function in Parser.py. Copilot generated incorrect docstring for the example I guess. Fixed it now.
 
         rb_dict = defaultdict(list)
 
@@ -280,7 +286,6 @@ class RigidBodies(_Initialize):
             structure = self.renumber.renumber_structure(
                 structure=self.structureparser.structure,
             )
-     
 
             for idx, rb_dict in enumerate(domains):
 
@@ -292,7 +297,7 @@ class RigidBodies(_Initialize):
 
                 output_path = os.path.join(output_dir, f"rigid_body_{idx}.cif")
 
-                save_pdb(
+                save_structure_obj(
                     structure=structure,
                     out_file=output_path,
                     res_select_obj=ResidueSelect(rb_dict),
@@ -300,6 +305,44 @@ class RigidBodies(_Initialize):
                     preserve_header_footer=False,
                 )
                 #TODO rename function name to save_structure or something since we are using CIF not PDB
+                # renamed to save_structure_obj since save_structure is used as a flag in save_rigid_bodies function
+
+
+    def chain_pair_condition(self, chain_pair, interface_type):
+        """Check the interface type based on the chain pair.
+
+        Args:
+            chain_pair (tuple): Pair of chain IDs
+            interface_type (str): IDR-R, R-R, IDR-IDR, any-any, IDR-any, R-any
+
+        Returns:
+            bool: True if the chain pair satisfies the interface type condition, False otherwise
+        """
+
+        condition_idr_r = (
+            (chain_pair[0] in self.idr_chains and chain_pair[1] not in self.idr_chains)
+            or (chain_pair[1] in self.idr_chains and chain_pair[0] not in self.idr_chains)
+        )
+
+        condition_r_r = (
+            chain_pair[0] not in self.idr_chains and chain_pair[1] not in self.idr_chains
+        )
+
+        condition_idr_idr = (
+            chain_pair[0] in self.idr_chains and chain_pair[1] in self.idr_chains
+        )
+
+        condition_idr_any = (
+            chain_pair[0] in self.idr_chains or chain_pair[1] in self.idr_chains
+        )
+
+        condition_r_any = (
+            chain_pair[0] not in self.idr_chains or chain_pair[1] not in self.idr_chains
+        )
+
+        condition_any_any = True
+
+        return locals()[f"condition_{interface_type.lower().replace('-', '_')}"]
 
 
     def get_interface_residues(
@@ -321,8 +364,9 @@ class RigidBodies(_Initialize):
         """
 
         # CB coordinates of all residues for each chain.
-        #TODO I think this is CA currently not CB 
-        
+        #TODO I think this is CA currently not CB
+        # it is CB, I had mentioned it incorrectly in the gdoc and the docstring. See StructureParser.extract_perresidue_quantity function in Parser.py
+
         coords = np.array(self.coords_list)
 
         # all v all contact map
@@ -364,7 +408,7 @@ class RigidBodies(_Initialize):
 
                 # 1 if both residues are in rigid body and make contact, 0 otherwise
                 chain_pair_contact_map = chain_pair_contact_map * contact_map
-                
+
                 # if residue pairs are needed, do this
                 if as_matrix:
 
@@ -500,7 +544,7 @@ class RigidBodies(_Initialize):
             print("-"*50)
 
         return all_idr_plddt_dict
-    
+
 
     def get_ipae(self, domains: list):
         """Get the interface PAE values for each interface in each rigid body.
