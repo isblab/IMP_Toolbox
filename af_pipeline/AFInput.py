@@ -1,12 +1,9 @@
-from calendar import c
 from collections import defaultdict
 import os
 import json
 import random
 from typing import List, Dict, Any, Final, Tuple
 import warnings
-
-from traitlets import default
 from af_pipeline.af_constants import PTM, DNA_MOD, RNA_MOD, LIGAND, ION, ENTITY_TYPES
 
 # constants
@@ -20,10 +17,10 @@ class AlphaFold2:
         self,
         input_yml: Dict[str, List[Dict[str, Any]]],
         protein_sequences: Dict[str, str],
-        proteins: Dict[str, str] = {},
+        entities_map: Dict[str, str] = {},
     ):
 
-        self.proteins = proteins
+        self.entities_map = entities_map
         self.protein_sequences = protein_sequences
         self.input_yml = input_yml
 
@@ -220,7 +217,7 @@ class AlphaFold2:
                 sequences.append(self.protein_sequences[header])
             except KeyError:
                 try:
-                    sequences.append(self.protein_sequences[self.proteins[header]])
+                    sequences.append(self.protein_sequences[self.entities_map[header]])
                 except KeyError:
                     raise Exception(f"Could not find the entity sequence for {header}")
 
@@ -304,17 +301,17 @@ class ColabFold(AlphaFold2):
         self,
         input_yml: Dict[str, List[Dict[str, Any]]],
         protein_sequences: Dict[str, str],
-        proteins: Dict[str, str] = {},
+        entities_map: Dict[str, str] = {},
     ):
 
-        self.proteins = proteins
+        self.entities_map = entities_map
         self.protein_sequences = protein_sequences
         self.input_yml = input_yml
 
         super().__init__(
             input_yml=input_yml,
             protein_sequences=protein_sequences,
-            proteins=proteins,
+            entities_map=entities_map,
         )
 
     def create_colabfold_job_cycles(
@@ -358,10 +355,10 @@ class AlphaFold3:
         input_yml: Dict[str, List[Dict[str, Any]]],
         protein_sequences: Dict[str, str],
         nucleic_acid_sequences: Dict[str, str] | None = None,
-        proteins: Dict[str, str] = {},
+        entities_map: Dict[str, str] = {},
     ):
 
-        self.proteins = proteins
+        self.entities_map = entities_map
         self.protein_sequences = protein_sequences
         self.nucleic_acid_sequences = nucleic_acid_sequences
         self.input_yml = input_yml
@@ -386,7 +383,7 @@ class AlphaFold3:
                 jobs_info=jobs_info,
                 protein_sequences=self.protein_sequences,
                 nucleic_acid_sequences=self.nucleic_acid_sequences,
-                proteins=self.proteins,
+                entities_map=self.entities_map,
             )
             af_cycle.update_cycle()
             job_cycles[job_cycle] = af_cycle.job_list
@@ -395,20 +392,20 @@ class AlphaFold3:
 
     def write_to_json(
         self,
-        sets_of_20: List[List[Dict[str, Any]]],
+        sets_of_n_jobs: List[List[Dict[str, Any]]],
         file_name: str,
         output_dir: str = "./output/af_input",
     ):
-        """Write the sets of 20 jobs to json files
+        """Write the sets of n jobs to json files
 
         Args:
-            sets_of_20 (list): list of lists, each list containing 20 jobs
+            sets_of_n_jobs (list): list of lists, each list containing n jobs
             file_name (str): name of the file
             output_dir (str, optional): Directory to save the job_files. Defaults to "./output/af_input".
         """
 
         os.makedirs(output_dir, exist_ok=True)
-        for i, job_set in enumerate(sets_of_20):
+        for i, job_set in enumerate(sets_of_n_jobs):
 
             save_path = os.path.join(output_dir, f"{file_name}_set_{i}.json")
 
@@ -421,21 +418,25 @@ class AlphaFold3:
         self,
         job_cycles: Dict[str, List[Dict[str, Any]]],
         output_dir: str = "./output/af_input",
+        num_jobs_per_file: int = 20,
     ):
         """Write job files to the output directory
 
         Args:
             job_cycles (dict): dictionary of job cycles {job_cycle: job_list}
             output_dir (str, optional): Directory to save the job_files. Defaults to "./output/af_input".
+            num_jobs_per_file (int, optional): Number of jobs per file. Defaults to 20.
         """
+
+        assert 101 > num_jobs_per_file > 0; "Number of jobs per file must be within 1 and 100"
 
         for job_cycle, job_list in job_cycles.items():
 
-            sets_of_20 = [job_list[i : i + 20] for i in range(0, len(job_list), 20)]
+            sets_of_n_jobs = [job_list[i : i + num_jobs_per_file] for i in range(0, len(job_list), num_jobs_per_file)]
             os.makedirs(output_dir, exist_ok=True)
 
             self.write_to_json(
-                sets_of_20=sets_of_20,
+                sets_of_n_jobs=sets_of_n_jobs,
                 file_name=job_cycle,
                 output_dir=output_dir,
             )
@@ -451,11 +452,11 @@ class AFCycle:
         jobs_info: List[Dict[str, Any]],
         protein_sequences: Dict[str, str],
         nucleic_acid_sequences: Dict[str, str] | None = None,
-        proteins: Dict[str, str] = {},
+        entities_map: Dict[str, str] = {},
     ):
 
         self.jobs_info = jobs_info  # all jobs within the cycle
-        self.proteins = proteins
+        self.entities_map = entities_map
         self.protein_sequences = protein_sequences
         self.nucleic_acid_sequences = nucleic_acid_sequences
         self.job_list = []
@@ -473,7 +474,7 @@ class AFCycle:
                 job_info=job_info,
                 protein_sequences=self.protein_sequences,
                 nucleic_acid_sequences=self.nucleic_acid_sequences,
-                proteins=self.proteins,
+                entities_map=self.entities_map,
             )
 
             job_dict = af_job.create_job()
@@ -530,11 +531,11 @@ class AFJob:
         job_info: Dict[str, Any],
         protein_sequences: Dict[str, str],
         nucleic_acid_sequences: Dict[str, str] | None = None,
-        proteins: Dict[str, str] = {},
+        entities_map: Dict[str, str] = {},
     ):
 
         self.job_info = job_info
-        self.proteins = proteins
+        self.entities_map = entities_map
         self.protein_sequences = protein_sequences
         self.nucleic_acid_sequences = nucleic_acid_sequences
         self.job_name = None
@@ -608,7 +609,7 @@ class AFJob:
                 entity_info=entity_info,
                 protein_sequences=self.protein_sequences,
                 nucleic_acid_sequences=self.nucleic_acid_sequences,
-                proteins=self.proteins,
+                entities_map=self.entities_map,
             )
             af_sequence_dict = af_sequence.create_af_sequence()
             self.af_sequences.append(af_sequence_dict)
@@ -640,10 +641,10 @@ class Entity:
         entity_info: Dict[str, Any],
         protein_sequences: Dict[str, str],
         nucleic_acid_sequences: Dict[str, str] | None = None,
-        proteins: Dict[str, str] = {},
+        entities_map: Dict[str, str] = {},
     ):
         self.entity_info = entity_info
-        self.proteins = proteins
+        self.entities_map = entities_map
         self.protein_sequences = protein_sequences
         self.nucleic_acid_sequences = nucleic_acid_sequences
         self.entity_name = entity_info["name"]
@@ -691,7 +692,7 @@ class Entity:
         if self.entity_type == "proteinChain":
 
             try:
-                uniprot_id = self.proteins[self.entity_name]
+                uniprot_id = self.entities_map[self.entity_name]
                 real_sequence = self.protein_sequences[uniprot_id]
 
             except KeyError:
@@ -703,7 +704,18 @@ class Entity:
                     )
 
         elif self.entity_type in ["dnaSequence", "rnaSequence"]:
-            real_sequence = self.nucleic_acid_sequences[self.entity_name]
+
+            try:
+                nucleic_acid_id = self.entities_map[self.entity_name]
+                real_sequence = self.nucleic_acid_sequences[nucleic_acid_id]
+
+            except KeyError:
+                try:
+                    real_sequence = self.nucleic_acid_sequences[self.entity_name]
+                except KeyError:
+                    raise Exception(
+                        f"Could not find the entity sequence for {self.entity_name}"
+                    )
 
         return real_sequence
 
@@ -913,14 +925,14 @@ class AFSequence(Entity):
         entity_info: Dict[str, Any],
         protein_sequences: Dict[str, str],
         nucleic_acid_sequences: Dict[str, str] | None = None,
-        proteins: Dict[str, str] = {},
+        entities_map: Dict[str, str] = {},
     ):
 
         super().__init__(
             entity_info=entity_info,
             protein_sequences=protein_sequences,
             nucleic_acid_sequences=nucleic_acid_sequences,
-            proteins=proteins,
+            entities_map=entities_map,
         )
         self.name = self.entity_name
         self.type = self.entity_type
