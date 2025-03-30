@@ -890,7 +890,7 @@ def save_map(
 _select = Select()
 
 
-def save_pdb(
+def save_structure_obj(
     structure: Bio.PDB.Structure,
     out_file: str,
     res_select_obj: Bio.PDB.Select = _select,

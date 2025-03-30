@@ -479,8 +479,8 @@ class StructureParser:
         """
         Given the Biopython residue object, return the specified quantity: \n
             1. residue or nucleotide or ion position \n
-            2. Ca-coordinate or representative atom coordinate \n
-            3. Ca-pLDDT or representative atom pLDDT
+            2. Cb-coordinate or representative atom coordinate \n
+            3. Cb-pLDDT or representative atom pLDDT
 
         Args:
             residue (Bio.PDB.Residue.Residue): Biopython residue object.
