@@ -3,281 +3,17 @@
 This directory contains scripts to aid in alphafold related workflows
 
 ## AFinput
-### Create job files for AF server
-#### Description
+
+### Description
 - A general script to create job files for AF server or fasta files for AlphaFold2/ ColabFold.
 
-<details>
-<summary>
-<span style="font-size: 18px"> <b>AlphaFold 3 (AlphaFold server)</b></span>
-</summary>
-
-```mermaid
----
-config:
-    class:
-        hideEmptyMembersBox: true
----
-classDiagram
-  class AlphaFold3 {
-      - __init__(self, input_yml, protein_sequences, nucleic_acid_sequences, proteins) None
-      + create_af3_job_cycles(self) Dict[str, List[Dict[str, Any]]]
-      + write_to_json(self, sets_of_20, file_name, output_dir)
-      + write_job_files(self, job_cycles, output_dir)
-  }
-```
-
-**Input:** `.yaml` file in the following format.
-
-```yaml
-RNA_DNA_complex_8I54: # job cycle (required)
-  - name: "Lb2Cas12a_RNA_DNA_complex" # job name  (not required)
-    modelSeeds: [1,2] # 2 models with seeds 1 and 2 (not required)
-    entities:
-    # protein entity
-      - name: "Lb2Cas12a" # (required)
-        type: "proteinChain" # (required)
-        count: 1
-        glycans:
-        - - "BMA"
-          - 5
-        modifications:
-        - - "CCD_HY3"
-          - 11
-    # RNA entity
-      - name: "RNA_33"
-        type: "rnaSequence"
-    # DNA entities
-      - name: "DNA_25"
-        type: "dnaSequence"
-      - name: "DNA_mod"
-        type: "dnaSequence"
-        modifications: [["CCD_6OG", 2], ["CCD_6MA", 1]]
-      - name: "MG"
-        type: "ion"
-        count: 1
-```
-
-- The only required keys are:
-  1. job cycle
-  2. name and type in entities
-
-- For most of our use cases, the input will look like this:
-
-```yaml
-job_cycle:
-# job 1
-  - modelSeeds: 20
-    entities:
-      - name: "protein_1"
-        type: "proteinChain"
-      - name: "protein_2"
-        type: "proteinChain"
-# job 2
-  - entities:
-      - name: "dna_1"
-        type: "dnaSequence"
-      - name: "protein_2"
-        type: "proteinChain"
-```
-
-**Usage:**
-- For allowed entity types as well as PTMs, ligands and ions, refer to `af_constants.py` or [JSON file format for AlphaFold Server jobs](https://github.com/google-deepmind/alphafold/tree/main/server) 
-- `modelSeeds` can either be an `int` or `list`.
-  1. if `isinstance(modelSeeds, int)` -> `modelSeeds = random.sample(range(1, 10 * num_seeds), num_seeds)`
-  2. if `isinstance(modelSeeds, list)` -> list taken as is
-
-  Each seed in the list will be considered as a new job.
-- Input `yaml` file can contain multiple cycles, each with multiple jobs
-
-```python
-from af_pipeline.AFinput import AlphaFold3
-
-proteins = read_json("./input/proteins.json")
-protein_sequences = read_fasta("./input/protein_sequences.fasta")
-nucleic_acid_sequences = read_fasta("./input/nucleic_acid_sequences.fasta")
-input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
-
-af_input = AlphaFold3(
-    protein_sequences=protein_sequences, # required (output of fetch_sequences.py)
-    input_yml=input_yml, # required
-    nucleic_acid_sequences=nucleic_acid_sequences, # optional only in case of DNA or RNA sequences
-    proteins=proteins, # optional if protein_sequences have protein names as headers and they match with input yaml
-)
-
-af_input.output_dir = args.output
-job_cycles = af_input.create_af3_job_cycles()
-af_input.write_job_files(job_cycles=job_cycles)
-```
-</details>
-
-<details>
-<summary>
-<span style="font-size: 18px"><b>AlphaFold2</b></span>
-</summary>
-
-```mermaid
----
-config:
-  class:
-    hideEmptyMembersBox: True
----
-classDiagram
-  class AlphaFold2 {
-      - __init__(self, input_yml, protein_sequences, proteins) None
-      + create_af2_job_cycles(self) Dict[str, List[Tuple[Dict[str, str], str]]]
-      + write_to_fasta(self, fasta_dict, file_name, output_dir)
-      + write_job_files(self, job_cycles, output_dir)
-      + generate_job_entities(self, job_info) Tuple[Dict[str, str], str]
-      + get_entity_info(self, job_info, info_type, default_val) List[Dict[str, Any]]
-      + get_entity_sequences(self, ranges, headers) List[str]
-      + generate_job_name(self, job_dict) str
-      + warning_not_protien(self, job_info, job_name)
-  }
-```
-
-**Input:** `.yaml` file in the same format as AlphaFold3.
-
-**Output:** `.fasta` file in the following format.
-
-```fasta
-> seq1_header
-sequence1
-> seq2_header
-sequence2
-> seq3_header
-sequence3
-```
-
-- Entities with type other than `proteinChain` will be ignored and only protein chains will be used to create the fasta file.
-- Any modification of the protein will also be ignored.
-- `Modelseeds` will also be ignored.
-
-```yaml
-# example input file for AlphaFold2
-
-job_cycle:
-  - entities:
-    - name: "Act1"
-      type: "proteinChain"
-      range: [10, 375]
-      count: 1
-    - name: "Cdc3"
-      type: "proteinChain"
-      range: [1, 20]
-      count: 1
-```
-
-- `range` and `count` are optional.
-
-
-```python
-from af_pipeline.AFinput import AlphaFold2
-
-proteins = read_json("./input/proteins.json")
-protein_sequences = read_fasta("./input/protein_sequences.fasta")
-input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
-
-af_input = AlphaFold2(
-    protein_sequences=protein_sequences, # required (output of fetch_sequences.py)
-    input_yml=input_yml, # required
-    proteins=proteins, # optional if protein_sequences have protein names as headers and they match with input yaml
-)
-
-af_input.output_dir = args.output
-job_cycles = af_input.create_af2_job_cycles()
-af_input.write_job_files(job_cycles=job_cycles)
-```
-</details>
-
-
-<details>
-<summary>
-<span style="font-size: 18px"><b>ColabFold</b></span>
-</summary>
-
-```mermaid
----
-config:
-  class:
-    hideEmptyMembersBox: True
----
-classDiagram
-  class ColabFold {
-    - __init__(self, input_yml, protein_sequences, proteins) None
-    + create_colabfold_job_cycles(self) Dict[str, List[Tuple[Dict[str, str], str]]]
-  }
-  ColabFold --|> AlphaFold2
-```
-
-**Input:** `.yaml` file in the same format as AlphaFold3.
-
-**Output:** `.fasta` file in the following format.
-
-```fasta
-> header or job name
-sequence1:
-sequence2:
-sequence3
-```
-
-- This class inherits from `AlphaFold2`, only `crete_colabfold_job_cycles` is different
-
-```yaml
-# example input file for ColabFold
-
-job_cycle:
-  - entities:
-    - name: "Act1"
-      type: "proteinChain"
-      range: [10, 375]
-      count: 1
-    - name: "Cdc3"
-      type: "proteinChain"
-      range: [1, 20]
-      count: 1
-```
-
-- `range` and `count` are optional.
-
-
-```python
-from af_pipeline.AFinput import ColabFold
-
-proteins = read_json("./input/proteins.json")
-protein_sequences = read_fasta("./input/protein_sequences.fasta")
-input_yml = yaml.load(open("./input/af_server_targets.yaml"), Loader=yaml.FullLoader)
-
-af_input = ColabFold(
-    protein_sequences=protein_sequences, # required (output of fetch_sequences.py)
-    input_yml=input_yml, # required
-    proteins=proteins, # optional if protein_sequences have protein names as headers and they match with input yaml
-)
-
-af_input.output_dir = args.output
-job_cycles = af_input.create_colabfold_job_cycles()
-af_input.write_job_files(job_cycles=job_cycles)
-```
-
-</details>
-
-- Check `create_af_jobs.py` in the examples directory for usage.
-- In all the above cases, if `job_name` is not provided, it will be generated as follows.
-
-```python
-# if we have two proteins
-# 1. "Act1" with no range specified and count 1 and "Cdc3" with range [1, 20] and count 2.
-job_name = "Act1_1_1to375_Cdc3_2_1to20"
-```
-> [!NOTE]
-> For AlphaFold server, there is a 100 char limit for `job_name`, so it is advised to provide the `job_name` in the input `.yaml` file for multiprotien complexes.
-
+- Read the instructions in [AFInput](/docs/af_pipeline/AFInput.md) for details on how to use.
 
 ## Parser and _Initialize
-- `Parser.py` has a number of methods to parse alphafold-predicted structure and the corresponding data file.
-- The methods are arranged in different classes as follows.
 
-<mark> should RenumberResidues be in Parser or utils? </mark>
+- `Parser.py` has a number of methods to parse alphafold-predicted structure and the corresponding data file.
+
+- The methods are arranged in different classes as follows.
 
 ```mermaid
 ---
@@ -350,265 +86,88 @@ classDiagram
 - `_Initialze` inherits from `Parser` and does not assume things such as number of chains in the structure or specific chain ids.
 
 ## RigidBodies
+
 ### Description
+
 - Given an AF-prediction, extract all pseudo rigid domains from it.
-- It is a wrapper over Tristan Croll's `pae_to_domains.py` script. (See pae_to_domains for more details)
+
+- Read the instructions in [RigidBodies](/docs/af_pipeline/RigidBodies.md) for details on how to use.
+
+- It is a wrapper over Tristan Croll's `pae_to_domains.py` script. (See [pae_to_domains](/af_pipeline/pae_to_domains/pae_to_domains.py) for more details)
+
 - See [this](https://pmc.ncbi.nlm.nih.gov/articles/PMC9629492/) paper (section 4.2) for more details about the method.
 
-```mermaid
----
-config:
-  class:
-    hideEmptyMembersBox: True
----
-classDiagram
-    class RigidBodies {
-        - __init__(self, data_path, structure_path, af_offset) None
-        + predict_domains(self, num_res, num_proteins, plddt_filter)
-        + domain_to_rb_dict(self, domain)
-        + filter_plddt(self, rb_dict, patch_threshold)
-        + save_rigid_bodies(self, domains, output_dir, output_format, save_structure, no_plddt_filter_for_structure)
-    }
-
-    RigidBodies --|> `af_pipeline._Initialize._Initialize`
-```
-
-**Input:**
-- `data_file_path` (required): AF2 or AF3 output data file (`pkl` or `.json`)
-- `structure_file_path` (required if you need structure as an output): `.cif` file output from AF2 or AF3
-- `af_offset` (not required): `[start, end]` of AF-prediction for each chain if the prediction is not full-length. By default, it is assumed to be `[1, len(protein_chain)]`
-
-
-**Usage:**
-```python
-from af_pipeline.RigidBodies import RigidBodies
-
-pred_to_analyses = {
-  structure_path: "path/to/af_structure.cif",
-  data_path: "path/to/af_data.json",
-  af_offset: {
-    "A": [20, 100],
-    "B": [50, 750]
-  }
-}
-
-structure_path = pred_to_analyse.get("structure_path")
-data_path = pred_to_analyse.get("data_path")
-af_offset = pred_to_analyse.get("af_offset")
-
-af_rigid = RigidBodies(
-    structure_path=structure_path,
-    data_path=data_path,
-    af_offset=af_offset,
-)
-```
-
-```python
-# parameters to vary
-af_rigid.plddt_cutoff = 70
-af_rigid.pae_cutoff = 5 # the maximum PAE value allowed between entities for them to be clustered into the same domain.
-af_rigid.pae_power = 1
-af_rigid.resolution = 0.5 # default value in ChimeraX
-# lower value of resolution results in larger domains
-af_rigid.library = "igraph" # "networkx" is slower
-```
-
-- `resolution` parameter can be varied to get different results (**higher** values will result in **stricter clusters** and thus **smaller pseudo-domains**)
-
-```python
-domains = af_rigid.predict_domains(
-    num_res=5, # minimum number of residues in a domain
-    num_proteins=2, # minimum number of proteins in a domain
-)
-```
-- `num_proteins=2` ensures that only those pseudo-domains that have at-least two proteins are in the output.
-- `num_res=5` ensures that each chain within a pseudo-domain has at least 5 residues.
-- This will result in a list of dictionaries where each dict represents a pseudo-domain in the following format.
-
-```python
-rb1 = {
-  "A": [20, 21, 22, 23, 25, 26],
-  "B": [50, 51, 52, 53, 54, 55, 56]
-}
-```
-
-- You can additionally apply pLDDT cutoff (`plddt_filter=True`) to remove low confidence residues from the structure.
-- setting `no_plddt_filter_for_structure=True` ignores the pLDDT filter in the rigid body in the `.pdb` or `.cif` format but not in the `.txt` format.
-
-```python
-domains = af_rigid.predict_domains(
-    num_res=5, # minimum number of residues in a domain
-    num_proteins=2, # minimum number of proteins in a domain
-    plddt_filter=True, # filter domains based on pLDDT score
-)
-
-af_rigid.save_rigid_bodies(
-    domains=domains,
-    output_dir=args.output,
-    output_format="txt",
-    save_structure=True, # if set to True, you will get each rigid body as a separate PDB
-    no_plddt_filter_for_structure=True, # if set to True, pLDDT filter will be ignored for saving the PDB
-)
-```
-- Output will be a `.txt` file with residue ranges for each rigid body/ pseudo-domain.
-- If you have multiple structures to analyse, you can specify the paths and af_offset in a single `.yaml` file. See the following example in the examples directory.
-
-  - `af_rigid_bodies.py`
-
-#### References:
-- https://www.cgl.ucsf.edu/chimerax/docs/user/commands/alphafold.html#pae
-- https://github.com/tristanic/pae_to_domains
-
-
 ## Interaction
+
 ### Description
+
 - Given AF-prediction, get the following
   - contact map or distance map
   - interacting patches from contact map
 
+- Read the instructions in [Interaction](/docs/af_pipeline/Interaction.md) for details on how to use.
 
-```mermaid
----
-config:
-    class:
-        hideEmptyMembersBox: true
----
-classDiagram
-    class Interaction {
-        - __init__(self, struct_file_path, data_file_path, af_offset, output_dir) None
-        + save_ppair_interaction(self, region_of_interest, save_plot, plot_type)
-        + create_regions_of_interest(self)
-        + get_interaction_data(self, region_of_interest)
-        + apply_confidence_cutoffs(self, plddt1, plddt2, pae)
-        + get_confident_interaction_map(self, region_of_interest)
-        + get_interacting_patches(self, contact_map, region_of_interest)
-    }
-
-
-  Interaction --|> _Initialize
-
-```
-
-
-**Input:**
-- `data_file_path` (required): AF2 or AF3 output data file (`pkl` or `.json`)
-- `structure_file_path` (required): `.cif` file output from AF2 or AF3
-- `af_offset` (not required): `[start, end]` of AF-prediction for each chain if the prediction is not full-length. By default, it is assumed to be `[1, len(protein_chain)]`
-- `output_dir` (not_required): path to save the output
-
-**Usage:**
-
-```python
-from af_pipeline.Interaction import Interaction
-
-pred_to_analyses = {
-  structure_path: "path/to/af_structure.cif",
-  data_path: "path/to/af_data.json",
-  af_offset: {
-    "A": [20, 100],
-    "B": [50, 750]
-  }
-}
-
-structure_path = pred_to_analyse.get("structure_path")
-data_path = pred_to_analyse.get("data_path")
-af_offset = pred_to_analyse.get("af_offset")
-
-af_interaction = Interaction(
-    struct_file_path=structure_path,
-    data_file_path=data_path,
-    af_offset=af_offset,
-    output_dir="/path/to/output/",
-)
-
-# parameters to vary
-af_interaction.plddt_cutoff = 70
-af_interaction.pae_cutoff = 5
-af_interaction.interaction_map_type = "contact" # or "distance"
-af_interaction.contact_threshold = 8
-```
-- **Note:** to get interacting patches `interaction_map_type` has to be `"contact"`
-- If one wants to check interaction within 20-40 residues of "A" and 50-70 residues of "B", region of interest can be defined as follows:
-
-```python
-region_of_interest = {
-  "A": [20, 40],
-  "B": [50, 70]
-}
-
-af_interaction.save_interaction_info(
-    region_of_interest=region_of_interest,
-    save_plot=True,
-    plot_type="interactive",
-)
-```
-- Alternatively, one can use `create_regions_of_interest` to make interacting regions for all possible chain-pairs within the structure.
-
-```python
-regions_of_interest_ = af_interaction.create_regions_of_interest()
-
-for region_of_interest in regions_of_interest_:
-
-    af_interaction.save_interaction_info(
-        region_of_interest=region_of_interest,
-        save_plot=True,
-        plot_type="static",
-    )
-
-```
-- Interacting patches for each region of interest will be saved in a `.csv` file
-- `save_plot=True` gives either of the following results.
-  - if `plot_type=interactive`: `.html` file for each chain-pair
-  - if `plot_type=static`: `.png` file for each chain-pair
-  - if `plot_type=both`: both interactive sand static plots will be saved
+## Organization of af_pipeline
 
 ![alt text](af_pipeline_organization.png)
 
 ## Tips to improve the coverage of Alphafold predictions
 
-Here, coverage refers to the number of residues confidently modeled (at regular pLDDT >= 70 and PAE <= 10 or 12 cutoffs). 
+> [!NOTE]
+> Here, coverage refers to the number of residues confidently modeled (at regular pLDDT >= 70 and PAE <= 10 or 12 cutoffs).
 
 1. **Getting more models** Run jobs with more number of seeds. The more the merrier.
 
 2. **Sequence truncations, using truncations from initial models of a larger complex** 
 
-i. Use sequence delineation (truncation) for Alphafold input in place of full-length sequences if there is previous data that supports the delineation.
+    i. Use sequence delineation (truncation) for Alphafold input in place of full-length sequences if there is previous data that supports the delineation.
 
-ii. Sometimes, interfaces that are modeled confidently in a small subcomplex are not confident in models of larger complexes. This is noticed for interfaces involving disordered regions in particular. One can then obtain an initial model of the large complex with the larger sequence range.  The pseudo-rigid domains from this model (output of RigidBodies) can be used to delineate the sequence inputs to a subsequent second-round Alphafold prediction, where these interfaces are more likely to be confidently modeled. The first step simply eliminates the low-confidence regions and sequence regions that possibly do not interact with any protein in the complex. 
+    ii. Sometimes, interfaces that are modeled confidently in a small subcomplex are not confident in models of larger complexes. This is noticed for interfaces involving disordered regions in particular. One can then obtain an initial model of the large complex with the larger sequence range.  The pseudo-rigid domains from this model (output of `RigidBodies` withput pLDDT filter) can be used to delineate the sequence inputs to a subsequent second-round Alphafold prediction, where these interfaces are more likely to be confidently modeled. The first step simply eliminates the low-confidence regions and sequence regions that possibly do not interact with any protein in the complex.
 
-iii. In some cases, adding flanking regions (+/- 5 residues) might slightly improve prediction confidence. (#TODO: add reference)
+    iii. In some cases, adding flanking regions (+/- 5 residues) might slightly improve prediction confidence. ([Chop Yan Lee et al., 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC10883280/))
 
-3. **Relaxing PAE cutoff and relaxing PAE-based definition of pseudo-rigid domains** 
+3. **Relaxing PAE cutoff and relaxing PAE-based definition of pseudo-rigid domains**
 
-One can relax the PAE cutoff to 12, used in prior studies.  
+One can relax the PAE cutoff to 12, used in prior studies.
 
 > [!NOTE]
 > The PAE cutoffs  are only used for defining domains based on the PAE matrix, and not for identifying residue-residue contacts. Which means they can be more lenient.
+>
 > After getting rigid bodies, one can calculate the average interface PAE on the final rigid body to make sure the average interface PAE is small (less than 10).
 
-4. **Relaxing pLDDT cutoff** 
+4. **Relaxing pLDDT cutoff**
 
-One can additionally use lower pLDDT cutoffs for disordered regions (=50).  
+One can additionally use lower pLDDT cutoffs for disordered regions (=50).
+
+### References:
+1. Chop Yan Lee, D. Hubrich, J.K. Varga, C. Schäfer, M. Welzel, E. Schumbera, M. Djokic, J.M. Strom, J. Schönfeld, J.L. Geist, F. Polat, T.J. Gibson, C. Isabelle, M. Kumar, O. Schueler-Furman, and K. Luck. 2024. Systematic discovery of protein interaction interfaces using AlphaFold and experimental validation. *Molecular Systems Biology*. doi:https://doi.org/10.1038/s44320-023-00005-6.
+2. Omidi, A., M.H. Møller, N. Malhis, J.M. Bui, and J. Gsponer. 2024. AlphaFold-Multimer accurately captures interactions and dynamics of intrinsically disordered protein regions. Proceedings of the National Academy of Sciences of the United States of America. 121:e2406407121. doi:https://doi.org/10.1073/pnas.2406407121.
+3. Bret, H., J. Gao, Diego Javier Zea, J. Andreani, and Raphaël Guerois. 2024. From interaction networks to interfaces, scanning intrinsically disordered regions using AlphaFold2. Nature Communications. 15. doi:https://doi.org/10.1038/s41467-023-44288-7.
+4. Pei, J., and Q. Cong. 2023. AFTM: a database of transmembrane regions in the human proteome predicted by AlphaFold. Database. 2023. doi:https://doi.org/10.1093/database/baad008.
 
 ## Recommendations for getting oligomeric state from Alphafold
 
 Ref: https://www.biorxiv.org/content/10.1101/2025.03.10.642518v1.full
 
 1. Run jobs for different oligomeric states from AF2 and AF3.
-2. If mean of the maximum ipTM score of each oligomeric state < 0.32 AF2 (0.24 AF3)  it is a monomer. 
+2. If mean of the maximum ipTM score of each oligomeric state < 0.32 AF2 (0.24 AF3)  it is a monomer.
 3. Look at the max iPTM score of any model in the oligomeric state to assign oligomeric state.
-4. The oligomeric state prediction is likely to be accurate if  : a) no low ipTM scores across all oligomeric states (incorrectly assigned states had low iPTMs across all states) b)  the monomeric pLDDT is high in AFDB and c) there are no abnormally long alpha helices in the monomeric structure.
+4. The oligomeric state prediction is likely to be accurate if:
+
+    i. no low ipTM scores across all oligomeric states (incorrectly assigned states had low iPTMs across all states)
+
+    ii. the monomeric pLDDT is high in AFDB and
+
+    iii. there are no abnormally long alpha helices in the monomeric structure.
 
 ## Recommendations for getting PPIs from Alphafold
-1.	Penalized iPTM score of peptide-protein (<0.27: random) [Danneskiold-Samsøe et al Cell Sys 2024] . Penalized ipTM is calculated by taking the median iPTM of available predictions and subtracting the median absolute deviation (MAD) [Teufel et al JCIM 2022].
- 
-2.	actifPTM or ipSAE [#TODO add references]
 
-3.	LIS [#TODO add references]
-   
-4.	minD from distogram [Omidi et al PNAS 2024]
+1.	Penalized iPTM score of peptide-protein (<0.27: random) ([Danneskiold-Samsøe et al Cell Sys 2024](https://doi.org/10.1016/j.cels.2024.10.004)). Penalized ipTM is calculated by taking the median iPTM of available predictions and subtracting the median absolute deviation (MAD) [Teufel et al JCIM 2022].
 
+2.	actifPTM ([Varga et al., 2025](https://doi.org/10.1093/bioinformatics/btaf107))
 
+3. ipSAE ([Dunbrack, 2025](https://www.biorxiv.org/content/10.1101/2025.02.10.637595v1))
 
+4.	LIS ([Kim et al., 2024](https://www.biorxiv.org/content/10.1101/2024.02.19.580970v1))
 
-
+5.	minD from distogram ([Omidi et al PNAS 2024](https://www.pnas.org/doi/10.1073/pnas.2406407121))
