@@ -106,8 +106,6 @@ class RigidBodies(_Initialize):
                 pae_matrix,
                 pae_power=self.pae_power,
                 pae_cutoff=self.pae_cutoff,
-                # random_seed=99,
-                # random_seed=9,
                 random_seed=self.random_seed,
             )
 
@@ -123,8 +121,6 @@ class RigidBodies(_Initialize):
                     rb_dict=rb_dict,
                     patch_threshold=self.patch_threshold,
                 )
-            # TODO shouldnt we keep only residues that pass plddt ? i.e. patch_threshold = 0 not 10, allowing IMP to fill in missing regions.
-            # Yes, it is  set to 0, but I was setting it to 0 while using the RigidBodies class. I've changed default to 0 in the function.
 
             domains[idx] = rb_dict
 
@@ -168,9 +164,7 @@ class RigidBodies(_Initialize):
                 'B': [20, 21, 22, 23, 24],
                 'C': [5, 6, 7, 8, 9]
             }
-        """ #TODO indices 0, 20 are not represented in output in example.
-        # TODO shouldnt it be 'A': [1,2,3,4,5,6] for instance?
-        # The function is correct I think. you can take a look at the RenumberResidues.residue_map function in Parser.py. Copilot generated incorrect docstring for the example I guess. Fixed it now.
+        """
 
         rb_dict = defaultdict(list)
 
@@ -304,8 +298,6 @@ class RigidBodies(_Initialize):
                     save_type="cif",
                     preserve_header_footer=False,
                 )
-                # TODO rename function name to save_structure or something since we are using CIF not PDB
-                # renamed to save_structure_obj since save_structure is used as a flag in save_rigid_bodies function
 
 
     def chain_pair_condition(self, chain_pair, interface_type):
@@ -364,9 +356,6 @@ class RigidBodies(_Initialize):
         """
 
         # CB coordinates of all residues for each chain.
-        # TODO I think this is CA currently not CB
-        # it is CB, I had mentioned it incorrectly in the gdoc and the docstring. See StructureParser.extract_perresidue_quantity function in Parser.py
-
         coords = np.array(self.coords_list)
 
         # all v all contact map
@@ -439,11 +428,6 @@ class RigidBodies(_Initialize):
 
         return all_interface_residues
 
-    # TODO lots of duplication.
-    # TODO merge functions that calculate interface pLDDT a) get_iplddt b) get_idr_plddt: calculate for all interfaces (chain pairs) by default. Have a flag to turn this off (turned on by default).
-    # idr plddt is now merged in get_average_plddt function. chain_type = idr will give the idr plddt values.
-    # also, for idr plddt, should the avg idr plddt for a chain be calculated on the residues in rigid body or all residues in the chain (that are in the prediction)?
-    # iplddt can be calculated for all interfaces by default in get_iplddt. interface_type flag can be used to filter the interfaces.
 
     def get_ipLDDT(
         self,
@@ -585,6 +569,7 @@ class RigidBodies(_Initialize):
             for chain_pair, chain_pair_contact_map in interface_res_dict.items():
 
                 chain_pair_pae_map = chain_pair_contact_map * self.pae
+
                 chain_pair_pae_vals = chain_pair_pae_map[chain_pair_pae_map != 0].tolist()
 
                 if len(chain_pair_pae_vals) > 0:
