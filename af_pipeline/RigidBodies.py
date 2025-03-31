@@ -123,7 +123,7 @@ class RigidBodies(_Initialize):
                     rb_dict=rb_dict,
                     patch_threshold=self.patch_threshold,
                 )
-            #TODO shouldnt we keep only residues that pass plddt ? i.e. patch_threshold = 0 not 10, allowing IMP to fill in missing regions. 
+            # TODO shouldnt we keep only residues that pass plddt ? i.e. patch_threshold = 0 not 10, allowing IMP to fill in missing regions.
             # Yes, it is  set to 0, but I was setting it to 0 while using the RigidBodies class. I've changed default to 0 in the function.
 
             domains[idx] = rb_dict
@@ -169,7 +169,7 @@ class RigidBodies(_Initialize):
                 'C': [5, 6, 7, 8, 9]
             }
         """ #TODO indices 0, 20 are not represented in output in example.
-        #TODO shouldnt it be 'A': [1,2,3,4,5,6] for instance?
+        # TODO shouldnt it be 'A': [1,2,3,4,5,6] for instance?
         # The function is correct I think. you can take a look at the RenumberResidues.residue_map function in Parser.py. Copilot generated incorrect docstring for the example I guess. Fixed it now.
 
         rb_dict = defaultdict(list)
@@ -292,7 +292,7 @@ class RigidBodies(_Initialize):
                 if no_plddt_filter_for_structure:
                     for chain_id, res_list in rb_dict.items():
                         if len(res_list) > 0:
-                            res_list = fill_up_the_blanks(res_list)  
+                            res_list = fill_up_the_blanks(res_list)
                             rb_dict[chain_id] = res_list
 
                 output_path = os.path.join(output_dir, f"rigid_body_{idx}.cif")
@@ -304,7 +304,7 @@ class RigidBodies(_Initialize):
                     save_type="cif",
                     preserve_header_footer=False,
                 )
-                #TODO rename function name to save_structure or something since we are using CIF not PDB
+                # TODO rename function name to save_structure or something since we are using CIF not PDB
                 # renamed to save_structure_obj since save_structure is used as a flag in save_rigid_bodies function
 
 
@@ -364,7 +364,7 @@ class RigidBodies(_Initialize):
         """
 
         # CB coordinates of all residues for each chain.
-        #TODO I think this is CA currently not CB
+        # TODO I think this is CA currently not CB
         # it is CB, I had mentioned it incorrectly in the gdoc and the docstring. See StructureParser.extract_perresidue_quantity function in Parser.py
 
         coords = np.array(self.coords_list)
@@ -429,121 +429,136 @@ class RigidBodies(_Initialize):
                         ch1_contact_res_idx,
                         ch2_contact_res_idx,
                     )
-                    print(
-                        f"Number of interface residues between {ch1},{ch2} ="
-                        f" {ch1}: {len(ch1_contact_res_idx)}"
-                        f" {ch2}: {len(ch2_contact_res_idx)}"
-                        f" Total: {len(ch1_contact_res_idx + ch2_contact_res_idx)}"
-                    )
-            print("-"*50)
+            #         print(
+            #             f"Number of interface residues between {ch1},{ch2} ="
+            #             f" {ch1}: {len(ch1_contact_res_idx)}"
+            #             f" {ch2}: {len(ch2_contact_res_idx)}"
+            #             f" Total: {len(ch1_contact_res_idx + ch2_contact_res_idx)}"
+            #         )
+            # print("-"*50)
 
         return all_interface_residues
 
+    # TODO lots of duplication.
+    # TODO merge functions that calculate interface pLDDT a) get_iplddt b) get_idr_plddt: calculate for all interfaces (chain pairs) by default. Have a flag to turn this off (turned on by default).
+    # idr plddt is now merged in get_average_plddt function. chain_type = idr will give the idr plddt values.
+    # also, for idr plddt, should the avg idr plddt for a chain be calculated on the residues in rigid body or all residues in the chain (that are in the prediction)?
+    # iplddt can be calculated for all interfaces by default in get_iplddt. interface_type flag can be used to filter the interfaces.
 
-    def get_iplddt(
+    def get_ipLDDT(
         self,
-        all_interface_residues: dict,
+        domains: list,
+        interface_type: str = "any-any",
     ):
-        """Get the interface pLDDT values for each interface in each rigid body.
+        """ Get the interface pLDDT values for each interface (of interface type) in each rigid body.
 
         Args:
-            all_interface_residues (dict): Chain wise interface residues for each interface in each rigid body.
+            domains (list): List of rigid bodies
+            interface_type (str, optional): Type of interface (any-any, idr-r, r-r, r-any, idr-idr, idr-any). Defaults to "any-any".
 
         Returns:
-            all_iplddt_values (dict): Interface pLDDT values for each interface in each rigid body.
+            all_iplddt_values (dict): Interface pLDDT values for each interface (of interface type) in each rigid body.
         """
 
-        if len(self.idr_chains) == 0:
-            return None
+        all_iplddt_values = defaultdict(dict)
 
-        all_iplddt_values = defaultdict(list)
+        assert interface_type in ["any-any", "idr-r", "r-r", "r-any", "idr-idr", "idr-any"]; "Invalid interface type, choose from any-any, idr-r, r-r, r-any, idr-idr, idr-any"
+
+        all_interface_residues = self.get_interface_residues(
+            domains=domains,
+            contact_threshold=8,
+            as_matrix=False
+        )
 
         for rb_idx, interface_res_dict in all_interface_residues.items():
 
+            all_iplddt_values[rb_idx] = defaultdict(list)
+
             for chain_pair, interface_residues in interface_res_dict.items():
 
-                ch1_contact_res_idx, ch2_contact_res_idx = interface_residues
+                if self.chain_pair_condition(chain_pair, interface_type):
 
-                ch1_plddt_vals = [
-                    self.plddt_list[res_idx] for res_idx in ch1_contact_res_idx
-                ]
-                ch2_plddt_vals = [
-                    self.plddt_list[res_idx] for res_idx in ch2_contact_res_idx
-                ]
+                    ch1_contact_res_idx, ch2_contact_res_idx = interface_residues
 
-                all_iplddt_values[rb_idx].extend(ch1_plddt_vals)
-                all_iplddt_values[rb_idx].extend(ch2_plddt_vals)
+                    ch1_plddt_vals = [
+                        self.plddt_list[res_idx] for res_idx in ch1_contact_res_idx
+                    ]
+                    ch2_plddt_vals = [
+                        self.plddt_list[res_idx] for res_idx in ch2_contact_res_idx
+                    ]
 
-                print(
-                    f"Average ipLDDT between {chain_pair[0]},{chain_pair[1]} = {np.mean(ch1_plddt_vals + ch2_plddt_vals):.2f}"
-                )
-            print("-"*50)
-            print(f"Average ipLDDT for rigid body {rb_idx} = {np.mean(all_iplddt_values[rb_idx]):.2f}")
+                    all_iplddt_values[rb_idx][chain_pair] = ch1_plddt_vals + ch2_plddt_vals
+
+                    print(
+                        f"Average ipLDDT between {chain_pair[0]},{chain_pair[1]} = {np.mean(ch1_plddt_vals + ch2_plddt_vals):.2f}"
+                    )
+
+            _all_iplddt_vals = [
+                iplddt
+                for chain_pair_iplddt in all_iplddt_values[rb_idx].values()
+                for iplddt in chain_pair_iplddt
+            ]
+
+            print("-" * 50)
+            print(f"Average ipLDDT for interface type {interface_type} in rigid body {rb_idx} = {np.mean(_all_iplddt_vals):.2f}")
+            print("-" * 50)
 
         return all_iplddt_values
 
-    #TODO lots of duplication. 
-    #TODO merge functions that calculate interface pLDDT a) get_iplddt b) get_idr_plddt: calculate for all interfaces (chain pairs) by default. Have a flag to turn this off (turned on by default). 
 
-    def get_idr_plddt(
+    def get_average_pLDDT(
         self,
-        all_interface_residues: dict,
+        domains: list,
+        chain_type: str = "any",
     ):
-        """Get the average pLDDT values of the interface residues in IDR chains in each rigid body.
+        """Get the average pLDDT value of each chain of given chain_type in each rigid body.
 
         Args:
-            all_interface_residues (dict): Chain wise interface residues for each interface in each rigid body.
+            domains (list): List of rigid bodies
+            chain_type (str, optional): Type of chain (any, idr, r). Defaults to "any".
 
         Returns:
-            all_idr_plddt_dict (dict): Average pLDDT values of the interface residues in IDR chains in each rigid body.
+            avg_plddt_values (list): Average pLDDT values for each chain of given chain_type in each rigid body.
         """
 
-        if len(self.idr_chains) == 0:
-            return None
+        all_chain_plddt_dict = defaultdict(dict)
 
-        all_idr_plddt_dict = {}
+        assert chain_type in ["any", "idr", "r"]; "Invalid chain type, choose from any, idr, r"
 
-        for rb_idx, interface_res_dict in all_interface_residues.items():
+        chain_ids = [chain_id for chain_id in self.lengths_dict.keys()]
+        allowed_chain_ids = []
 
-            all_idr_plddt_dict[rb_idx] = defaultdict(list)
+        if chain_type == "any":
+            allowed_chain_ids = chain_ids
+        elif chain_type == "idr":
+            allowed_chain_ids = self.idr_chains
+        elif chain_type == "r":
+            allowed_chain_ids = [chain_id for chain_id in chain_ids if chain_id not in self.idr_chains]
 
-            for chain_pair, interface_residues in interface_res_dict.items():
+        for rb_idx, rb_dict in enumerate(domains):
 
-                ch1, ch2 = chain_pair
-                ch1_contact_res_idx, ch2_contact_res_idx = interface_residues
+            all_chain_plddt_dict[rb_idx] = defaultdict(list)
 
-                ch1_plddt_vals = [
-                    self.plddt_list[res_idx] for res_idx in ch1_contact_res_idx
-                ]
-                ch2_plddt_vals = [
-                    self.plddt_list[res_idx] for res_idx in ch2_contact_res_idx
-                ]
+            for chain_id, res_list in rb_dict.items():
 
-                if ch1 in self.idr_chains:
-                    idr_chain = ch1
-                    all_idr_plddt_dict[rb_idx][ch1].extend(ch1_plddt_vals)
+                if chain_id in allowed_chain_ids:
 
-                    idr_plddt, partner_chain = ch1_plddt_vals, ch2
-                    print(f"Average IDR pLDDT of {idr_chain} for its interface with {partner_chain} = {np.mean(idr_plddt):.2f}")
+                    all_chain_plddt_dict[rb_idx][chain_id].extend(
+                        [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
+                    )
+                    print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
 
-                if ch2 in self.idr_chains:
-                    idr_chain = ch2
-                    all_idr_plddt_dict[rb_idx][ch2].extend(ch2_plddt_vals)
-
-                    idr_plddt, partner_chain = ch2_plddt_vals, ch1
-                    print(f"Average IDR pLDDT of {idr_chain} for its interface with {partner_chain} = {np.mean(idr_plddt):.2f}")
-
-            for chain_id, plddt_vals in all_idr_plddt_dict[rb_idx].items():
-                print(f"Average IDR pLDDT of {chain_id} in rigid body {rb_idx} is {np.mean(plddt_vals):.2f}") 
-                #TODO This is not the plDDT of IDR chain in rigid body. it is interface plDDT of IDR chain in rigid body. 
-
-            all_idr_plddt_flat_list = [plddt for plddt_vals in all_idr_plddt_dict[rb_idx].values() for plddt in plddt_vals]
+            _all_chain_plddt_vals = [
+                plddt
+                for plddt_vals in all_chain_plddt_dict[rb_idx].values()
+                for plddt in plddt_vals
+            ]
 
             print("-"*50)
-            print(f"Average IDR pLDDT for rigid body {rb_idx} is {np.mean(all_idr_plddt_flat_list)}")
+            print(f"Average pLDDT for all chains of chain_type '{chain_type}' in rigid body {rb_idx} = {np.mean(_all_chain_plddt_vals):.2f}")
             print("-"*50)
 
-        return all_idr_plddt_dict
+        return all_chain_plddt_dict
 
 
     def get_ipae(self, domains: list):
@@ -579,39 +594,14 @@ class RigidBodies(_Initialize):
                         f"Average iPAE between {chain_pair[0]},{chain_pair[1]} = {np.mean(chain_pair_pae_vals):.2f}"
                     )
 
-            total_ipae_vals = [ipae_val for chain_pair in all_ipae_values[rb_idx].values() for ipae_val in chain_pair]
+            _all_ipae_vals = [
+                ipae_val
+                for chain_pair_pae in all_ipae_values[rb_idx].values()
+                for ipae_val in chain_pair_pae
+            ]
 
             print("-"*50)
-            print(f"Average iPAE for rigid body {rb_idx} is {np.mean(total_ipae_vals):.2f}")
+            print(f"Average iPAE for rigid body {rb_idx} is {np.mean(_all_ipae_vals):.2f}")
             print("-"*50)
 
         return all_ipae_values
-
-
-    def get_average_pLDDT(self, domains):
-        """Get the average pLDDT value of each rigid body.
-
-        Args:
-            domains (list): List of rigid bodies
-
-        Returns:
-            avg_plddt_values (list): Average pLDDT values of each rigid body
-        """
-
-        all_chain_plddt_dict = defaultdict(dict)
-
-        for rb_idx, rb_dict in enumerate(domains):
-
-            all_chain_plddt_dict[rb_idx] = defaultdict(list)
-
-            for chain_id, res_list in rb_dict.items():
-
-                all_chain_plddt_dict[rb_idx][chain_id].extend(
-                    [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
-                )
-                print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
-
-            all_chain_plddt_vals = [plddt for plddt_vals in all_chain_plddt_dict[rb_idx].values() for plddt in plddt_vals]
-            print(f"Average pLDDT for rigid body {rb_idx} = {np.mean(all_chain_plddt_vals):.2f}")
-
-        return all_chain_plddt_dict
