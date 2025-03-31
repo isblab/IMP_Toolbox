@@ -1,4 +1,5 @@
 from pprint import pprint
+import time
 import numpy as np
 from af_pipeline._Initialize import _Initialize
 from af_pipeline.Interaction import Interaction
@@ -79,6 +80,9 @@ class RigidBodies(_Initialize):
         }
         """
 
+        print("Predicting domains...")
+        start_time = time.time()
+
         pae_path = self.data_file_path
         pae_matrix = parse_pae_file(pae_file=pae_path)
 
@@ -137,6 +141,9 @@ class RigidBodies(_Initialize):
             for rb_dict in domains
             if sum([len(res_list) for res_list in rb_dict.values()]) >= num_res
         ]
+
+        end_time = time.time()
+        print(f"Done predicting pseudo-rigid domains in {end_time - start_time:.2f} seconds")
 
         return domains
 
@@ -431,7 +438,7 @@ class RigidBodies(_Initialize):
 
     def get_ipLDDT(
         self,
-        domains: list,
+        all_interface_residues: dict,
         interface_type: str = "any-any",
     ):
         """ Get the interface pLDDT values for each interface (of interface type) in each rigid body.
@@ -447,12 +454,6 @@ class RigidBodies(_Initialize):
         all_iplddt_values = defaultdict(dict)
 
         assert interface_type in ["any-any", "idr-r", "r-r", "r-any", "idr-idr", "idr-any"]; "Invalid interface type, choose from any-any, idr-r, r-r, r-any, idr-idr, idr-any"
-
-        all_interface_residues = self.get_interface_residues(
-            domains=domains,
-            contact_threshold=8,
-            as_matrix=False
-        )
 
         for rb_idx, interface_res_dict in all_interface_residues.items():
 
@@ -545,7 +546,7 @@ class RigidBodies(_Initialize):
         return all_chain_plddt_dict
 
 
-    def get_ipae(self, domains: list):
+    def get_ipae(self, all_interface_residues: list):
         """Get the interface PAE values for each interface in each rigid body.
 
         Args:
@@ -554,13 +555,6 @@ class RigidBodies(_Initialize):
         Returns:
             all_ipae_values (dict): Interface PAE values for each interface in each rigid body.
         """
-
-        # we need residue pairs for this
-        all_interface_residues = self.get_interface_residues(
-            domains=domains,
-            contact_threshold=8,
-            as_matrix=True
-        )
 
         all_ipae_values = defaultdict(dict)
 
