@@ -2,6 +2,7 @@ import os
 from typing import Dict
 import warnings
 import numpy as np
+import pandas as pd
 from af_pipeline._Initialize import _Initialize
 from utils import get_interaction_map, get_patches_from_matrix, save_map
 
@@ -20,6 +21,7 @@ class Interaction(_Initialize):
         data_file_path: str,
         af_offset: dict | None = None,
         output_dir: str = "./output/af_output",
+        idr_chains: list = [],
     ):
 
         super().__init__(
@@ -34,8 +36,10 @@ class Interaction(_Initialize):
         self.interaction_map_type = "contact"  # Either contact/distance.
         self.contact_threshold = 8  # Distance threshold in (Angstorm) to define a contact between residue pairs.
         self.plddt_cutoff = 70  # pLDDT cutoff to consider a confident prediction.
+        self.idr_plddt_cutoff = 50  # pLDDT cutoff for IDR chains.
         self.pae_cutoff = 5 # PAE cutoff to consider a confident prediction.
         self.output_dir = output_dir
+        self.idr_chains = idr_chains # List of chains that are disordered
 
         self.save_plot = False
         self.save_table = False
@@ -98,6 +102,9 @@ class Interaction(_Initialize):
         """
         Get the interaction amp, pLDDT, and PAE for the region of interest.
 
+        Args:
+            region_of_interest (Dict): Dictionary containing the chain IDs and the residue numbers for the region of interest.
+
         Returns:
             interaction_map (np.array): binary contact map or distance map
             plddt1 (np.array): plddt values for chain 1
@@ -116,13 +123,17 @@ class Interaction(_Initialize):
         start_idx2 = self.num_to_idx[chain2][p2_region[0]]
         end_idx2 = self.num_to_idx[chain2][p2_region[1]]
 
-        pae = self.avg_pae[start_idx1:end_idx1+1, start_idx2:end_idx2+1]
+        avg_pae = self.avg_pae[start_idx1:end_idx1+1, start_idx2:end_idx2+1]
 
         coords1 = np.array(self.coords_list[start_idx1:end_idx1+1])
         coords2 = np.array(self.coords_list[start_idx2:end_idx2+1])
 
-        plddt1 = np.array(self.plddt_list[start_idx1:end_idx1+1])
-        plddt2 = np.array(self.plddt_list[start_idx2:end_idx2+1])
+        plddt1 = {
+            chain1: np.array(self.plddt_list[start_idx1:end_idx1+1])
+        }
+        plddt2 = {
+            chain2: np.array(self.plddt_list[start_idx2:end_idx2+1])
+        }
 
         # Create a contact map or distance map as specified.
         interaction_map = get_interaction_map(
@@ -132,26 +143,39 @@ class Interaction(_Initialize):
             map_type=self.interaction_map_type
         )
 
-        return interaction_map, plddt1, plddt2, pae
+        return interaction_map, plddt1, plddt2, avg_pae
 
 
     def apply_confidence_cutoffs(
         self,
-        plddt1: np.array,
-        plddt2: np.array,
+        plddt1: dict,
+        plddt2: dict,
         pae: np.array
     ):
         """
         mask low-confidence interactions.
+
+        Args:
+            plddt1 (dict): pLDDT values for chain 1
+            plddt2 (dict): pLDDT values for chain 2
 
         Returns:
             plddt_matrix (np.array): binary matrix for plddt values >= plddt_cutoff
             pae (np.array): binary matrix for pae values <= pae_cutoff
         """
 
+        chain1, chain2 = next(iter(plddt1)), next(iter(plddt2))
+        plddt1, plddt2 = plddt1[chain1], plddt2[chain2]
         plddt1, plddt2 = plddt1.reshape(-1, 1), plddt2.reshape(-1,1)
-        plddt1 = np.where(plddt1 >= self.plddt_cutoff, 1, 0)
-        plddt2 = np.where(plddt2 >= self.plddt_cutoff, 1, 0)
+
+        ch1_cutoff = ch2_cutoff = self.plddt_cutoff
+        if chain1 in self.idr_chains:
+            ch1_cutoff = self.idr_plddt_cutoff
+        if chain2 in self.idr_chains:
+            ch2_cutoff = self.idr_plddt_cutoff
+
+        plddt1 = np.where(plddt1 >= ch1_cutoff, 1, 0)
+        plddt2 = np.where(plddt2 >= ch2_cutoff, 1, 0)
         plddt_matrix = plddt1 * plddt2.T
 
         pae = np.where(pae <= self.pae_cutoff, 1, 0)
@@ -167,15 +191,15 @@ class Interaction(_Initialize):
             confident_interactions (np.array): binary map of confident interacting residues
         """
 
-        interaction_map, plddt1, plddt2, pae = self.get_interaction_data(
+        interaction_map, plddt1, plddt2, avg_pae = self.get_interaction_data(
             region_of_interest=region_of_interest
         )
 
-        plddt_matrix, pae = self.apply_confidence_cutoffs(
-            plddt1=plddt1, plddt2=plddt2, pae=pae
+        plddt_matrix, pae_matrix = self.apply_confidence_cutoffs(
+            plddt1=plddt1, plddt2=plddt2, pae=avg_pae
         )
 
-        confident_interactions = interaction_map * plddt_matrix * pae
+        confident_interactions = interaction_map * plddt_matrix * pae_matrix
 
         return confident_interactions
 
@@ -225,17 +249,22 @@ class Interaction(_Initialize):
             ch1_patch = np.array(ch1_patch) + region_of_interest[chain1][0]
             ch2_patch = np.array(ch2_patch) + region_of_interest[chain2][0]
 
+            # patches[patch_idx] = {
+            #     chain1: (
+            #         f"{ch1_patch[0]}-{ch1_patch[-1]}"
+            #         if len(ch1_patch) > 1
+            #         else str(ch1_patch[0])
+            #     ),
+            #     chain2: (
+            #         f"{ch2_patch[0]}-{ch2_patch[-1]}"
+            #         if len(ch2_patch) > 1
+            #         else str(ch2_patch[0])
+            #     ),
+            # }
+
             patches[patch_idx] = {
-                chain1: (
-                    f"{ch1_patch[0]}-{ch1_patch[-1]}"
-                    if len(ch1_patch) > 1
-                    else str(ch1_patch[0])
-                ),
-                chain2: (
-                    f"{ch2_patch[0]}-{ch2_patch[-1]}"
-                    if len(ch2_patch) > 1
-                    else str(ch2_patch[0])
-                ),
+                chain1: np.array(ch1_patch),
+                chain2: np.array(ch2_patch),
             }
 
         return patches
@@ -248,7 +277,7 @@ class Interaction(_Initialize):
         plot_type: str = "static",
         p1_name: str | None = None,
         p2_name: str | None = None,
-        concat_resisues: bool = True,
+        concat_residues: bool = True,
     ):
         """Save the interacting patches for the given region of interest of the protein pair.
 
@@ -256,6 +285,9 @@ class Interaction(_Initialize):
             region_of_interest (Dict): Dictionary containing the chain IDs and the residue indices for the region of interest.
             save_plot (bool, optional): Outputs the plot if True. Defaults to False.
             plot_type (str, optional): Type of plot to be saved. Defaults to "static"; options: ["static", "interactive", "both"].
+            p1_name (str, optional): Name of the first protein. Defaults to None.
+            p2_name (str, optional): Name of the second protein. Defaults to None.
+            concat_residues (bool, optional): Whether to concatenate the residues into residue ranges. Defaults to True. Set this to False to get the contact probability for each residue pair.
         """
 
         chain1, chain2 = list(region_of_interest.keys())
@@ -306,5 +338,25 @@ class Interaction(_Initialize):
                 out_file=os.path.join(self.output_dir, f"patches_{file_name}.html"),
                 save_plot=save_plot,
                 plot_type=plot_type,
-                concat_resisues=concat_resisues,
+                concat_residues=concat_residues,
             )
+
+            if not concat_residues:
+                csv_outfile = os.path.join(self.output_dir, f"patches_{file_name}.csv")
+                patches_df = pd.read_csv(csv_outfile, header=0)
+
+                pde_col = []
+                col_names = patches_df.columns.tolist()
+
+                p1_name, p2_name = col_names[0], col_names[1]
+                p_res_pairs = patches_df[[p1_name, p2_name]].values
+
+                for res_pair in p_res_pairs:
+                    res1, res2 = res_pair
+                    res1_idx = self.num_to_idx[p1_name][res1]
+                    res2_idx = self.num_to_idx[p2_name][res2]
+                    avg_pde = (self.pde[res1_idx, res2_idx]+self.pde[res2_idx, res1_idx])/2
+                    pde_col.append(avg_pde)
+
+                patches_df["Contact Probability"] = pde_col
+                patches_df.to_csv(csv_outfile, index=False)
