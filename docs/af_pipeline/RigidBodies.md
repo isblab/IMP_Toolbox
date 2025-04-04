@@ -21,6 +21,11 @@ classDiagram
         + domain_to_rb_dict(self, domain)
         + filter_plddt(self, rb_dict, patch_threshold)
         + save_rigid_bodies(self, domains, output_dir, output_format, save_structure, no_plddt_filter_for_structure)
+        + chain_pair_condition(self, chain_pair, interface_type)
+        + get_interface_residues(domains, contact_threshold, as_matrix)
+        + get_ipLDDT(self, all_interface_residues, interface_type)
+        + get_average_pLDDT(self, domains, chain_type)
+        + get_ipae(self, all_interface_residues)
     }
 
     RigidBodies --|> `af_pipeline._Initialize._Initialize`
@@ -57,12 +62,14 @@ af_rigid = RigidBodies(
     structure_path=structure_path,
     data_path=data_path,
     af_offset=af_offset,
+    idr_chains=["A"]
 )
 ```
 
 ```python
 # parameters to vary
 af_rigid.plddt_cutoff = 70
+af_rigid.plddt_cutoff_idr = 50 # you can set different cutoff for IDR
 af_rigid.pae_cutoff = 5 # Edges will be created between all the residues < PAE cutoff
 af_rigid.pae_power = 1
 af_rigid.resolution = 0.5 # default value in ChimeraX
@@ -109,6 +116,36 @@ af_rigid.save_rigid_bodies(
     no_plddt_filter_for_structure=True, # if set to True, pLDDT filter will be ignored for saving the PDB
 )
 ```
+
+- You can also assess the rigid body by calculating `ipLDDT`, `iPAE`, `average_pLDDT`.
+
+```python
+# average pLDDT
+af_rigid.get_average_pLDDT(domains=domains, chain_type="any")
+# valid values for chain_type are: "any", "idr", "r"
+
+all_interface_residues = af_rigid.get_interface_residues(
+    domains=domains,
+    contact_threshold=8,
+    as_matrix=False
+)
+
+af_rigid.get_ipLDDT(
+  all_interface_residues=all_interface_residues,
+  interface_type="any-any"
+)
+
+all_interface_residues = af_rigid.get_interface_residues(
+    domains=domains,
+    contact_threshold=8,
+    as_matrix=True
+)
+
+af_rigid.get_ipae(
+    all_interface_residues=all_interface_residues
+)
+```
+
 - Output will be a `.txt` file with residue ranges for each rigid body/ pseudo-domain.
 - If you have multiple structures to analyse, you can specify the paths and af_offset in a single `.yaml` file. See the following example in the examples directory.
 
