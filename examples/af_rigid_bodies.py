@@ -45,13 +45,16 @@ if __name__ == "__main__":
             structure_path=structure_path,
             data_path=data_path,
             af_offset=af_offset,
+            idr_chains=[], # list of chains that are disordered for e.g. ["A", "B"]
         )
 
         af_rigid.plddt_cutoff = 70
+        af_rigid.plddt_cutoff_idr = 50 # you can set different cutoff for IDR
         af_rigid.pae_cutoff = 5
         af_rigid.pae_power = 1
         af_rigid.resolution = 0.5
         af_rigid.library = "igraph" # "networkx" is slower
+        af_rigid.patch_threshold = 0
 
         domains = af_rigid.predict_domains(
             num_res=5, # minimum number of residues in a domain
@@ -65,5 +68,34 @@ if __name__ == "__main__":
             output_dir=args.output,
             output_format="txt",
             save_structure=True,
+            no_plddt_filter_for_structure=False, # save structure with pLDDT filter
         )
         print(f"saved rigid bodies for {file_name} to: {args.output}")
+
+        # metrics for rigid bodies
+        all_interface_residues = af_rigid.get_interface_residues(
+            domains=domains,
+            contact_threshold=8,
+            as_matrix=False
+        )
+
+        af_rigid.get_average_pLDDT(domains=domains, chain_type="any")
+        # af_rigid.get_average_pLDDT(domains=domains, chain_type="idr")
+        # af_rigid.get_average_pLDDT(domains=domains, chain_type="r")
+
+        af_rigid.get_ipLDDT(all_interface_residues=all_interface_residues, interface_type="any-any")
+        # af_rigid.get_ipLDDT(all_interface_residues=all_interface_residues, interface_type="idr-idr")
+        # af_rigid.get_ipLDDT(all_interface_residues=all_interface_residues, interface_type="r-r")
+        # af_rigid.get_ipLDDT(all_interface_residues=all_interface_residues, interface_type="idr-any")
+        # af_rigid.get_ipLDDT(all_interface_residues=all_interface_residues, interface_type="r-any")
+        # af_rigid.get_ipLDDT(all_interface_residues=all_interface_residues, interface_type="idr-r")
+
+        all_interface_residues = af_rigid.get_interface_residues(
+            domains=domains,
+            contact_threshold=8,
+            as_matrix=True
+        )
+
+        af_rigid.get_ipae(
+            all_interface_residues=all_interface_residues
+        )
