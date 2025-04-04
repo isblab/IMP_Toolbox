@@ -438,7 +438,7 @@ class AlphaFold3:
             self.write_to_json(
                 sets_of_n_jobs=sets_of_n_jobs,
                 file_name=job_cycle,
-                output_dir=output_dir,
+                output_dir=os.path.join(output_dir, job_cycle),
             )
 
 

@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 import yaml
 from set_up import IMP_TOOLBOX
 sys.path.append(IMP_TOOLBOX)
-from af_pipeline.AFInput import AFInput
+from af_pipeline.AFInput import AlphaFold3, AlphaFold2, ColabFold
 from utils import read_json, read_fasta
 
 if __name__ == "__main__":
@@ -59,18 +59,41 @@ if __name__ == "__main__":
     # if proteins is not provided, the protein sequences will be used to create the job cycles
     # headers in protein sequences should match the entity names in the input yaml file if the proteins are not provided
 
-    af_input = AFInput(
+    af_input = AlphaFold3(
         protein_sequences=protein_sequences,
         input_yml=input_yml,
         nucleic_acid_sequences=nucleic_acid_sequences,
-        proteins=proteins,
+        entities_map=proteins,
     )
 
-    job_cycles = af_input.create_job_cycles(
-        pred_type="AF3"
-    )
+    job_cycles = af_input.create_af3_job_cycles()
     af_input.write_job_files(
         job_cycles=job_cycles,
         output_dir=args.output,
-        pred_type="AF3"
     )
+    
+    # For AlphaFold2
+    af_input = AlphaFold2(
+        protein_sequences=protein_sequences,
+        input_yml=input_yml,
+        entities_map=proteins,
+    )
+    
+    job_cycles = af_input.create_af2_job_cycles()
+    af_input.write_job_files(
+        job_cycles=job_cycles,
+        output_dir=args.output,
+    )
+    
+    # For ColabFold
+    # af_input = ColabFold(
+    #     protein_sequences=protein_sequences,
+    #     input_yml=input_yml,
+    #     entities_map=proteins,
+    # )
+    
+    # job_cycles = af_input.create_colabfold_job_cycles()
+    # af_input.write_job_files(
+    #     job_cycles=job_cycles,
+    #     output_dir=args.output,
+    # )

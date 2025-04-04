@@ -128,7 +128,7 @@ classDiagram
 
 3. **Relaxing PAE cutoff and relaxing PAE-based definition of pseudo-rigid domains**
 
-One can relax the PAE cutoff to 12, used in prior studies.
+    One can relax the PAE cutoff to 12, used in prior studies.
 
 > [!NOTE]
 > The PAE cutoffs  are only used for defining domains based on the PAE matrix, and not for identifying residue-residue contacts. Which means they can be more lenient.
@@ -137,7 +137,7 @@ One can relax the PAE cutoff to 12, used in prior studies.
 
 4. **Relaxing pLDDT cutoff**
 
-One can additionally use lower pLDDT cutoffs for disordered regions (=50).
+    One can additionally use lower pLDDT cutoffs for disordered regions (=50).
 
 ### References:
 1. Chop Yan Lee, D. Hubrich, J.K. Varga, C. Schäfer, M. Welzel, E. Schumbera, M. Djokic, J.M. Strom, J. Schönfeld, J.L. Geist, F. Polat, T.J. Gibson, C. Isabelle, M. Kumar, O. Schueler-Furman, and K. Luck. 2024. Systematic discovery of protein interaction interfaces using AlphaFold and experimental validation. *Molecular Systems Biology*. doi:https://doi.org/10.1038/s44320-023-00005-6.

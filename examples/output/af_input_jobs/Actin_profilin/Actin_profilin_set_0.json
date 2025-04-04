@@ -1,8 +1,8 @@
 [
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_220",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_33",
         "modelSeeds": [
-            220
+            33
         ],
         "sequences": [
             {
@@ -24,9 +24,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_283",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_261",
         "modelSeeds": [
-            283
+            261
         ],
         "sequences": [
             {
@@ -48,9 +48,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_153",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_205",
         "modelSeeds": [
-            153
+            205
         ],
         "sequences": [
             {
@@ -72,9 +72,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_44",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_176",
         "modelSeeds": [
-            44
+            176
         ],
         "sequences": [
             {
@@ -96,9 +96,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_14",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_137",
         "modelSeeds": [
-            14
+            137
         ],
         "sequences": [
             {
@@ -120,9 +120,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_7",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_273",
         "modelSeeds": [
-            7
+            273
         ],
         "sequences": [
             {
@@ -144,9 +144,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_19",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_133",
         "modelSeeds": [
-            19
+            133
         ],
         "sequences": [
             {
@@ -168,9 +168,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_234",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_27",
         "modelSeeds": [
-            234
+            27
         ],
         "sequences": [
             {
@@ -192,9 +192,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_240",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_65",
         "modelSeeds": [
-            240
+            65
         ],
         "sequences": [
             {
@@ -216,9 +216,9 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_271",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_206",
         "modelSeeds": [
-            271
+            206
         ],
         "sequences": [
             {
@@ -240,8 +240,10 @@
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_1to127",
-        "modelSeeds": [],
+        "name": "Act1_1_1to375_Cdc3_1_11to20_243",
+        "modelSeeds": [
+            243
+        ],
         "sequences": [
             {
                 "proteinChain": {
@@ -253,7 +255,7 @@
             },
             {
                 "proteinChain": {
-                    "sequence": "MSWQAYVDTSLLGTGKIDRAAIVSRAGDSVWAASAGFNLSPQEIQGLAAGFQDPPSMFGTGIILAGQKYITIRAEGRSIYGKLQKEGIICVATKLCILVSHYPETTLPGEAAKITEALADYLVGVGY",
+                    "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
                     "count": 1
@@ -262,8 +264,10 @@
         ]
     },
     {
-        "name": "actin_profilin_complex",
-        "modelSeeds": [],
+        "name": "Act1_1_1to375_Cdc3_1_11to20_26",
+        "modelSeeds": [
+            26
+        ],
         "sequences": [
             {
                 "proteinChain": {
@@ -275,21 +279,201 @@
             },
             {
                 "proteinChain": {
-                    "sequence": "MSWQAYVDTSLLGTGKIDRAAIVSRAGDSVWAASAGFNLSPQEIQGLAAGFQDPPSMFGTGIILAGQKYITIRAEGRSIYGKLQKEGIICVATKLCILVSHYPETTLPGEAAKITEALADYLVGVGY",
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_269",
+        "modelSeeds": [
+            269
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
                     "count": 1
                 }
             },
             {
-                "ligand": {
-                    "ligand": "CCD_ATP",
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_275",
+        "modelSeeds": [
+            275
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
                     "count": 1
                 }
             },
             {
-                "ion": {
-                    "ion": "MG",
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_218",
+        "modelSeeds": [
+            218
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_110",
+        "modelSeeds": [
+            110
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_292",
+        "modelSeeds": [
+            292
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_132",
+        "modelSeeds": [
+            132
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_109",
+        "modelSeeds": [
+            109
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Act1_1_1to375_Cdc3_1_11to20_86",
+        "modelSeeds": [
+            86
+        ],
+        "sequences": [
+            {
+                "proteinChain": {
+                    "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
+                    "glycans": [],
+                    "modifications": [],
+                    "count": 1
+                }
+            },
+            {
+                "proteinChain": {
+                    "sequence": "LLGTGKIDRA",
+                    "glycans": [],
+                    "modifications": [],
                     "count": 1
                 }
             }
