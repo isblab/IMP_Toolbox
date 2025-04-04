@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import requests
 import os
+from itertools import product
 
 ## API related functions
 def request_session(max_retries=3):
@@ -800,7 +801,7 @@ def save_map(
     plot_type="static",
     p1_name: str | None = None,
     p2_name: str | None = None,
-    concat_resisues: bool = True,
+    concat_residues: bool = True,
 ):
     """Save the interacting patches and the contact map to a file.
 
@@ -832,17 +833,17 @@ def save_map(
     import pandas as pd
     df_rows = []
     for _, patch in patches.items():
-        ch1_res_range = patch[chain1]
-        ch2_res_range = patch[chain2]
-        if concat_resisues:
+        ch1_res_range = patch[chain1].tolist()
+        ch2_res_range = patch[chain2].tolist()
+
+        if concat_residues:
+            ch1_res_range = get_key_from_res_range(ch1_res_range)
+            ch2_res_range = get_key_from_res_range(ch2_res_range)
             df_rows.append([ch1_res_range, ch2_res_range])
 
         else:
-            ch1_res_range = get_res_range_from_key(ch1_res_range)
-            ch2_res_range = get_res_range_from_key(ch2_res_range)
-            for res1 in ch1_res_range:
-                for res2 in ch2_res_range:
-                    df_rows.append([res1, res2])
+            for res1, res2 in product(ch1_res_range, ch2_res_range):
+                df_rows.append([res1, res2])
 
     column_names = [f"{chain1}", f"{chain2}"]
     if p1_name and p2_name:
