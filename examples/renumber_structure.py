@@ -1,5 +1,5 @@
 from af_pipeline.Parser import StructureParser, RenumberResidues
-from utils import save_pdb
+from utils import save_structure_obj
 from argparse import ArgumentParser
 
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     renumbered_structure.af_offset = af_offset
 
     # Save the renumbered structure with the new residue numbers
-    save_pdb(
+    save_structure_obj(
         structure=renumbered_structure,
         out_file=args.out_file,
         save_type=args.save_type,
