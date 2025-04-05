@@ -6,6 +6,7 @@
 # replace the path and add it at the end of ~/.bash_profile
 export PYTHONPATH=/path/to/IMP_Toolbox:$PYTHONPATH
 ```
+- Install the required packages from `requirements.txt`. You need `Python >=3.12`.
 
 **May the light of Durin's day shine upon those who choose this path.**
 
