@@ -169,7 +169,7 @@ def get_patches_from_matrix(matrix, chain1, chain2):
     """Get all interacting patches from a binary matrix
 
     Args:
-        matrix (np.array): binary matrix
+        matrix (np.ndarray): binary matrix
         chain1 (str): chain 1 identifier
         chain2 (str): chain 2 identifier
 
@@ -202,7 +202,7 @@ def get_patches_from_matrix(matrix, chain1, chain2):
         """Get the indices of 1s in a binary matrix rowwise or columnwise
 
         Args:
-            matrix (np.array): binary matrix
+            matrix (np.ndarray): binary matrix
             axis (int, optional): 0 for rowwise, 1 for columnwise. Defaults to 0.
 
         Returns:
@@ -676,11 +676,11 @@ def generate_cmap(n, scheme="soft-warm"):
     return list(colors)
 
 
-def plot_map(contact_map: np.array, chain1: str, chain2: str, p1_region: tuple, p2_region: tuple, plot_type: str):
+def plot_map(contact_map: np.ndarray, chain1: str, chain2: str, p1_region: tuple, p2_region: tuple, plot_type: str):
     """Plot the contact map
 
     Args:
-        contact_map (np.array): binary contact map or segmented map with labels
+        contact_map (np.ndarray): binary contact map or segmented map with labels
     """
 
     xtick_vals = np.arange(
@@ -790,7 +790,8 @@ def get_res_range_from_key(res_range: str):
 
 
 def save_map(
-    contact_map: np.array,
+    contact_map: np.ndarray,
+    avg_contact_probs_mat: np.ndarray | None,
     patches: dict,
     chain1: str,
     chain2: str,
@@ -802,16 +803,21 @@ def save_map(
     p1_name: str | None = None,
     p2_name: str | None = None,
     concat_residues: bool = True,
+    contact_probability: bool = False,
 ):
     """Save the interacting patches and the contact map to a file.
 
     Args:
-        contact_map (np.array): binary contact map or contact map
+        contact_map (np.ndarray): binary contact map or contact map
+        avg_contact_probs_mat (np.ndarray): average contact_probs_mat map
         patches (dict): interacting patches from the map
         interacting_region (dict): interacting region specified by the user
         out_file (str): path to save the output file
         save_plot (bool, optional): save the plot. Defaults to False.
     """
+
+    if contact_probability:
+        assert avg_contact_probs_mat is not None; "avg_contact_probs_mat must be provided if contact_probability is True"
 
     out_dir = os.path.dirname(out_file)
     file_name = os.path.basename(out_file).split(".")[0]
@@ -837,17 +843,46 @@ def save_map(
         ch2_res_range = patch[chain2].tolist()
 
         if concat_residues:
+            if contact_probability:
+
+                res1_idxs = patch[chain1] - p1_region[0]
+                res2_idxs = patch[chain2] - p2_region[0] + p1_region[1] - p1_region[0] + 1
+
+                contact_probs_mat_res_range = avg_contact_probs_mat[np.ix_(res1_idxs, res2_idxs)]
+                avg_contact_prob = np.round(np.mean(contact_probs_mat_res_range), 2)
+
             ch1_res_range = get_key_from_res_range(ch1_res_range)
             ch2_res_range = get_key_from_res_range(ch2_res_range)
-            df_rows.append([ch1_res_range, ch2_res_range])
+
+            if contact_probability:
+                df_rows.append([ch1_res_range, ch2_res_range, avg_contact_prob])
+
+            else:
+                df_rows.append([ch1_res_range, ch2_res_range])
 
         else:
             for res1, res2 in product(ch1_res_range, ch2_res_range):
-                df_rows.append([res1, res2])
+                if contact_probability:
+
+                    res1_idx = res1 - p1_region[0]
+                    res2_idx = res2 - p2_region[0] + p1_region[1] - p1_region[0] + 1
+
+                    contact_probs_mat_res_range = avg_contact_probs_mat[res1_idx, res2_idx]
+                    avg_contact_prob = np.mean(contact_probs_mat_res_range)
+
+                    df_rows.append([res1, res2, avg_contact_prob])
+
+                else:
+                    df_rows.append([res1, res2])
 
     column_names = [f"{chain1}", f"{chain2}"]
+
+    if contact_probability:
+        column_names.append("avg_contact_prob")
+
     if p1_name and p2_name:
-        column_names = [f"{p1_name}_{chain1}", f"{p2_name}_{chain2}"]
+        column_names[0] = f"{p1_name}_{chain1}"
+        column_names[1] = f"{p2_name}_{chain2}"
 
     df = pd.DataFrame(df_rows, columns=column_names)
 
@@ -976,7 +1011,7 @@ def save_structure_obj(
                 f.write(f"\n# \n_uniprot_ids {uniprot_ids_lines}\n#")
 
 
-def get_distance_map(coords1: np.array, coords2: np.array):
+def get_distance_map(coords1: np.ndarray, coords2: np.ndarray):
     """
     Create an all-v-all distance map.
 
@@ -990,7 +1025,7 @@ def get_distance_map(coords1: np.array, coords2: np.array):
     return distance_map
 
 
-def get_contact_map(distance_map: np.array, contact_threshold: float):
+def get_contact_map(distance_map: np.ndarray, contact_threshold: float):
     """
     Given the distance map, create a binary contact map by thresholding distances.
 
@@ -1005,8 +1040,8 @@ def get_contact_map(distance_map: np.array, contact_threshold: float):
 
 
 def get_interaction_map(
-    coords1: np.array,
-    coords2: np.array,
+    coords1: np.ndarray,
+    coords2: np.ndarray,
     contact_threshold: float,
     map_type: str
     ):

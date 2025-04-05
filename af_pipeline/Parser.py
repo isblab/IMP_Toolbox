@@ -317,26 +317,41 @@ class DataParser:
 
         return avg_pae
 
-    def get_pde(self, data: Dict):
+    def get_contact_probs_mat(self, data: Dict):
         """ Get the contact probabilities from the data dict. \n
 
         Args:
             data (Dict): data dict from the data file.
 
         Returns:
-            pde (np.array): contact probabilities matrix.
+            contact_probs_mat (np.array): contact probabilities matrix.
         """
 
         if "contact_probs" in data:
-            pde = np.array(data["contact_probs"])
+            contact_probs_mat = np.array(data["contact_probs"])
 
         else:
             warnings.warn(
                 "Contact probabilities not found, data file might not be AF3."
             )
-            pde = None
+            contact_probs_mat = None
 
-        return pde
+        return contact_probs_mat
+
+    def get_avg_contact_probs_mat(self, contact_probs_mat: np.ndarray):
+        """
+        Return the average contact probabilities matrix. \n
+
+        Args:
+            contact_probs_mat (np.array): contact probabilities matrix.
+
+        Returns:
+            avg_contact_probs_mat (np.array): average contact probabilities matrix.
+        """
+
+        avg_contact_probs_mat = (contact_probs_mat + contact_probs_mat.T) / 2
+
+        return avg_contact_probs_mat
 
 class StructureParser:
     """ Class to parse the AF2/3 structure file.

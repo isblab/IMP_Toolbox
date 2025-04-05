@@ -278,6 +278,7 @@ class Interaction(_Initialize):
         p1_name: str | None = None,
         p2_name: str | None = None,
         concat_residues: bool = True,
+        contact_probability: bool = True,
     ):
         """Save the interacting patches for the given region of interest of the protein pair.
 
@@ -287,7 +288,8 @@ class Interaction(_Initialize):
             plot_type (str, optional): Type of plot to be saved. Defaults to "static"; options: ["static", "interactive", "both"].
             p1_name (str, optional): Name of the first protein. Defaults to None.
             p2_name (str, optional): Name of the second protein. Defaults to None.
-            concat_residues (bool, optional): Whether to concatenate the residues into residue ranges. Defaults to True. Set this to False to get the contact probability for each residue pair.
+            concat_residues (bool, optional): Whether to concatenate the residues into residue ranges. Defaults to True.
+            contact_probability (bool, optional): Whether to add contact probability column to the output. Defaults to True.
         """
 
         chain1, chain2 = list(region_of_interest.keys())
@@ -330,6 +332,7 @@ class Interaction(_Initialize):
 
             save_map(
                 contact_map=contact_map,
+                avg_contact_probs_mat=self.avg_contact_probs_mat,
                 patches=interacting_patches,
                 chain1=chain1,
                 chain2=chain2,
@@ -339,24 +342,5 @@ class Interaction(_Initialize):
                 save_plot=save_plot,
                 plot_type=plot_type,
                 concat_residues=concat_residues,
+                contact_probability=contact_probability,
             )
-
-            if not concat_residues:
-                csv_outfile = os.path.join(self.output_dir, f"patches_{file_name}.csv")
-                patches_df = pd.read_csv(csv_outfile, header=0)
-
-                pde_col = []
-                col_names = patches_df.columns.tolist()
-
-                p1_name, p2_name = col_names[0], col_names[1]
-                p_res_pairs = patches_df[[p1_name, p2_name]].values
-
-                for res_pair in p_res_pairs:
-                    res1, res2 = res_pair
-                    res1_idx = self.num_to_idx[p1_name][res1]
-                    res2_idx = self.num_to_idx[p2_name][res2]
-                    avg_pde = (self.pde[res1_idx, res2_idx]+self.pde[res2_idx, res1_idx])/2
-                    pde_col.append(avg_pde)
-
-                patches_df["Contact Probability"] = pde_col
-                patches_df.to_csv(csv_outfile, index=False)
