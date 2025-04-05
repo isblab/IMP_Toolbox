@@ -7,6 +7,9 @@
 export PYTHONPATH=/path/to/IMP_Toolbox:$PYTHONPATH
 ```
 - Install the required packages from `requirements.txt`. You need `Python >=3.12`.
+```bash
+conda install --file requirements.txt
+```
 
 **May the light of Durin's day shine upon those who choose this path.**
 
