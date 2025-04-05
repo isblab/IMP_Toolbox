@@ -32,6 +32,8 @@ classDiagram
         + get_chain_lengths(self, data)
         + get_pae(self, data)
         + get_avg_pae(self, pae)
+        + get_contact_probs_mat(self, data)
+        + get_avg_contact_probs_mat(self, contact_probs_mat)
     }
 
     class StructureParser {
