@@ -878,7 +878,7 @@ def save_map(
     column_names = [f"{chain1}", f"{chain2}"]
 
     if contact_probability:
-        column_names.append("avg_contact_prob")
+        column_names.append("avg_contact_probability")
 
     if p1_name and p2_name:
         column_names[0] = f"{p1_name}_{chain1}"
