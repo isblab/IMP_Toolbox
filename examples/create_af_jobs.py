@@ -50,7 +50,7 @@ if __name__ == "__main__":
     )
     args = args.parse_args()
 
-    proteins = read_json(args.uniprot)
+    proteins = read_json(args.uniprot) if args.uniprot else {}
     protein_sequences = read_fasta(args.protein_sequences)
     nucleic_acid_sequences = read_fasta(args.nucleotide_sequences) if args.nucleotide_sequences else None
     input_yml = yaml.load(open(args.input), Loader=yaml.FullLoader)
