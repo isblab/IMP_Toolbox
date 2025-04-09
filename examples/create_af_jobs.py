@@ -70,6 +70,7 @@ if __name__ == "__main__":
     af_input.write_job_files(
         job_cycles=job_cycles,
         output_dir=args.output,
+        num_jobs_per_file=20,
     )
     
     # For AlphaFold2
