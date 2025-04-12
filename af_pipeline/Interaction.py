@@ -321,12 +321,12 @@ class Interaction(_Initialize):
         if len(interacting_patches) > 0:
 
             file_name = "_".join([
-                f"{p_names[k]}:{v[0]}-{v[1]}" for k, v in region_of_interest.items()
+                f"{p_names[k]}_{k}:{v[0]}-{v[1]}" for k, v in region_of_interest.items()
             ])
 
             if dir_name_to_replace:
                 dir_name = os.path.basename(self.struct_file_path).split(".")[0]
-                self.output_dir = self.output_dir.replace(dir_name, dir_name_to_replace)
+                # self.output_dir = self.output_dir.replace(dir_name, dir_name_to_replace)
 
             os.makedirs(self.output_dir, exist_ok=True)
 
@@ -336,6 +336,8 @@ class Interaction(_Initialize):
                 patches=interacting_patches,
                 chain1=chain1,
                 chain2=chain2,
+                p1_name=p_names[chain1],
+                p2_name=p_names[chain2],
                 p1_region=p1_region,
                 p2_region=p2_region,
                 out_file=os.path.join(self.output_dir, f"patches_{file_name}.html"),
@@ -343,4 +345,6 @@ class Interaction(_Initialize):
                 plot_type=plot_type,
                 concat_residues=concat_residues,
                 contact_probability=contact_probability,
+                num_to_idx=self.num_to_idx,
+                idx_to_num=self.idx_to_num,
             )

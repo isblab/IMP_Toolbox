@@ -804,6 +804,8 @@ def save_map(
     p2_name: str | None = None,
     concat_residues: bool = True,
     contact_probability: bool = False,
+    num_to_idx: dict = None,
+    idx_to_num: dict = None,
 ):
     """Save the interacting patches and the contact map to a file.
 
@@ -845,8 +847,11 @@ def save_map(
         if concat_residues:
             if contact_probability:
 
-                res1_idxs = patch[chain1] - p1_region[0]
-                res2_idxs = patch[chain2] - p2_region[0] + p1_region[1] - p1_region[0] + 1
+                # res1_idxs = patch[chain1] - p1_region[0]
+                # res2_idxs = patch[chain2] - p2_region[0] + p1_region[1] - p1_region[0] + 1
+
+                res1_idxs = np.array([num_to_idx[chain1][res_num] for res_num in ch1_res_range])
+                res2_idxs = np.array([num_to_idx[chain2][res_num] for res_num in ch2_res_range])
 
                 contact_probs_mat_res_range = avg_contact_probs_mat[np.ix_(res1_idxs, res2_idxs)]
                 avg_contact_prob = np.round(np.mean(contact_probs_mat_res_range), 2)
