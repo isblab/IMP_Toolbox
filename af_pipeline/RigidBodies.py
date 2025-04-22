@@ -1,5 +1,9 @@
 from pprint import pprint
 import time
+from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib
+import matplotlib.patches
 import numpy as np
 from af_pipeline._Initialize import _Initialize
 from af_pipeline.Interaction import Interaction
@@ -251,6 +255,7 @@ class RigidBodies(_Initialize):
         output_format: str = "txt",
         save_structure: bool = True,
         no_plddt_filter_for_structure: bool = False,
+        pae_plot: bool = False,
     ):
         """Save the rigid bodies to a text file."""
 
@@ -305,6 +310,97 @@ class RigidBodies(_Initialize):
                     save_type="cif",
                     preserve_header_footer=False,
                 )
+
+        if pae_plot:
+            for rb_idx, rb_dict in enumerate(domains):
+                patches = []
+                for chain_id1, res_list1 in rb_dict.items():
+                    for chain_id2, res_list2 in rb_dict.items():
+
+                        res_idxs_1 = [
+                            self.num_to_idx[chain_id1][res_num] for res_num in res_list1
+                        ]
+                        res_idxs_2 = [
+                            self.num_to_idx[chain_id2][res_num] for res_num in res_list2
+                        ]
+                        res_idx_range_1 = get_key_from_res_range(res_range=res_idxs_1, as_list=True)
+                        res_idx_range_2 = get_key_from_res_range(res_range=res_idxs_2, as_list=True)
+
+                        for res_idx_1 in res_idx_range_1:
+                            for res_idx_2 in res_idx_range_2:
+
+                                if "-" in res_idx_1 and "-" in res_idx_2:
+                                    xy_ = (int(res_idx_2.split("-")[0]), int(res_idx_1.split("-")[0]))
+                                    h_ = int(res_idx_1.split("-")[1]) - int(res_idx_1.split("-")[0]) + 1
+                                    w_ = int(res_idx_2.split("-")[1]) - int(res_idx_2.split("-")[0]) + 1
+                                    if h_ > 0 and w_ > 0:
+                                        patches.append(
+                                            [xy_, h_, w_]
+                                        )
+
+                fig = plt.figure(figsize=(20, 20))
+                plt.rcParams['font.size'] = 16
+                plt.rcParams['axes.titlesize'] = 28
+                plt.rcParams['axes.labelsize'] = 22
+                plt.rcParams['xtick.labelsize'] = 13
+                plt.rcParams['ytick.labelsize'] = 13
+                plt.imshow(
+                    self.pae,
+                    # cmap="Greens_r",
+                    cmap="Greys_r",
+                    vmax=31.75,
+                    vmin=0,
+                    interpolation="nearest",
+                    )
+
+                for xy, h, w in patches:
+                    rect = matplotlib.patches.Rectangle(
+                        xy,
+                        w,
+                        h,
+                        linewidth=0,
+                        # edgecolor="green",
+                        facecolor="lime",
+                        alpha=0.5,
+                    )
+                    plt.gca().add_patch(rect)
+
+                cumu_len = 0
+                ticks = []
+                ticks_labels = []
+
+                for chain_id, p_length in self.lengths_dict.items():
+                    if chain_id != "total":
+                        cumu_len += p_length
+                        if cumu_len != self.pae.shape[1]:
+                            plt.axhline(y=cumu_len, color='red', linestyle='--', linewidth=0.75)
+                            plt.axvline(x=cumu_len, color='red', linestyle='--', linewidth=0.75)
+                        ticks_labels.extend(["\n" + f"{self.af_offset[chain_id][0]}" , f"{self.af_offset[chain_id][1]}" + "\n" ])
+                        ticks.extend([cumu_len-p_length, cumu_len]) if cumu_len-p_length not in ticks else ticks.extend([cumu_len-p_length+1, cumu_len])
+
+                plt.xlim(0, self.pae.shape[0])
+                plt.ylim(0, self.pae.shape[1])
+
+                plt.gca().invert_yaxis()
+                plt.yticks(ticks, ticks_labels)
+
+                plt.xticks(ticks, ticks_labels, rotation=90, ha='center')
+                plt.title(f"Predicted aligned error (PAE)", pad=20)
+                plt.xlabel("Scored residue")
+                plt.ylabel("Aligned residue")
+
+                ax = plt.gca()
+
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("bottom", size="5%", pad=1.2)
+                plt.colorbar(
+                    label="Predicted Alignment Error (PAE)",
+                    orientation="horizontal",
+                    cax=cax,
+                )
+
+                plt.savefig(os.path.join(output_dir, f"rigid_body_{rb_idx}.png"), transparent=True)
+                plt.close(fig)
 
 
     def chain_pair_condition(self, chain_pair, interface_type):
