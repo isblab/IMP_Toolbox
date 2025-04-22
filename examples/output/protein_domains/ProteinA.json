@@ -1,0 +1,143 @@
+{
+    "mode": "protein",
+    "config": {
+        "canvasWidth": 700.0,
+        "canvasHeight": 600,
+        "viewBox": "10 -230 1000 600",
+        "scaleLength": 3000,
+        "zoomRatio": 1
+    },
+    "data": [
+        {
+            "type": "protein",
+            "length": 700.0,
+            "option": {
+                "displayName": "ProteinA",
+                "position": {
+                    "start": {
+                        "site": 1.0,
+                        "display": "top"
+                    },
+                    "end": {
+                        "site": 700.0,
+                        "display": "top"
+                    }
+                },
+                "coordinate": {
+                    "vertical": {
+                        "start": 1,
+                        "isLocked": false
+                    },
+                    "horizontal": {
+                        "start": 0,
+                        "end": 699.0,
+                        "isLocked": false
+                    }
+                },
+                "id": "Protein_ProteinA",
+                "style": {
+                    "align": "custom",
+                    "height": 25,
+                    "fontSize": 12,
+                    "color": "#babdb6",
+                    "gradient": "none",
+                    "texture": {
+                        "type": "none",
+                        "color": "#333333"
+                    }
+                },
+                "borderStyle": {
+                    "color": "#000000",
+                    "size": 1,
+                    "isDash": false
+                }
+            },
+            "children": [
+                {
+                    "type": "domain",
+                    "option": {
+                        "id": "Domain_0_domain_1",
+                        "position": {
+                            "isLocked": false,
+                            "start": {
+                                "site": "1",
+                                "display": "hide"
+                            },
+                            "end": {
+                                "site": "50",
+                                "display": "hide"
+                            }
+                        },
+                        "displayName": "Domain_0_domain_1",
+                        "text": "",
+                        "nameTextStyle": {
+                            "fontFamily": "Arial",
+                            "fontStyle": "normal",
+                            "fontSize": 10,
+                            "color": "#FFFFFF",
+                            "rotate": 0,
+                            "location": "center",
+                            "fontWeight": "normal"
+                        },
+                        "style": {
+                            "color": "#0000ff",
+                            "texture": {
+                                "type": "none",
+                                "color": "#4389b4"
+                            },
+                            "gradient": "none"
+                        },
+                        "borderStyle": {
+                            "color": "#000000",
+                            "size": 1,
+                            "isDash": false
+                        },
+                        "name": "domain_1"
+                    }
+                },
+                {
+                    "type": "domain",
+                    "option": {
+                        "id": "Domain_1_domain_2",
+                        "position": {
+                            "isLocked": false,
+                            "start": {
+                                "site": "300",
+                                "display": "hide"
+                            },
+                            "end": {
+                                "site": "500",
+                                "display": "hide"
+                            }
+                        },
+                        "displayName": "Domain_1_domain_2",
+                        "text": "",
+                        "nameTextStyle": {
+                            "fontFamily": "Arial",
+                            "fontStyle": "normal",
+                            "fontSize": 10,
+                            "color": "#FFFFFF",
+                            "rotate": 0,
+                            "location": "center",
+                            "fontWeight": "normal"
+                        },
+                        "style": {
+                            "color": "#0000ff",
+                            "texture": {
+                                "type": "none",
+                                "color": "#4389b4"
+                            },
+                            "gradient": "none"
+                        },
+                        "borderStyle": {
+                            "color": "#000000",
+                            "size": 1,
+                            "isDash": false
+                        },
+                        "name": "domain_2"
+                    }
+                }
+            ]
+        }
+    ]
+}
