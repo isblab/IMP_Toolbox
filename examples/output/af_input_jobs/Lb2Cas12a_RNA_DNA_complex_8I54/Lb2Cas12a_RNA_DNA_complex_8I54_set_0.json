@@ -20,7 +20,9 @@
                             "ptmPosition": 11
                         }
                     ],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2023-01-01",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -82,7 +84,9 @@
                             "ptmPosition": 11
                         }
                     ],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2023-01-01",
+                    "useStructureTemplate": true
                 }
             },
             {

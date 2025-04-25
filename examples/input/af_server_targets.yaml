@@ -5,6 +5,8 @@ Lb2Cas12a_RNA_DNA_complex_8I54: # job cycle
       - name: "Lb2Cas12a"
         type: "proteinChain"
         count: 1
+        useStructureTemplate: true # by default set to true
+        maxTemplateDate: "2023-01-01" # by default set to 2021-09-30
         glycans: [["BMA", 5]]
         modifications:
         - - "CCD_HY3"

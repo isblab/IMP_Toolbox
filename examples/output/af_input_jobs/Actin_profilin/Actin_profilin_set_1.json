@@ -1,8 +1,8 @@
 [
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_203",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_8",
         "modelSeeds": [
-            203
+            8
         ],
         "sequences": [
             {
@@ -10,7 +10,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -18,15 +20,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_252",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_138",
         "modelSeeds": [
-            252
+            138
         ],
         "sequences": [
             {
@@ -34,7 +38,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -42,15 +48,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_5",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_296",
         "modelSeeds": [
-            5
+            296
         ],
         "sequences": [
             {
@@ -58,7 +66,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -66,15 +76,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_234",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_243",
         "modelSeeds": [
-            234
+            243
         ],
         "sequences": [
             {
@@ -82,7 +94,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -90,15 +104,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_27",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_130",
         "modelSeeds": [
-            27
+            130
         ],
         "sequences": [
             {
@@ -106,7 +122,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -114,15 +132,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_137",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_90",
         "modelSeeds": [
-            137
+            90
         ],
         "sequences": [
             {
@@ -130,7 +150,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -138,15 +160,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_236",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_121",
         "modelSeeds": [
-            236
+            121
         ],
         "sequences": [
             {
@@ -154,7 +178,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -162,15 +188,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_201",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_70",
         "modelSeeds": [
-            201
+            70
         ],
         "sequences": [
             {
@@ -178,7 +206,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -186,15 +216,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_1",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_123",
         "modelSeeds": [
-            1
+            123
         ],
         "sequences": [
             {
@@ -202,7 +234,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -210,15 +244,17 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
     },
     {
-        "name": "Act1_1_1to375_Cdc3_1_11to20_91",
+        "name": "Act1_1_1to375_Cdc3_1_11to20_294",
         "modelSeeds": [
-            91
+            294
         ],
         "sequences": [
             {
@@ -226,7 +262,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -234,7 +272,9 @@
                     "sequence": "LLGTGKIDRA",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
@@ -248,7 +288,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -256,7 +298,9 @@
                     "sequence": "MSWQAYVDTSLLGTGKIDRAAIVSRAGDSVWAASAGFNLSPQEIQGLAAGFQDPPSMFGTGIILAGQKYITIRAEGRSIYGKLQKEGIICVATKLCILVSHYPETTLPGEAAKITEALADYLVGVGY",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             }
         ]
@@ -270,7 +314,9 @@
                     "sequence": "MEEEIAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHHGIMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVNNWDDMEKIWHHTFYNELRVAPEEHPCLLTEAPLNPKSNREKMTQIIFETFNAPAFYVAIQAVLSLYASGRTTGIVLDSGDGVTHTVPIYEGYALPHAIMRLDLAGRDLTDYLMKILMERGYTFSTTAEREIVRDIKEKLCYVALDFEQELQTAAQSSSLEKSYELPDGQVITIGNERFRAPEALFQPSALGLENAGIHEATYNSIMKCDVDIRKDLYGNVVMSGGTTMYPGIADRMQKEIQALAPSSMKVKIVAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPGIVYRKCF",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
@@ -278,7 +324,9 @@
                     "sequence": "MSWQAYVDTSLLGTGKIDRAAIVSRAGDSVWAASAGFNLSPQEIQGLAAGFQDPPSMFGTGIILAGQKYITIRAEGRSIYGKLQKEGIICVATKLCILVSHYPETTLPGEAAKITEALADYLVGVGY",
                     "glycans": [],
                     "modifications": [],
-                    "count": 1
+                    "count": 1,
+                    "maxTemplateDate": "2021-09-30",
+                    "useStructureTemplate": true
                 }
             },
             {
