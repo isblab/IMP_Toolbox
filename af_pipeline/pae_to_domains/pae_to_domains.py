@@ -21,6 +21,9 @@ def parse_pae_file(pae_file):
     else:
         raise Exception('Invalid file format. Must be either JSON or pickle.')
 
+    if isinstance(data, list):
+        data = data[0]
+
     if 'pae' in data:
         # AF3
         matrix = numpy.array(data['pae'], dtype=numpy.float64)
