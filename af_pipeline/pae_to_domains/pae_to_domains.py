@@ -27,6 +27,19 @@ def parse_pae_file(pae_file):
     if 'pae' in data:
         # AF3
         matrix = numpy.array(data['pae'], dtype=numpy.float64)
+        token_res_ids = numpy.array(data['token_res_ids'], dtype=numpy.float64)
+
+        diffs = numpy.ediff1d(token_res_ids) # If the diffs is 0, there are consecutive values
+        boundaries = numpy.concatenate(([0], (numpy.where(diffs != 0)[0] + 1), [len(token_res_ids)])) 
+
+        # Collect ranges where repetition length is >= 2
+        for start, end in zip(boundaries[:-1], boundaries[1:]):
+            if end - start >= 2:
+                mean_value = numpy.round(numpy.mean(matrix[start:end, start:end]), 2)
+                matrix[start, start] = mean_value  # Set the matrix value to mean value
+                indices_to_remove = (range(start + 1, end))
+                matrix = numpy.delete(numpy.delete(matrix, indices_to_remove, axis=0), indices_to_remove, axis=1)
+
     elif "predicted_aligned_error" in data:
         # AF2
         matrix = numpy.array(data["predicted_aligned_error"], dtype=numpy.float64)
