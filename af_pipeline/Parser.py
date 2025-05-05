@@ -183,8 +183,8 @@ class DataParser:
             with open(self.data_file_path, "r") as f:
                 data = json.load(f)
 
-            if isinstance(data, list):
-                data = data[0]
+        if isinstance(data, list):
+            data = data[0]
 
         else:
             raise Exception("Incorrect file format.. Suported .pkl/.json only.")
@@ -299,33 +299,12 @@ class DataParser:
         # For AF3.
         elif "pae" in data:
             pae = np.array(data["pae"])
-        
+
         else:
             raise Exception("PAE matrix not found...")
 
         return pae
-    
-    def get_modified_pae(self, data:Dict):
-        """
-        Returns the modified PAE matrix in case of PTMs,
-        else the original PAE matrix.
-        """
-        pae = self.get_pae(data)
-        token_res_ids = self.get_token_res_ids(data)
 
-        diffs = np.ediff1d(token_res_ids) # If the diffs is 0, there are consecutive values
-        boundaries = np.concatenate(([0], (np.where(diffs != 0)[0] + 1), [len(token_res_ids)])) 
-
-        # Collect ranges where repetition length is >= 2
-        for start, end in zip(boundaries[:-1], boundaries[1:]):
-            if end - start >= 2:
-                mean_value = np.round(np.mean(pae[start:end, start:end]), 2)
-                pae[start, start] = mean_value  # Set the pae value to mean value
-                indices_to_remove = (range(start + 1, end))
-                pae = np.delete(np.delete(pae, indices_to_remove, axis=0), indices_to_remove, axis=1)
-        
-        return pae
-    
     def get_avg_pae(self, pae: np.ndarray):
         """
         Return the average PAE matrix. \n
