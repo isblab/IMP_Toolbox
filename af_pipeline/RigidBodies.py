@@ -86,7 +86,6 @@ class RigidBodies(_Initialize):
         print("Predicting domains...")
         start_time = time.time()
 
-        pae_path = self.data_file_path
         pae_matrix = self.pae
 
         if self.library == "igraph":
@@ -621,14 +620,12 @@ class RigidBodies(_Initialize):
 
             for chain_id, res_list in rb_dict.items():
 
-                if len(res_list) > 0:
+                if chain_id in allowed_chain_ids:
 
-                    if chain_id in allowed_chain_ids:
-
-                        all_chain_plddt_dict[rb_idx][chain_id].extend(
-                            [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
-                        )
-                        print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
+                    all_chain_plddt_dict[rb_idx][chain_id].extend(
+                        [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
+                    )
+                    print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
 
             _all_chain_plddt_vals = [
                 plddt

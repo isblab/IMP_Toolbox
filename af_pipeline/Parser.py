@@ -304,27 +304,52 @@ class DataParser:
             raise Exception("PAE matrix not found...")
 
         return pae
-    
-    def get_modified_pae(self, data:Dict):
+
+    def get_modified_pae(self, data: Dict):
         """
         Returns the modified PAE matrix in case of PTMs,
         else the original PAE matrix.
+
+        For repeated residue IDs (length >= 2), it replaces the submatrix
+        [start:end, start:end] with its mean, then removes redundant rows and columns.
         """
         pae = self.get_pae(data)
         token_res_ids = self.get_token_res_ids(data)
+        diffs = np.ediff1d(token_res_ids)
+        boundaries = np.concatenate(
+            ([0], (np.where(diffs != 0)[0] + 1), [len(token_res_ids)])
+        )
+        indices_to_remove = []
 
-        diffs = np.ediff1d(token_res_ids) # If the diffs is 0, there are consecutive values
-        boundaries = np.concatenate(([0], (np.where(diffs != 0)[0] + 1), [len(token_res_ids)])) 
-
-        # Collect ranges where repetition length is >= 2
         for start, end in zip(boundaries[:-1], boundaries[1:]):
             if end - start >= 2:
                 mean_value = np.round(np.mean(pae[start:end, start:end]), 2)
-                pae[start, start] = mean_value  # Set the pae value to mean value
-                indices_to_remove = (range(start + 1, end))
-                pae = np.delete(np.delete(pae, indices_to_remove, axis=0), indices_to_remove, axis=1)
-        
+                pae[start:end, start:end] = mean_value
+
+                for other_start, other_end in zip(boundaries[:-1], boundaries[1:]):
+                    if other_start == start and other_end == end:
+                        continue
+                    # Change [start:end, other_start:other_end]
+                    cross_mean_1 = np.round(
+                        np.mean(pae[start:end, other_start:other_end]), 2
+                    )
+                    pae[start:end, other_start:other_end] = cross_mean_1
+
+                    # Change [other_start:other_end, start:end]
+                    cross_mean_2 = np.round(
+                        np.mean(pae[other_start:other_end, start:end]), 2
+                    )
+                    pae[other_start:other_end, start:end] = cross_mean_2
+
+                indices_to_remove.extend(range(start + 1, end))
+
+        # Remove redundant rows and columns
+        pae = np.delete(
+            np.delete(pae, indices_to_remove, axis=0), indices_to_remove, axis=1
+        )
+
         return pae
+
     
     def get_avg_pae(self, pae: np.ndarray):
         """
