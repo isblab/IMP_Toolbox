@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
         af_rigid.plddt_cutoff = 70
         af_rigid.plddt_cutoff_idr = 50 # you can set different cutoff for IDR
-        af_rigid.pae_cutoff = 5
+        af_rigid.pae_cutoff = 12
         af_rigid.pae_power = 1
         af_rigid.resolution = 0.5
         af_rigid.library = "igraph" # "networkx" is slower
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
         domains = af_rigid.predict_domains(
             num_res=5, # minimum number of residues in a domain
-            num_proteins=2, # minimum number of proteins in a domain
+            num_proteins=1, # minimum number of proteins in a domain
             plddt_filter=True, # filter domains based on pLDDT score
         )
 

@@ -183,8 +183,8 @@ class DataParser:
             with open(self.data_file_path, "r") as f:
                 data = json.load(f)
 
-        if isinstance(data, list):
-            data = data[0]
+            if isinstance(data, list):
+                data = data[0]
 
         else:
             raise Exception("Incorrect file format.. Suported .pkl/.json only.")
