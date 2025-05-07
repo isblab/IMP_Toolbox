@@ -8,7 +8,6 @@ import numpy as np
 from af_pipeline._Initialize import _Initialize
 from af_pipeline.Interaction import Interaction
 from af_pipeline.pae_to_domains.pae_to_domains import (
-    parse_pae_file,
     domains_from_pae_matrix_igraph,
     domains_from_pae_matrix_networkx,
     domains_from_pae_matrix_label_propagation
@@ -88,7 +87,7 @@ class RigidBodies(_Initialize):
         start_time = time.time()
 
         pae_path = self.data_file_path
-        pae_matrix = parse_pae_file(pae_file=pae_path)
+        pae_matrix = self.pae
 
         if self.library == "igraph":
             f = domains_from_pae_matrix_igraph
@@ -622,12 +621,14 @@ class RigidBodies(_Initialize):
 
             for chain_id, res_list in rb_dict.items():
 
-                if chain_id in allowed_chain_ids:
+                if len(res_list) > 0:
 
-                    all_chain_plddt_dict[rb_idx][chain_id].extend(
-                        [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
-                    )
-                    print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
+                    if chain_id in allowed_chain_ids:
+
+                        all_chain_plddt_dict[rb_idx][chain_id].extend(
+                            [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
+                        )
+                        print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
 
             _all_chain_plddt_vals = [
                 plddt

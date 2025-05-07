@@ -45,7 +45,9 @@ class _Initialize(AfParser):
         self.avg_pae = self.dataparser.get_avg_pae(pae=self.pae)
         self.contact_probs_mat = self.dataparser.get_contact_probs_mat(data=data)
         if self.contact_probs_mat is not None:
-            self.avg_contact_probs_mat = self.dataparser.get_avg_contact_probs_mat(contact_probs_mat=self.contact_probs_mat)
+            self.avg_contact_probs_mat = self.dataparser.get_avg_contact_probs_mat(
+                contact_probs_mat=self.contact_probs_mat
+            )
 
         if self.struct_file_path:
             self.token_chain_ids, self.token_res_ids = self.structureparser.get_token_chain_res_ids()
