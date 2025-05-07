@@ -27,6 +27,7 @@ def parse_pae_file(pae_file):
     if 'pae' in data:
         # AF3
         matrix = numpy.array(data['pae'], dtype=numpy.float64)
+
     elif "predicted_aligned_error" in data:
         # AF2
         matrix = numpy.array(data["predicted_aligned_error"], dtype=numpy.float64)

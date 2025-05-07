@@ -41,7 +41,7 @@ class _Initialize(AfParser):
         """
 
         data = self.dataparser.get_data_dict()
-        self.pae = self.dataparser.get_pae(data=data)
+        self.pae = self.dataparser.get_modified_pae(data=data)
         self.avg_pae = self.dataparser.get_avg_pae(pae=self.pae)
         self.contact_probs_mat = self.dataparser.get_contact_probs_mat(data=data)
         if self.contact_probs_mat is not None:
