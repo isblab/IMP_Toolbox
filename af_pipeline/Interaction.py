@@ -22,12 +22,14 @@ class Interaction(_Initialize):
         af_offset: dict | None = None,
         output_dir: str = "./output/af_output",
         idr_chains: list = [],
+        **kwargs,
     ):
 
         super().__init__(
             struct_file_path=struct_file_path,
             data_file_path=data_file_path,
             af_offset=af_offset,
+            **kwargs,
         )
 
         dir_name = os.path.basename(struct_file_path).split(".")[0]
