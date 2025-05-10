@@ -76,18 +76,21 @@ class _Initialize(AfParser):
             token_chain_ids=self.token_chain_ids,
             average_atom_pae=self.average_atom_pae,
         )
-        self.contact_probs_mat = self.update_contact_probs(
-            contact_probs_mat=self.contact_probs_mat,
-            token_chain_ids=self.token_chain_ids,
-            token_res_ids=self.token_res_ids,
-            average_atom_pae=self.average_atom_pae,
-        )
-        self.avg_contact_probs_mat = self.update_contact_probs(
-            contact_probs_mat=self.avg_contact_probs_mat,
-            token_chain_ids=self.token_chain_ids,
-            token_res_ids=self.token_res_ids,
-            average_atom_pae=self.average_atom_pae,
-        )
+
+        if self.contact_probs_mat is not None:
+            self.contact_probs_mat = self.update_contact_probs(
+                contact_probs_mat=self.contact_probs_mat,
+                token_chain_ids=self.token_chain_ids,
+                token_res_ids=self.token_res_ids,
+                average_atom_pae=self.average_atom_pae,
+            )
+            self.avg_contact_probs_mat = self.update_contact_probs(
+                contact_probs_mat=self.avg_contact_probs_mat,
+                token_chain_ids=self.token_chain_ids,
+                token_res_ids=self.token_res_ids,
+                average_atom_pae=self.average_atom_pae,
+            )
+
         self.token_chain_ids, self.token_res_ids = self.update_token_ids(
             token_chain_ids=self.token_chain_ids,
             token_res_ids=self.token_res_ids,
