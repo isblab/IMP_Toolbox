@@ -86,6 +86,11 @@ if __name__ == "__main__":
         if not regions_of_interest_:
             regions_of_interest_ = af_interaction.create_regions_of_interest()
 
+        print(f"Regions of interest for {structure_path}:")
+        for i, region_of_interest in enumerate(regions_of_interest_):
+            print(f"Region {i + 1}: {region_of_interest}")
+        print("-------------------------------")
+
         for region_of_interest in regions_of_interest_:
             af_interaction.save_ppair_interaction(
                 region_of_interest=region_of_interest,
