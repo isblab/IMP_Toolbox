@@ -1,5 +1,6 @@
 from pprint import pprint
 import time
+import warnings
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib
@@ -32,12 +33,14 @@ class RigidBodies(_Initialize):
         structure_path: str | None = None,
         af_offset: dict | None = None,
         idr_chains: list = [],
+        **kwargs,
     ):
 
         super().__init__(
             data_file_path=data_path,
             struct_file_path=structure_path,
             af_offset=af_offset,
+            **kwargs,
         )
 
         self.library = "igraph"
@@ -252,6 +255,7 @@ class RigidBodies(_Initialize):
         output_dir: str,
         output_format: str = "txt",
         save_structure: bool = True,
+        structure_file_type: str = "pdb",
         no_plddt_filter_for_structure: bool = False,
         pae_plot: bool = False,
     ):
@@ -287,6 +291,15 @@ class RigidBodies(_Initialize):
 
         if save_structure:
 
+            if structure_file_type == "cif":
+                warnings.warn(
+                    """
+                    Protein or nucleotide modifications are stored as HETATM for which sequence connectivity
+                    is lost in CIF format. \n
+                    Please use PDB format to save the structure with modifications.
+                    """
+                )
+
             structure = self.renumber.renumber_structure(
                 structure=self.structureparser.structure,
             )
@@ -299,13 +312,13 @@ class RigidBodies(_Initialize):
                             res_list = fill_up_the_blanks(res_list)
                             rb_dict[chain_id] = res_list
 
-                output_path = os.path.join(output_dir, f"rigid_body_{idx}.cif")
+                output_path = os.path.join(output_dir, f"rigid_body_{idx}.{structure_file_type}")
 
                 save_structure_obj(
                     structure=structure,
                     out_file=output_path,
                     res_select_obj=ResidueSelect(rb_dict),
-                    save_type="cif",
+                    save_type=structure_file_type,
                     preserve_header_footer=False,
                 )
 
@@ -370,11 +383,19 @@ class RigidBodies(_Initialize):
                 for chain_id, p_length in self.lengths_dict.items():
                     if chain_id != "total":
                         cumu_len += p_length
+
                         if cumu_len != self.pae.shape[1]:
                             plt.axhline(y=cumu_len, color='red', linestyle='--', linewidth=0.75)
                             plt.axvline(x=cumu_len, color='red', linestyle='--', linewidth=0.75)
-                        ticks_labels.extend(["\n" + f"{self.af_offset[chain_id][0]}" , f"{self.af_offset[chain_id][1]}" + "\n" ])
-                        ticks.extend([cumu_len-p_length, cumu_len]) if cumu_len-p_length not in ticks else ticks.extend([cumu_len-p_length+1, cumu_len])
+
+                        if self.af_offset is not None:
+
+                            ticks_labels.extend(["\n" + f"{self.af_offset[chain_id][0]}" , f"{self.af_offset[chain_id][1]}" + "\n" ])
+                            ticks.extend([cumu_len-p_length, cumu_len]) if cumu_len-p_length not in ticks else ticks.extend([cumu_len-p_length+1, cumu_len])
+
+                        else:
+                            ticks_labels.extend(["\n" + "1", f"{self.lengths_dict[chain_id]}" + "\n"])
+                            ticks.extend([cumu_len-p_length, cumu_len]) if cumu_len-p_length not in ticks else ticks.extend([cumu_len-p_length+1, cumu_len])
 
                 plt.xlim(0, self.pae.shape[0])
                 plt.ylim(0, self.pae.shape[1])
@@ -620,12 +641,14 @@ class RigidBodies(_Initialize):
 
             for chain_id, res_list in rb_dict.items():
 
-                if chain_id in allowed_chain_ids:
+                if len(res_list) > 0:
 
-                    all_chain_plddt_dict[rb_idx][chain_id].extend(
-                        [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
-                    )
-                    print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
+                    if chain_id in allowed_chain_ids:
+
+                        all_chain_plddt_dict[rb_idx][chain_id].extend(
+                            [self.plddt_list[self.num_to_idx[chain_id][res_num]] for res_num in res_list]
+                        )
+                        print(f"Average pLDDT of {chain_id} in rigid body {rb_idx} = {np.mean(all_chain_plddt_dict[rb_idx][chain_id]):.2f}")
 
             _all_chain_plddt_vals = [
                 plddt
