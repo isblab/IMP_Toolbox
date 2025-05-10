@@ -731,7 +731,7 @@ class StructureParser:
                 footer_info.append(footer_section)
                 footer_section = ""
 
-            if line.startswith("ATOM"):
+            if line.startswith("ATOM") or line.startswith("HETATM"):
                 break
 
         structure.header_footer = {
