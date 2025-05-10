@@ -78,6 +78,7 @@ class _Initialize(AfParser):
         )
 
         if self.contact_probs_mat is not None:
+
             self.contact_probs_mat = self.update_contact_probs(
                 contact_probs_mat=self.contact_probs_mat,
                 token_chain_ids=self.token_chain_ids,

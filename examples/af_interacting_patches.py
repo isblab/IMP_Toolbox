@@ -58,6 +58,7 @@ if __name__ == "__main__":
             #     "B": (1600, 1800),
             # }
         ],
+        []
     ]
 
     for pred_idx, pred_to_analyse in enumerate(input_yaml):
@@ -65,13 +66,16 @@ if __name__ == "__main__":
         structure_path = pred_to_analyse.get("structure_path")
         data_path = pred_to_analyse.get("data_path")
 
-        regions_of_interest_ = regions_of_interest[pred_idx]
+        # regions_of_interest_ = regions_of_interest[pred_idx]
+
+        regions_of_interest_ = []
 
         af_interaction = Interaction(
             struct_file_path=structure_path,
             data_file_path=data_path,
             af_offset=af_offset,
             output_dir=args.output,
+            average_atom_pae=pred_to_analyse.get("average_atom_pae", False),
         )
 
         af_interaction.plddt_cutoff = 70
@@ -87,6 +91,7 @@ if __name__ == "__main__":
                 region_of_interest=region_of_interest,
                 save_plot=True,
                 plot_type="both",
-                concat_resisues=True,
+                concat_residues=True,
+                contact_probability=True,
             )
         print("-------------------------------")
