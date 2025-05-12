@@ -20,8 +20,12 @@ classDiagram
 
     class AfParser {
         - __init__(self, data_file_path, struct_file_path, af_offset) None
-        + create_interchain_mask(self, lengths_dict)
-        + get_min_pae(self, avg_pae, lengths_dict, mask_intrachain, return_dict)
+        + create_interchain_mask(self, lengths_dict, hide_interactions)
+        + get_min_pae(self, avg_pae, lengths_dict, hide_interactions, return_dict)
+        + get_chain_length(self, token_chain_ids)
+        + update_token_ids(self, token_chain_ids, token_res_ids)
+        + update_pae(self, pae, token_res_ids, token_chain_ids, **kwargs)
+        + update_contact_probs(self, contact_probs_mat, token_chain_ids, token_res_ids, **kwargs)
     }
 
     class DataParser {
@@ -29,7 +33,6 @@ classDiagram
         + get_data_dict(self)
         + get_token_chain_ids(self, data)
         + get_token_res_ids(self, data)
-        + get_chain_lengths(self, data)
         + get_pae(self, data)
         + get_avg_pae(self, pae)
         + get_contact_probs_mat(self, data)
@@ -42,6 +45,7 @@ classDiagram
         + get_structure(self, parser)
         + add_header_footer(self, structure, struct_file_path)
         + get_residues(self)
+        + decorate_residues(self, residue)
         + extract_perresidue_quantity(self, residue, quantity)
         + get_token_chain_res_ids(self)
         + get_chain_lengths(self, token_chain_ids)
@@ -63,7 +67,6 @@ classDiagram
         - __init__(self, data_file_path, struct_file_path, af_offset) None
         + get_attributes(self)
         + sanity_check(self)
-        + residue_map(self, af_offset)
     }
 
     _Initialize --|> `AfParser`
