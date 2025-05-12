@@ -104,6 +104,7 @@ job_cycles = af_input.create_af3_job_cycles()
 af_input.write_job_files(
     job_cycles=job_cycles,
     output_dir="../af_input_jobs",
+    num_jobs_per_file=20, # upto 100 is allowed
 )
 ```
 
@@ -152,6 +153,7 @@ job_cycles = af_input.create_af3_job_cycles()
 af_input.write_job_files(
     job_cycles=job_cycles,
     output_dir="../af_input_jobs",
+    num_jobs_per_file=20,
 )
 ```
 
@@ -175,7 +177,7 @@ classDiagram
       - __init__(self, input_yml, protein_sequences, nucleic_acid_sequences, entities_map) None
       + create_af3_job_cycles(self) Dict[str, List[Dict[str, Any]]]
       + write_to_json(self, sets_of_n_jobs, file_name, output_dir)
-      + write_job_files(self, job_cycles, output_dir)
+      + write_job_files(self, job_cycles, output_dir, num_jobs_per_file)
   }
 ```
 
