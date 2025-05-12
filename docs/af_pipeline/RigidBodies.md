@@ -16,11 +16,11 @@ config:
 ---
 classDiagram
     class RigidBodies {
-        - __init__(self, data_path, structure_path, af_offset) None
+        - __init__(self, data_path, structure_path, af_offset, idr_chains, **kwargs) None
         + predict_domains(self, num_res, num_proteins, plddt_filter)
         + domain_to_rb_dict(self, domain)
         + filter_plddt(self, rb_dict, patch_threshold)
-        + save_rigid_bodies(self, domains, output_dir, output_format, save_structure, no_plddt_filter_for_structure)
+        + save_rigid_bodies(self, domains, output_dir, output_format, save_structure, structure_file_type, no_plddt_filter_for_structure)
         + chain_pair_condition(self, chain_pair, interface_type)
         + get_interface_residues(domains, contact_threshold, as_matrix)
         + get_ipLDDT(self, all_interface_residues, interface_type)
@@ -70,7 +70,7 @@ af_rigid = RigidBodies(
 # parameters to vary
 af_rigid.plddt_cutoff = 70
 af_rigid.plddt_cutoff_idr = 50 # you can set different cutoff for IDR
-af_rigid.pae_cutoff = 5 # Edges will be created between all the residues < PAE cutoff
+af_rigid.pae_cutoff = 12 # Edges will be created between all the residues < PAE cutoff
 af_rigid.pae_power = 1
 af_rigid.resolution = 0.5 # default value in ChimeraX
 # lower value of resolution results in larger domains
@@ -99,7 +99,7 @@ rb1 = {
 ```
 
 - You can additionally apply pLDDT cutoff (`plddt_filter=True`) to remove low confidence residues from the structure.
-- setting `no_plddt_filter_for_structure=True` ignores the pLDDT filter in the rigid body in the `.pdb` or `.cif` format but not in the `.txt` format.
+- Setting `no_plddt_filter_for_structure=True` ignores the pLDDT filter in the rigid body in the `.pdb` or `.cif` format but not in the `.txt` format.
 
 ```python
 domains = af_rigid.predict_domains(
@@ -112,7 +112,8 @@ af_rigid.save_rigid_bodies(
     domains=domains,
     output_dir=args.output,
     output_format="txt",
-    save_structure=True, # if set to True, you will get each rigid body as a separate PDB
+    save_structure=True, # if set to True, you will get each rigid body as a separate PDB/CIF
+    structure_file_type="pdb",
     no_plddt_filter_for_structure=True, # if set to True, pLDDT filter will be ignored for saving the PDB
 )
 ```
