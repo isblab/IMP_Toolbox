@@ -152,6 +152,11 @@ af_rigid.get_ipae(
 
   - `af_rigid_bodies.py`
 
+> [!IMPORTANT]
+> The default/ above suggested cutoffs do not work well with the coiled-coil predictions.
+> Stricter cutoff is recommended (i.e. lower values of `pae_cutoff` and `resolution` and higher values of `pae_power`).
+> The generated PAE images from the script can be used to guide the user in setting the cutoffs.
+
 ## References:
 - https://www.cgl.ucsf.edu/chimerax/docs/user/commands/alphafold.html#pae
 - https://github.com/tristanic/pae_to_domains
