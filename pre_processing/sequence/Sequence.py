@@ -7,7 +7,7 @@ class FetchSequences:
     def __init__(self, uniprot_ids):
         self.uniprot_ids = uniprot_ids
 
-    def uniprot_to_sequences(self, max_retries=3):
+    def query_uniprot_api_for_sequences(self, max_retries=3) -> str:
         """Get sequences for given uniprot ids in fasta format
 
         Args:
@@ -30,7 +30,7 @@ class FetchSequences:
             raise Exception("Error while requesting sequences for given uniprot ids")
 
 
-    def only_uniprot_id_as_name(self, fasta=None):
+    def only_uniprot_id_as_name(self, fasta=None) -> str:
         """Keep only uniprot id as name in fasta file
 
         Args:
@@ -41,7 +41,7 @@ class FetchSequences:
         """
 
         if fasta is None:
-            fasta = self.uniprot_to_sequences()
+            fasta = self.query_uniprot_api_for_sequences()
 
         sequences_lines = fasta.split("\n")
         for i, line in enumerate(sequences_lines):
