@@ -274,6 +274,23 @@ class RigidBodies(_Initialize):
         return rb_dict
 
 
+    def extract_protein_chain_mapping(self, protein_chain_mapping: dict):
+
+        protein_chain_map = {}
+
+        if protein_chain_mapping is None:
+            return protein_chain_map
+
+        for p_c_maps in protein_chain_mapping:
+            protein_name, chain_ids = p_c_maps.split(":")
+            chain_ids = chain_ids.split(",")
+            for chain_id in chain_ids:
+                if chain_id not in protein_chain_map:
+                    protein_chain_map[chain_id] = protein_name
+
+        return protein_chain_map
+
+
     def save_rigid_bodies(
         self,
         domains: list,
@@ -284,6 +301,7 @@ class RigidBodies(_Initialize):
         no_plddt_filter_for_structure: bool = False,
         pae_plot: bool = False,
         rb_assessment: dict | None = None,
+        protein_chain_map: dict | None = None,
     ):
         """ Save the rigid bodies to a file and/or save the structure of the rigid bodies and assess the rigid bodies.
         - The rigid bodies are saved in a plain text format with the chain IDs and residue numbers.
@@ -318,6 +336,10 @@ class RigidBodies(_Initialize):
             os.path.basename(self.struct_file_path).split(".")[0] + "_rigid_bodies"
         )
 
+        protein_chain_map = self.extract_protein_chain_mapping(protein_chain_mapping=protein_chain_map)
+
+        ##################################################
+
         # txt or csv output format
         if output_format == "txt":
             file_name += ".txt"
@@ -330,10 +352,17 @@ class RigidBodies(_Initialize):
 
                     for chain_id, res_list in rb_dict.items():
 
+                        protein_name = protein_chain_map.get(chain_id, None)
+
                         if len(res_list) > 0:
-                            f.write(
-                                f"{chain_id}:{get_key_from_res_range(res_range=res_list)}\n"
-                            )
+                            if protein_name:
+                                f.write(
+                                    f"{protein_name}_{chain_id}: {get_key_from_res_range(res_range=res_list)}\n"
+                                )
+                            else:
+                                f.write(
+                                    f"{chain_id}:{get_key_from_res_range(res_range=res_list)}\n"
+                                )
 
                     f.write("\n")
 
@@ -345,11 +374,21 @@ class RigidBodies(_Initialize):
             for idx, rb_dict in enumerate(domains):
                 for chain_id, res_list in rb_dict.items():
                     if len(res_list) > 0:
-                        rows.append({
-                            "Rigid Body": idx,
-                            "Chain ID": chain_id,
-                            "Residues": get_key_from_res_range(res_range=res_list),
-                        })
+                        protein_name = protein_chain_map.get(chain_id, None)
+
+                        if protein_name:
+                            rows.append({
+                                "Rigid Body": idx,
+                                "Chain ID": chain_id,
+                                "Protein Name": protein_name,
+                                "Residues": get_key_from_res_range(res_range=res_list),
+                            })
+                        else:
+                            rows.append({
+                                "Rigid Body": idx,
+                                "Chain ID": chain_id,
+                                "Residues": get_key_from_res_range(res_range=res_list),
+                            })
 
             df = pd.DataFrame(rows)
             df.to_csv(output_path, index=False)
@@ -545,6 +584,7 @@ class RigidBodies(_Initialize):
                     symmetric_pae=rb_assessment.get("symmetric_pae", False),
                     as_average=rb_assessment.get("as_average", False),
                     idr_chains=self.idr_chains,
+                    protein_chain_map=protein_chain_map,
                 )
 
                 rb_assess.save_rb_assessment()
@@ -574,6 +614,7 @@ class RigidBodyAssessment:
         self.symmetric_pae = kwargs.get("symmetric_pae", False)
         self.as_average = kwargs.get("as_average", False)
         self.idr_chains = kwargs.get("idr_chains", [])
+        self.protein_chain_map = kwargs.get("protein_chain_map", {})
 
         self.unique_chains = self.get_unique_chains()
         self.chain_pairs = self.get_chain_pairs()
@@ -626,6 +667,7 @@ class RigidBodyAssessment:
         for chain_id in self.unique_chains:
             chain_wise_assessment_rows.append({
                 "Chain ID": chain_id,
+                "Protein Name": self.protein_chain_map.get(chain_id, None),
                 "Average pLDDT": self.per_chain_avg_plddt[chain_id],
                 "Average ipLDDT": self.per_chain_avg_iplddt.get(chain_id, np.nan),
                 "Number of Interface Residues": len(self.per_chain_interface_residues[chain_id]),
@@ -640,6 +682,8 @@ class RigidBodyAssessment:
                 if self.symmetric_pae:
                     chain_pairwise_assessment_rows.append({
                         "Chain Pair": f"{chain1}-{chain2}",
+                        "Protein Name 1": self.protein_chain_map.get(chain1, "Unknown"),
+                        "Protein Name 2": self.protein_chain_map.get(chain2, "Unknown"),
                         "Number of Interface Residues": self.num_interface_residues[chain_pair],
                         "Number of Contacts": self.num_contacts[chain_pair],
                         "Average PAE": self.pairwise_avg_pae[chain_pair],
@@ -653,6 +697,8 @@ class RigidBodyAssessment:
                 else:
                     chain_pairwise_assessment_rows.append({
                         "Chain Pair": f"{chain1}-{chain2}",
+                        "Protein Name 1": self.protein_chain_map.get(chain1, "Unknown"),
+                        "Protein Name 2": self.protein_chain_map.get(chain2, "Unknown"),
                         "Number of Interface Residues": self.num_interface_residues[chain_pair],
                         "Number of Contacts": self.num_contacts[chain_pair],
                         "Average PAE ij": self.pairwise_avg_pae[chain_pair]["ij"],
@@ -677,6 +723,8 @@ class RigidBodyAssessment:
                         ) / 2
                         chain_pairwise_assessment_rows.append({
                             "Chain Pair": f"{chain1}-{chain2}",
+                            "Protein Name 1": self.protein_chain_map.get(chain1, "Unknown"),
+                            "Protein Name 2": self.protein_chain_map.get(chain2, "Unknown"),
                             "Residue Pair": f"{res1_idx}-{res2_idx}",
                             "iPAE": ipae_val,
                             "ipLDDT res1": self.per_chain_iplddt[chain1].get(res1_idx, np.nan),
@@ -690,6 +738,8 @@ class RigidBodyAssessment:
                         ipae_ji = self.pairwise_ipae[chain_pair]["ji"].get((res2_idx, res1_idx), np.nan)
                         chain_pairwise_assessment_rows.append({
                             "Chain Pair": f"{chain1}-{chain2}",
+                            "Protein Name 1": self.protein_chain_map.get(chain1, "Unknown"),
+                            "Protein Name 2": self.protein_chain_map.get(chain2, "Unknown"),
                             "Residue Pair": f"{res1_idx}-{res2_idx}",
                             "iPAE ij": ipae_ij,
                             "iPAE ji": ipae_ji,
