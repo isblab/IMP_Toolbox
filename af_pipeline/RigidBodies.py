@@ -727,8 +727,17 @@ class RigidBodyAssessment:
             "overall_assessment": overall_assessment_df,
         }
 
+        for k, df_ in df_dict.items():
+            df_dict[k] = df_.fillna(np.nan)
+            df_dict[k] = df_.map(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
+
         with pd.ExcelWriter(self.save_path, engine='openpyxl', mode='w') as writer:
             for sheet_name, df in df_dict.items():
+
+                if df.empty:
+                    warnings.warn(f"Skipping empty DataFrame for sheet: {sheet_name}")
+                    continue
+
                 df.to_excel(
                     writer,
                     sheet_name=sheet_name,
@@ -1215,7 +1224,6 @@ class RigidBodyAssessment:
         overall_assessment["avg_idr_iplddt"] = (
             np.mean(global_idr_iplddt_scores) if global_idr_iplddt_scores else np.nan
         )
-        print(np.mean(global_idr_iplddt_scores))
 
         global_ipae_ij_scores = [
             ipae
