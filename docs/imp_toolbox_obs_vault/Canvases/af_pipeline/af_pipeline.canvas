@@ -105,7 +105,6 @@
 		{"alias":"create_af3_job_cycles","collapsed":true,"id":"cd9323c424f0687c","type":"file","file":"af_pipeline/AFInput/AlphaFold3/create_af3_job_cycles.md","x":-4111,"y":-4309,"width":680,"height":720,"color":"3"},
 		{"alias":"write_job_files","collapsed":true,"id":"9b86007a6db3a207","type":"file","file":"af_pipeline/AFInput/AlphaFold3/write_job_files.md","x":-4491,"y":-4229,"width":1060,"height":729,"color":"3"},
 		{"alias":"create_colabfold_job_cycles","collapsed":true,"id":"e3af8704a7bd6db1","type":"file","file":"af_pipeline/AFInput/ColabFold/create_colabfold_job_cycles.md","x":-4213,"y":-4071,"width":782,"height":742,"color":"3"},
-		{"id":"255c5f0d9ee87b77","type":"file","file":"af_pipeline/AFInput/AlphaFold3/AlphaFold3.md","alias":"AFInput.AlphaFold3","collapsed":true,"x":-3227,"y":-4170,"width":800,"height":400,"color":"5"},
 		{"id":"790310232fc8dd02","type":"file","file":"af_pipeline/AFInput/ColabFold/ColabFold.md","alias":"AFInput.ColabFold","collapsed":true,"x":-3227,"y":-3946,"width":800,"height":297,"color":"5"},
 		{"alias":"AFInput.AlphaFold2","id":"ca4833989cdda68f","type":"file","file":"af_pipeline/AFInput/AlphaFold2/AlphaFold2.md","collapsed":true,"x":-3227,"y":-3725,"width":800,"height":461,"color":"5"},
 		{"alias":"create_af2_job_cycles","collapsed":true,"id":"490e6fce755ebfbf","type":"file","file":"af_pipeline/AFInput/AlphaFold2/create_af2_job_cycles.md","x":-4232,"y":-3909,"width":801,"height":661,"color":"3"},
@@ -115,7 +114,8 @@
 		{"alias":"get_entity_info","collapsed":true,"id":"4d53668218846822","type":"file","file":"af_pipeline/AFInput/AlphaFold2/get_entity_info.md","x":-4332,"y":-3609,"width":901,"height":622,"color":"3"},
 		{"alias":"get_entity_sequences","collapsed":true,"id":"918c41f11bb305b6","type":"file","file":"af_pipeline/AFInput/AlphaFold2/get_entity_sequences.md","x":-4261,"y":-3529,"width":830,"height":908,"color":"3"},
 		{"alias":"generate_job_name","collapsed":true,"id":"0009191feb415414","type":"file","file":"af_pipeline/AFInput/AlphaFold2/generate_job_name.md","x":-4214,"y":-3449,"width":783,"height":849,"color":"3"},
-		{"alias":"warning_not_protein","collapsed":true,"id":"568de8dd00263a45","type":"file","file":"af_pipeline/AFInput/AlphaFold2/warning_not_protein.md","x":-4250,"y":-3370,"width":819,"height":689,"color":"3"}
+		{"alias":"warning_not_protein","collapsed":true,"id":"568de8dd00263a45","type":"file","file":"af_pipeline/AFInput/AlphaFold2/warning_not_protein.md","x":-4250,"y":-3370,"width":819,"height":689,"color":"3"},
+		{"id":"255c5f0d9ee87b77","type":"file","file":"af_pipeline/AFInput/AlphaFold3/AlphaFold3.md","alias":"AFInput.AlphaFold3","collapsed":true,"x":-3227,"y":-4170,"width":800,"height":400,"color":"5"}
 	],
 	"edges":[
 		{"id":"abb74e18599754fa","fromNode":"50170a2e5fddc142","fromSide":"right","toNode":"3f2a570e7a316dd6","toSide":"left"},
