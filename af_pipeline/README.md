@@ -9,6 +9,9 @@ This directory contains scripts to aid in alphafold related workflows
 
 - Read the instructions in [AFInput](/docs/af_pipeline/AFInput.md) for details on how to use.
 
+<img src="../docs/assets/AFInput.png" alt="AFInput" width="100%">
+<em>For more details open <a href="../docs/imp_toolbox_obs_vault/">`imp_toolbox_obs_vault`</a> in Obisidian as a vault </em>
+
 ## Parser and _Initialize
 
 - `Parser.py` has a number of methods to parse alphafold-predicted structure and the corresponding data file.
@@ -114,7 +117,9 @@ classDiagram
 
 ## Organization of af_pipeline
 
-![alt text](af_pipeline_organization.png)
+<!-- ![alt text](af_pipeline_organization.png) -->
+<img src="../docs/assets/af_pipeline.png" alt="af_pipeline" width="100%">
+<em>For more details open <a href="../docs/imp_toolbox_obs_vault/">`imp_toolbox_obs_vault`</a> in Obisidian as a vault </em>
 
 ## Tips to improve the coverage of Alphafold predictions
 
