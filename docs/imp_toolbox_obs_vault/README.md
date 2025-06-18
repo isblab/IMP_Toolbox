@@ -27,3 +27,5 @@ git clone git@github.com:isblab/IMP_Toolbox.git
     ![alt text](../assets/collapse_node_options.png)
 
 - Open `imp_toolbox_obs_vault/Canvases/af_pipeline.canvas` in Obsidian. You can navigate the entire documentation of `af_pipeline` within this the canvas.
+
+![alt text](../assets/obsidian_docs_af_pipeline.gif)
