@@ -1,0 +1,147 @@
+proteins:
+  "Lb2Cas12a":
+  "Cdc3": "P39825"
+  "Act1": "P10989"
+  "Dp1": "P15924-1"
+
+af_jobs:
+  Lb2Cas12a_RNA_DNA_complex_8I54_targets: # job cycle
+  - name: "Lb2Cas12a_RNA_DNA_complex" # user provided job name
+    modelSeeds: [1, 2] # 2 models with seeds 1 and 2
+    entities:
+    - name: "Lb2Cas12a"
+      type: "proteinChain"
+      count: 1
+      useStructureTemplate: true # by default set to true
+      maxTemplateDate: "2023-01-01" # by default set to 2021-09-30
+      glycans: [["BMA", 5]]
+      modifications:
+      - - "CCD_HY3"
+        - 11
+    - name: "RNA_33"
+      type: "rnaSequence"
+    - name: "DNA_25"
+      type: "dnaSequence"
+    - name: "DNA_mod"
+      type: "dnaSequence"
+      modifications: [["CCD_6OG", 2], ["CCD_6MA", 1]]
+    - name: "MG"
+      type: "ion"
+      count: 1
+
+  Actin_profilin_targets:
+  # job 1
+  # no user provided job name
+  - modelSeeds: 2 # 2 models with randomly generated seeds
+    entities:
+    - name: "Act1"
+      type: "proteinChain"
+      range: [1, 375]
+    - name: "Cdc3"
+      range: [11, 120]
+      type: "proteinChain"
+  # job 2
+  # no user provided job name or model seeds
+  - entities:
+    - name: "Act1"
+      type: "proteinChain"
+    - name: "Cdc3"
+      type: "proteinChain"
+  # job 3
+  - name: "actin_profilin_complex"
+    entities:
+    - name: "Act1"
+      type: "proteinChain"
+    - name: "Cdc3"
+      type: "proteinChain"
+    - name: "CCD_ATP"
+      type: "ligand"
+      count: 1
+    - name: "MG"
+      type: "ion"
+      count: 1
+
+  DP_dimer_targets:
+  - modelSeeds: 1 # 1 model with randomly generated seed
+    entities:
+    - name: "Dp1"
+      type: "proteinChain"
+      count: 2
+      range: [1021, 1950]
+
+af_predictions:
+
+  Lb2Cas12a_RNA_DNA_complex_8I54_af3_predictions:
+    1: 
+      /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_1
+  Actin_profilin_af3_predictions:
+    1: 
+      /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job1
+    2: 
+      /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job2
+    3: 
+      /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job3
+  DP_dimer_af3_predictions:
+    1: 
+      /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_3
+  AFDB_Q99959_af3_predictions:
+    1: 
+      /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/afdb_Q99959
+
+Lb2Cas12a_RNA_DNA_complex_8I54_af3_predictions_job_1:
+- structure_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_1/lb2cas12a_rna_dna_complex_1/fold_lb2cas12a_rna_dna_complex_1_model_0.cif
+  data_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_1/lb2cas12a_rna_dna_complex_1/fold_lb2cas12a_rna_dna_complex_1_full_data_0.json
+  af_offset:
+    A: []
+    B: []
+    C: []
+    D: []
+    E: []
+Actin_profilin_af3_predictions_job_1:
+- structure_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job1/act1_1_1to375_cdc3_1_11to120_5/fold_act1_1_1to375_cdc3_1_11to120_5_model_0.cif
+  data_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job1/act1_1_1to375_cdc3_1_11to120_5/fold_act1_1_1to375_cdc3_1_11to120_5_full_data_0.json
+  af_offset:
+    A:
+    - 1
+    - 375
+    B:
+    - 11
+    - 120
+Actin_profilin_af3_predictions_job_2:
+- structure_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job2/act1_1_1to375_cdc3_1_1to127/fold_act1_1_1to375_cdc3_1_1to127_model_0.cif
+  data_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job2/act1_1_1to375_cdc3_1_1to127/fold_act1_1_1to375_cdc3_1_1to127_full_data_0.json
+  af_offset:
+    A:
+    - 1
+    - 375
+    B:
+    - 1
+    - 127
+Actin_profilin_af3_predictions_job_3:
+- structure_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job3/actin_profilin_complex/fold_actin_profilin_complex_model_0.cif
+  data_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_2/job3/actin_profilin_complex/fold_actin_profilin_complex_full_data_0.json
+  af_offset:
+    A: []
+    B: []
+    C: []
+    D: []
+DP_dimer_af3_predictions_job_1:
+- structure_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_3/dp1_2_1021to1950_4/fold_dp1_2_1021to1950_4_model_0.cif
+  data_path: 
+    /home/omkar/Omkar/IMP_TOOLBOX/IMP_Toolbox/examples/input/AF_predictions/complex_3/dp1_2_1021to1950_4/fold_dp1_2_1021to1950_4_full_data_0.json
+  af_offset:
+    A:
+    - 1021
+    - 1950
+    B:
+    - 1021
+    - 1950
