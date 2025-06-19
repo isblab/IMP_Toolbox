@@ -63,7 +63,7 @@ if [ $sampcon_install == "yes" ]; then
     echo "Installing sampcon module"
     cd $install_path ;
 
-    git clone git@github.com:salilab/imp-sampcon.git
+    git clone https://github.com/salilab/imp-sampcon.git
     echo "sampcon module fetched at $install_path"
     echo "Waiting for 10 seconds ..."
 
