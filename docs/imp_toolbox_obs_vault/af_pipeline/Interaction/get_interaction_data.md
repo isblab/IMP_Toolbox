@@ -51,7 +51,7 @@ def get_interaction_data(self, region_of_interest: Dict):
 - [[get_confident_interaction_map]]
 
 ### Uses
-- [[get_interaction_map]]
+- [[af_pipeline/Interaction/get_interaction_map]]
 
 ### Tags
 #method 

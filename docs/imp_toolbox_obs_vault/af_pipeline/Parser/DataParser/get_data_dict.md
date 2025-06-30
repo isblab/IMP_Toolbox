@@ -1,15 +1,16 @@
 ```python
 def get_data_dict(self) -> Dict:
-	"""
-	Parse the AF2/3 data file. \n
-	AF2 data file is saved as a .pkl file \n
-	whereas for AF3 it's stored as .json.
+	"""Parse the AF2/3 data file.
 
 	Args:
-		data_file_path (str): path to the data file.
+
+		data_file_path (str):
+			path to the data file.
 
 	Returns:
-		data (Dict): data dict from the data file.
+
+		data (Dict):
+			data dict from the data file.
 	"""
 
 	ext = os.path.splitext(self.data_file_path)[1]
@@ -28,7 +29,9 @@ def get_data_dict(self) -> Dict:
 			data = data[0]
 
 	else:
-		raise Exception("Incorrect file format.. Suported .pkl/.json only.")
+		raise Exception(
+			"Incorrect file format.. Suported .pkl/.json only."
+		)
 
 	return data
 ```

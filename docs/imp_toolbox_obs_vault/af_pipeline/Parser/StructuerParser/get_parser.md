@@ -1,13 +1,16 @@
 ```python
 def get_parser(self):
-	"""
-	Get the required parser (PDB/CIF) for the input file.
+	"""Get the required parser (PDB/CIF) for the input file.
 
 	Args:
-		struct_file_path (str): path to the structure file.
+
+		struct_file_path (str):
+			Path to the AF2/3 structure file (.pdb or .cif).
 
 	Returns:
-		parser (Bio.PDB.PDBParser | Bio.PDB.MMCIFParser): parser object.
+
+		parser (Bio.PDB.PDBParser | Bio.PDB.MMCIFParser):
+			Parser object.
 	"""
 
 	ext = os.path.splitext(self.struct_file_path)[1]
@@ -24,7 +27,10 @@ def get_parser(self):
 			parser = MMCIFParser()
 
 		elif self.which_parser == "pdbe":
-			parser = CifFileReader(input='data')
+			raise NotImplementedError(
+				"PDBe parser is not implemented yet. "
+				"Please use Biopython parser."
+			)
 
 	else:
 		raise Exception("Incorrect file format.. Suported .pdb/.cif only.")

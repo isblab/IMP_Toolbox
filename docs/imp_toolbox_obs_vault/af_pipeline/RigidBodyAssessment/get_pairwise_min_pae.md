@@ -27,3 +27,12 @@ def get_pairwise_min_pae(self, symmetric_pae: bool = False):
 
 	return pairwise_min_pae
 ```
+
+### Used in
+- [[RigidBodyAssessment]]
+
+### Uses
+
+
+### Tags
+#method 

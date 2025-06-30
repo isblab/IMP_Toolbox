@@ -1,5 +1,32 @@
 ```python
 class AfParser
+	"""Parse the AF2/3 data and structure files.
+	
+	Attributes:
+	
+		data_file_path (str):
+			Path to the AF2/3 data file.
+	
+		struct_file_path (str | None):
+			Path to the AF2/3 structure file.
+			(Default: None)
+	
+		dataparser (DataParser):
+			Instance of DataParser class to parse the data file.
+	
+		structureparser (StructureParser | None):
+			Instance of StructureParser class to parse the structure file.
+			(Default: None)
+	
+		renumber (RenumberResidues):
+			Instance of RenumberResidues class to renumber residues based on 
+			the offset.
+	
+		af_offset (Dict | None):
+			Offset describing start and end residue number for each chain in 
+			the predicted structure.
+			(Default: None) \n
+	"""
 ```
 
 ```mermaid

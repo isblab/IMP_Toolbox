@@ -6,19 +6,32 @@ def update_pae(
 	token_chain_ids: list,
 	**kwargs,
 ):
-	""" Update the PAE matrix based on the keyword. \n
-	If average_atom_pae is set to True, the repeated residue 
+	"""Update the PAE matrix based on the keyword.
+
+	If average_atom_pae is set to True, the repeated residue
 	IDs are removed. \n
-	PAE values for the repeated residue IDs are replaced with 
+	PAE values for the repeated residue IDs are replaced with
 	the mean of the PAE values. \n
 
 	Args:
-		pae (np.ndarray): PAE matrix.
-		token_res_ids (list): tokenized residue IDs.
-		token_chain_ids (list): tokenized chain IDs.
+
+		pae (np.ndarray):
+			PAE matrix.
+
+		token_res_ids (list):
+			tokenized residue IDs.
+
+		token_chain_ids (list):
+			tokenized chain IDs.
+
+		**average_atom_pae (bool, optional):
+			If True, the repeated residue IDs are removed. \n
+			Defaults to False.
 
 	Returns:
-		pae (np.ndarray): updated PAE matrix.
+
+		pae (np.ndarray):
+			updated PAE matrix.
 	"""
 
 	if kwargs.get("average_atom_pae", False):

@@ -1,18 +1,23 @@
 ```python
+@staticmethod
 def add_header_footer(
-	self,
 	structure: Bio.PDB.Structure.Structure,
 	struct_file_path: str,
-):
-	""" Add the header and footer information to the structure object.
+) -> Bio.PDB.Structure.Structure:
+	"""Add the header and footer information to the structure object.
 
 	Args:
-		structure (Bio.PDB.Structure.Structure): Biopython Structure object.
-		struct_file_path (str): path to the structure file.
+
+		structure (Bio.PDB.Structure.Structure):
+			Biopython Structure object.
+
+		struct_file_path (str):
+			path to the structure file.
 
 	Returns:
-		structure (Bio.PDB.Structure.Structure): Biopython Structure object 
-			with 'header_footer'.
+
+		structure (Bio.PDB.Structure.Structure):
+			Biopython Structure object with 'header_footer'.
 	"""
 
 	with open(struct_file_path, "r") as f:

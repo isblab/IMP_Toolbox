@@ -1,5 +1,13 @@
 ```python
 class RenumberResidues
+    """Class to renumber the residues based on the offset.
+
+    Attributes:
+
+        af_offset (Dict | None):
+            Offset describing start and end residue number for each chain in 
+	        the predicted structure.
+    """
 ```
 
 ```mermaid

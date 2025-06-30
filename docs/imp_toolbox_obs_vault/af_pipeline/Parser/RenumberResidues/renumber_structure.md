@@ -3,14 +3,16 @@ def renumber_structure(
 	self,
 	structure: Bio.PDB.Structure.Structure,
 ):
-	"""Renumber the residues in the structure based on the offset. \n
-	e.g. af_offset = {'A': [30, 100], 'B': [10, 50]}
+	"""Renumber the residues in the structure based on the offset.
 
 	Args:
-		structure (Bio.PDB.Structure.Structure): Biopython Structure object.
+
+		structure (Bio.PDB.Structure.Structure):
+			Biopython Structure object.
 
 	Returns:
-		structure (Bio.PDB.Structure.Structure): Biopython Structure object with renumbered residues.
+		structure (Bio.PDB.Structure.Structure):
+			Biopython Structure object with renumbered residues.
 	"""
 
 	for model in structure:

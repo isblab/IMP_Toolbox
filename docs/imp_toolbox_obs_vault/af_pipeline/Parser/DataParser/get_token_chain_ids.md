@@ -1,16 +1,22 @@
 ```python
-def get_token_chain_ids(self, data: Dict) -> list:
-	""" Get the tokenized chain IDs from the data dict. \n
+@staticmethod
+def get_token_chain_ids(data: Dict) -> list:
+	"""Get the tokenized chain IDs from the data dict.
+
 	This is specific to AF3: "token_chain_ids" key. \n
 	If data is AF2, None is returned. \n
 	However, similar information can be obtained from the structure file. \n
 	see :py:meth:`Parser.StructureParser.get_token_chain_res_ids`.
 
 	Args:
-		data (Dict): data dict from the data file.
+
+		data (Dict):
+			data dict from the data file.
 
 	Returns:
-		token_chain_ids (list): tokenized chain IDs.
+
+		token_chain_ids (list):
+			tokenized chain IDs.
 	"""
 
 	if "token_chain_ids" in data:

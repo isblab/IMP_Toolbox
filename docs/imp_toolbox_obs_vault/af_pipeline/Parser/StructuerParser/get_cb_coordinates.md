@@ -1,9 +1,11 @@
 ```python
-def get_ca_coordinates(self):
-	""" Get the coordinates of representative atoms for all residues in the structure.
+def get_cb_coordinates(self):
+	"""Get the coordinates of representative atoms for all residues.
 
 	Returns:
-		coords_list (list): list containing the coordinates for each residue index.
+
+		coords_list (list):
+			List containing the coordinates for each residue index.
 	"""
 
 	coords_list = []
@@ -11,8 +13,7 @@ def get_ca_coordinates(self):
 	for residue, _chain_id in self.get_residues():
 
 		coords = self.extract_perresidue_quantity(
-			residue=residue,
-			quantity="coords"
+			residue=residue, quantity="coords"
 		)
 
 		coords_list.append(coords)

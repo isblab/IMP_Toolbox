@@ -1,10 +1,14 @@
 ```python
 def get_token_chain_res_ids(self):
-	""" Get the tokenized chain IDs and residue IDs for all residues in the structure.
+	"""Get the tokenized chain IDs and residue IDs for all residues.
 
 	Returns:
-		token_chain_ids (list): tokenized chain IDs.
-		token_res_ids (list): tokenized residue IDs.
+
+		token_chain_ids (list):
+			Tokenized chain IDs.
+
+		token_res_ids (list):
+			Tokenized residue IDs.
 	"""
 
 	token_chain_ids = []
@@ -12,8 +16,7 @@ def get_token_chain_res_ids(self):
 
 	for residue, chain_id in self.get_residues():
 		res_id = self.extract_perresidue_quantity(
-			residue=residue,
-			quantity="res_pos"
+			residue=residue, quantity="res_pos"
 		)
 
 		token_chain_ids.append(chain_id)

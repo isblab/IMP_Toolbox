@@ -309,7 +309,7 @@ def save_rigid_bodies(
 - [[renumber_structure]]
 - [[fill_up_the_blanks]]
 - [[save_structure_obj]]
-- [[get_interaction_map]]
+- [[af_pipeline/Interaction/get_interaction_map]]
 - [[save_rb_assessment]]
 
 ### Tags

@@ -1,5 +1,17 @@
 ```python
-def decorate_residue(self, residue: Bio.PDB.Residue.Residue):
+def decorate_residue(
+	self,
+	residue: Bio.PDB.Residue.Residue
+):
+	"""Decorate the residue with entity type based on its symbol.
+
+	Adds `entityType` to the residue's `xtra` attribute. \n
+
+	Args:
+
+		residue (Bio.PDB.Residue.Residue):
+			Biopython residue object.
+	"""
 
 	symbol = residue.get_resname()
 

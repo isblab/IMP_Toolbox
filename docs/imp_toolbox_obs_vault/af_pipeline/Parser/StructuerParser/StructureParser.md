@@ -1,5 +1,26 @@
 ```python
 class StructureParser
+    """Class to parse the AF2/3 structure file.
+
+    Attributes:
+        struct_file_path (str):
+            Path to the AF2/3 structure file (.pdb or .cif).
+
+        preserve_header_footer (bool):
+            If True, the header and footer information is preserved in the 
+            structure object.
+            This is only applicable for CIF files. \n
+            (Default: False)
+
+        which_parser (str):
+            Which parser to use for the CIF file. \n
+            "biopython" for Biopython's MMCIFParser, \n
+            "pdbe" for PDBe's CifFileReader (not implemented yet). \n
+            (Default: "biopython")
+
+        structure (Bio.PDB.Structure.Structure):
+            Biopython Structure object.
+    """
 ```
 
 ```mermaid
@@ -45,6 +66,6 @@ classDiagram
 - [[decorate_residues]]
 - [[extract_perresidue_quantity]]
 - [[get_token_chain_res_ids]]
-- [[get_ca_coordinates]]
-- [[get_ca_plddt]]
+- [[get_cb_coordinates]]
+- [[get_cb_plddt]]
 

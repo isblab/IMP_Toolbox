@@ -1,14 +1,17 @@
 ```python
 def get_residues(self):
-	"""
-	Get all residues in the structure.
+	"""Get all residues in the structure.
 
 	Args:
-		structure (Bio.PDB.Structure.Structure): Biopython Structure object.
+
+		structure (Bio.PDB.Structure.Structure):
+			Biopython Structure object.
 
 	Yields:
-		residue (Bio.PDB.Residue.Residue): Biopython residue object. \n
-		chain_id (str): chain ID.
+
+		tuple: (residue, chain_id)
+			Tuple containing the residue (Bio.PDB.Residue.Residue) and 
+			its chain ID (str).
 	"""
 
 	for model in self.structure:
@@ -21,8 +24,8 @@ def get_residues(self):
 
 ### Used in
 - [[get_token_chain_res_ids]]
-- [[get_ca_coordinates]]
-- [[get_ca_plddt]]
+- [[get_cb_coordinates]]
+- [[get_cb_plddt]]
 
 ### Uses
 

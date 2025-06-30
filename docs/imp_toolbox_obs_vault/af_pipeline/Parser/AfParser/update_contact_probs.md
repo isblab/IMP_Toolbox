@@ -6,19 +6,35 @@ def update_contact_probs(
 	token_res_ids: list,
 	**kwargs,
 ):
-	""" Update the contact probabilities matrix based on the keyword. \n
+	"""Update the contact probabilities matrix based on the keyword.
+
 	If average_atom_pae is set to True, the repeated residue IDs are removed. \n
 
 	Args:
-		contact_probs_mat (np.ndarray): contact probabilities matrix.
-		avg_contact_probs_mat (np.ndarray): average contact probabilities matrix.
-		token_chain_ids (list): tokenized chain IDs.
-		token_res_ids (list): tokenized residue IDs.
+
+		contact_probs_mat (np.ndarray):
+			contact probabilities matrix.
+
+		avg_contact_probs_mat (np.ndarray):
+			average contact probabilities matrix.
+
+		token_chain_ids (list):
+			tokenized chain IDs.
+
+		token_res_ids (list):
+			tokenized residue IDs.
+
+		**average_atom_pae (bool, optional):
+			If True, the repeated residue IDs are removed. \n
+			Defaults to False.
 
 	Returns:
-		contact_probs_mat (np.ndarray): updated contact probabilities matrix.
-		avg_contact_probs_mat (np.ndarray): updated average contact
-			probabilities matrix.
+
+		contact_probs_mat (np.ndarray):
+			updated contact probabilities matrix.
+
+		avg_contact_probs_mat (np.ndarray):
+			updated average contact probabilities matrix.
 	"""
 
 	if kwargs.get("average_atom_pae", False):

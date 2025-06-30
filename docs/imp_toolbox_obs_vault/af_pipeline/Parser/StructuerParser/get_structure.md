@@ -1,29 +1,28 @@
 ```python
 def get_structure(
 	self,
-	parser: Bio.PDB.PDBParser | Bio.PDB.MMCIFParser | pdbecif.mmcif_io.CifFileReader,
-):
-	"""
-	Return the Biopython Structure object for the input file.
+	parser: Bio.PDB.PDBParser | Bio.PDB.MMCIFParser,
+) -> Bio.PDB.Structure.Structure:
+	"""Return the Biopython Structure object for the input file.
 
 	Args:
-		parser (Bio.PDB.PDBParser | Bio.PDB.MMCIFParser): parser object.
+
+		parser (Bio.PDB.PDBParser | Bio.PDB.MMCIFParser):
+			Parser object.
 
 	Returns:
-		structure (Bio.PDB.Structure.Structure): Biopython Structure object.
+
+		structure (Bio.PDB.Structure.Structure):
+			Biopython Structure object.
 	"""
 
 	basename = os.path.basename(self.struct_file_path)
 
-	if (
-		isinstance(parser, Bio.PDB.PDBParser)
-		or isinstance(parser, Bio.PDB.MMCIFParser)
+	if isinstance(parser, Bio.PDB.PDBParser) or isinstance(
+		parser, Bio.PDB.MMCIFParser
 	):
 
-		structure = parser.get_structure(
-			basename,
-			self.struct_file_path
-		)
+		structure = parser.get_structure(basename, self.struct_file_path)
 
 		if self.preserve_header_footer:
 			structure = self.add_header_footer(
@@ -37,10 +36,9 @@ def get_structure(
 				for residue in chain:
 					self.decorate_residue(residue=residue)
 
-	elif isinstance(parser, CifFileReader):
-		raise NotImplementedError(
-			"CifFileReader is not implemented yet. "
-			"Please use PDBParser or MMCIFParser."
+	else:
+		raise Exception(
+			"Parser should be either PDBParser or MMCIFParser."
 		)
 
 	return structure

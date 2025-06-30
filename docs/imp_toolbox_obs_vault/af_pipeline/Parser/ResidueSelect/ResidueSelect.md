@@ -1,5 +1,13 @@
 ```python
 class ResidueSelect(Select)
+    """Class to select residues in the structure based on the input dictionary.
+
+    Attributes:
+        confident_residues (Dict):
+            Dictionary containing the chain ID as key and a list of residue 
+            numbers as value. \n
+            e.g. {"A": [1, 2, 3], "B": [4, 5, 6]}
+    """
 ```
 
 ```mermaid
@@ -13,7 +21,7 @@ classDiagram
 ## Input
 
 - **confident_residues** (`Dict`) ^55cf55
-	- A dictionary of confident residues
+	- Dictionary containing the chain ID as key and a list of residue numbers as value.
 	- e.g.
 ```python
 confident_residues = {

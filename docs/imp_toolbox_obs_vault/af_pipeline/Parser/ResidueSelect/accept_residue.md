@@ -3,13 +3,17 @@ def accept_residue(
 	self,
 	residue: Bio.PDB.Residue.Residue
 ) -> bool:
-	"""Accept the residue if it's in the confident_residues dict.
+	"""Accept the residue if it's in `self.confident_residues`.
 
 	Args:
-		residue (Bio.PDB.Residue.Residue): Biopython residue object.
+
+		residue (Bio.PDB.Residue.Residue):
+			Biopython residue object.
 
 	Returns:
-		bool: True if the residue is in the confident_residues dict.
+
+		bool:
+			True if the residue is in the `self.confident_residues`.
 	"""
 
 	chain = residue.parent.id

@@ -1,5 +1,12 @@
 ```python
 class DataParser
+    """Class containing methods to parse the AF2/3 data file.
+
+    Attributes:
+
+        data_file_path (str):
+            Path to the AF2/3 data file.
+    """
 ```
 
 ```mermaid

@@ -1,12 +1,17 @@
 ```python
-def get_contact_probs_mat(self, data: Dict):
-	""" Get the contact probabilities from the data dict. \n
+@staticmethod
+def get_contact_probs_mat(data: Dict):
+	"""Get the contact probabilities from the data dict.
 
 	Args:
-		data (Dict): data dict from the data file.
+
+		data (Dict):
+			data dict from the data file.
 
 	Returns:
-		contact_probs_mat (np.array): contact probabilities matrix.
+
+		contact_probs_mat (np.array):
+			contact probabilities matrix from AlphaFold3 output.
 	"""
 
 	if "contact_probs" in data:

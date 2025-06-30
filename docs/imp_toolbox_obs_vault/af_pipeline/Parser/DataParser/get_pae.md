@@ -1,13 +1,17 @@
 ```python
-def get_pae(self, data: Dict):
-	"""
-	Return the PAE matrix from the data dict. \n
+@staticmethod
+def get_pae(data: Dict):
+	"""Return the PAE matrix from the data dict.
 
 	Args:
-		data (Dict): data dict from the data file.
+
+		data (Dict):
+			data dict from the data file.
 
 	Returns:
-		pae (np.array): PAE matrix.
+
+		pae (np.array):
+			PAE matrix.
 	"""
 
 	# For AF2.

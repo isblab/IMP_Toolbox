@@ -1,23 +1,33 @@
 ```python
+@staticmethod
 def extract_perresidue_quantity(
-	self,
 	residue: Bio.PDB.Residue.Residue,
 	quantity: str
 ):
-	"""
+	"""Extract per-residue quantities from the Biopython residue object.
+
 	Given the Biopython residue object, return the specified quantity: \n
 		1. residue or nucleotide or ion position \n
 		2. Cb-coordinate or representative atom coordinate \n
 		3. Cb-pLDDT or representative atom pLDDT
 
 	Args:
-		residue (Bio.PDB.Residue.Residue): Biopython residue object.
-		quantity (str): quantity to extract.
+
+		residue (Bio.PDB.Residue.Residue):
+			Biopython residue object.
+
+		quantity (str):
+			Quantity to extract.
 
 	Returns:
-		res_id (int): residue position. \n
-		coords (np.array): coordinates of the representative atom. \n
-		plddt (float): pLDDT value
+
+		extracted_quantity (int | np.ndarray | float):
+			The extracted quantity based on the specified `quantity`.
+			- If `quantity` is "res_pos", returns residue position (int).
+			- If `quantity` is "coords", returns coordinates of the 
+				representative atom (np.ndarray).
+			- If `quantity` is "plddt", returns pLDDT value of the 
+				representative atom (float).
 	"""
 
 	# Using representative atoms as specified by AF3.
@@ -28,10 +38,14 @@ def extract_perresidue_quantity(
 
 	if residue.xtra.get("entityType") == "proteinChain":
 
-		if "CB" in residue.child_dict and symbol in PROTEIN_ENTITIES: # this includes modifications
+		if (
+			"CB" in residue.child_dict and symbol in PROTEIN_ENTITIES
+		):  # this includes modifications
 			rep_atom = "CB"
 
-		elif "CB" not in residue.child_dict and symbol in ONLY_CA_RESIDUES: # this includes modifications
+		elif (
+			"CB" not in residue.child_dict and symbol in ONLY_CA_RESIDUES
+		):  # this includes modifications
 			rep_atom = "CA"
 
 		else:
@@ -45,10 +59,10 @@ def extract_perresidue_quantity(
 
 	elif residue.xtra.get("entityType") in ["dnaSequence", "rnaSequence"]:
 
-		if symbol in PURINES: # this includes modifications
+		if symbol in PURINES:  # this includes modifications
 			rep_atom = "C4"
 
-		elif symbol in PYRIMIDINES: # this includes modifications
+		elif symbol in PYRIMIDINES:  # this includes modifications
 			rep_atom = "C2"
 
 	elif residue.xtra.get("entityType") == "ion" and symbol in ION:
@@ -68,7 +82,8 @@ def extract_perresidue_quantity(
 		rep_atom = residue.child_list[0].get_name()
 		warnings.warn(
 			f"""
-			Unknown entity type for residue {symbol} in chain {residue.parent.id}.
+			Unknown entity type for residue {symbol}
+			in chain {residue.parent.id}.
 			It could be a glycan modification.
 			Setting representative atom to {rep_atom}.
 			"""
@@ -89,12 +104,13 @@ def extract_perresidue_quantity(
 		raise Exception(
 			f"Specified quantity: {quantity} does not exist for {symbol}"
 		)
+
 ```
 
 ### Used in
 - [[get_token_chain_res_ids]]
-- [[get_ca_coordinates]]
-- [[get_ca_plddt]]
+- [[get_cb_coordinates]]
+- [[get_cb_plddt]]
 
 ### Uses
 

@@ -1,16 +1,22 @@
 ```python
-def get_token_res_ids(self, data: Dict) -> list:
-	""" Get the tokenized residue IDs from the data dict. \n
+@staticmethod
+def get_token_res_ids(data: Dict) -> list:
+	"""Get the tokenized residue IDs from the data dict.
+
 	This is specific to AF3: "token_res_ids" key. \n
 	If data is AF2, None is returned. \n
 	However, similar information can be obtained from the structure file. \n
 	see :py:meth:`Parser.AfParser.StructureParser.get_token_chain_res_ids`.
 
 	Args:
-		data (Dict): data dict from the data file.
+
+		data (Dict):
+			data dict from the data file.
 
 	Returns:
-		token_res_ids (list): tokenized residue IDs.
+
+		token_res_ids (list):
+			tokenized residue IDs.
 	"""
 
 	if "token_res_ids" in data:
