@@ -63,7 +63,6 @@ def parse_args() -> argparse.Namespace:
         default=0.2,
         required=False,
     )
-    #TODO add argument for threshold of percentage of models
 
     return parser.parse_args()
 
@@ -73,12 +72,13 @@ def save_matrix_to_csv(matrix, s1, s2, p1, p2, directory, prefix):
     df.index = range(s1[0], (s1[0]) + len(df))
 
     if 'binarized' in prefix or 'percent' in prefix:
-        df_values_equal_to_1 = df[df == 1].dropna(how='all').dropna(axis=1, how='all')
-        df_values_equal_to_1.to_csv(os.path.join(directory, f"{p1}-{p2}_{prefix}.csv"), index=True, sep=',')
-        return df_values_equal_to_1
+        df = df.loc[~(df == 0).all(axis=1)]
+        df = df.loc[:, ~(df == 0).all(axis=0)]
+        df.to_csv(os.path.join(directory, f"{p1}-{p2}_{prefix}.csv"), index=True, sep=',')
     else:
         df.to_csv(os.path.join(directory, f"{p1}-{p2}_{prefix}.csv"), index=True, sep=',')
-        return df
+
+    return df
 
 def compute_dmaps():
     args = parse_args()
@@ -118,7 +118,6 @@ def compute_dmaps():
     concatenated_rmfs = glob.glob("concatenated_models/*rmf3")
     print("\nStarting distance calculations")
 
-    i = 1
     done_prot_pairs = []
     for p1 in all_proteins:
         for p2 in tqdm(all_proteins, desc=f"Processing interactions of {p1}"):
@@ -166,7 +165,7 @@ def compute_dmaps():
 
             save_matrix_to_csv(mean_distances, s1, s2, p1, p2, "distance_matrices", "mean_distances")
             save_matrix_to_csv(binarized_distance_matrix,s1, s2, p1, p2, "binarized_distance_matrices", "binarized_distances")
-            save_matrix_to_csv(percent_models_satisfied[:, :, 0],s1, s2, p1, p2, "percent_satisfied_matrices", "percent_satisfied_distances")
+            save_matrix_to_csv(percent_models_satisfied[:,:,0],s1, s2, p1, p2, "percent_satisfied_matrices", "percent_satisfied_distances")
 
             # Plot for mean distance maps
             fig, ax = pyl.subplots(1, 1)
@@ -215,11 +214,25 @@ def compute_dmaps():
             fig, ax = pyl.subplots(1, 1)
 
             cax = ax.matshow(percent_models_satisfied, cmap='Greys')
-            ax.set_xticks(np.arange(0.5, (s2[1]-s2[0]+1), 50))
-            ax.set_xticklabels(np.arange(s2[0], s2[1], 50))
+            # ax.set_xticks(np.arange(0.5, (s2[1]-s2[0]+1), 50))
+            # ax.set_xticklabels(np.arange(s2[0], s2[1], 50))
 
-            ax.set_yticks(np.arange(0.5, (s1[1]-s1[0]+1), 50))
-            ax.set_yticklabels(np.arange(s1[0], s1[1], 50))
+            # ax.set_yticks(np.arange(0.5, (s1[1]-s1[0]+1), 50))
+            # ax.set_yticklabels(np.arange(s1[0], s1[1], 50))
+            # X-axis
+            xticks = np.linspace(0.5, s2[1] - s2[0] + 0.5, num=((s2[1] - s2[0]) // 20) + 1)
+            xlabels = np.linspace(s2[0], s2[1], num=len(xticks), dtype=int)
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xlabels)
+
+            # Y-axis
+            yticks = np.linspace(0.5, s1[1] - s1[0] + 0.5, num=((s1[1] - s1[0]) // 20) + 1)
+            ylabels = np.linspace(s1[0], s1[1], num=len(yticks), dtype=int)
+            ax.set_yticks(yticks)
+            ax.set_yticklabels(ylabels)
+
+            # Make y-axis go from bottom to top
+            ax.invert_yaxis()
 
             pyl.xlabel(p2)
             pyl.ylabel(p1)
@@ -233,7 +246,6 @@ def compute_dmaps():
                 dpi=600,
             )
             pyl.close()
-            # exit()
             done_prot_pairs.append((p1, p2))
 
     toc = time.time()
