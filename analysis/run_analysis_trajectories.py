@@ -1,64 +1,177 @@
-import numpy as np
-import pandas as pd
-import math
-import glob
-import sys
 import os
+import random
+import time
+import analysis_trajectories
+import argparse
+from utils import generate_cmap, sanity_check_cores
+try:
+    from analysis_trajectories import AnalysisTrajectories
+except ImportError as e:
+    if "No module named 'analysis_trajectories'" in str(e):
+        print(
+            "The 'analysis_trajectories' module is part of PMI_analysis. "
+            "Please ensure that PMI_analysis is installed and added to PYTHONPATH.\n"
+            "You can do this by running:\n"
+            "export PYTHONPATH=$PYTHONPATH:/path/to/PMI_analysis/pyext/src\n"
+            "or by adding the above line to your ~/.bash_profile."
+        )
 
-# Change this to the location of your PMI_analysis folder
-sys.path.append('~/imp-clean/PMI_analysis/pyext/src')
+start_time = time.time()
 
-from analysis_trajectories import *
+# shuffle colors to ensure randomness
+random.seed(47)
+# color_palette = np.random.shuffle(color_palette)
+analysis_trajectories.color_palette = generate_cmap(
+    n=40,
+    scheme="contrasting"
+)
 
-#################################
-########### MAIN ################
-#################################
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run analysis on trajectories of cardiac desmosome simulations."
+    )
+    parser.add_argument(
+        "--modeling_output_path",
+        type=str,
+        default="/data/omkar/imp_toolbox_test/modeling",
+        help="Path to the modeling output directory. "
+    )
+    parser.add_argument(
+        "--analysis_output_path",
+        type=str,
+        default="/data/omkar/imp_toolbox_test/analysis",
+        help="Path to the analysis output directory. "
+    )
+    parser.add_argument(
+        "--run_start",
+        type=int,
+        default=1,
+        help="Starting run number (default: 1)"
+    )
+    parser.add_argument(
+        "--run_end",
+        type=int,
+        default=30,
+        help="Ending run number (default: 30)"
+    )
+    parser.add_argument(
+        "--run_interval",
+        type=int,
+        default=1,
+        help="Interval between runs (default: 1)"
+    )
+    parser.add_argument(
+        "--traj_dir_prefix",
+        type=str,
+        default="run_",
+        help="Prefix for trajectory directories (default: 'run_')"
+    )
+    parser.add_argument(
+        "--nproc",
+        type=int,
+        default=1,
+        help="Number of cores to use for analysis (default: 1)"
+    )
+    parser.add_argument(
+        "--burn_in_fraction",
+        type=float,
+        default=0.1,
+        help="Fraction of data to discard as burn-in (default: 0.1)"
+    )
+    parser.add_argument(
+        "--nskip",
+        type=int,
+        default=1,
+        help="Number of consecutive frames to skip in the `AnalysisTrajectories` (default: 1)"
+    )
+    parser.add_argument(
+        "--restraint_handles",
+        type=str,
+        nargs='+',
+        default=[
+            'GaussianEMRestraint:EM',
+            'SingleAxisMinGaussianRestraint:SAMGR',
+        ],
+        help="List of restraint handles to analyze (default: ['GaussianEMRestraint:EM', 'SingleAxisMinGaussianRestraint:SAMGR'])"
+    )
+    parser.add_argument(
+        "--hdbscan_restraint_handles",
+        type=str,
+        nargs='+',
+        default=['EV_sum', 'CR_sum', 'EM_sum'],
+        help="List of restraint handles to use for HDBSCAN clustering (default: ['EV_sum', 'CR_sum', 'EM_sum'])"
+    )
+    parser.add_argument(
+        "--min_cluster_size",
+        type=int,
+        default=15,
+        help="Minimum cluster size for HDBSCAN (default: 15)"
+    )
+    parser.add_argument(
+        "--min_samples",
+        type=int,
+        default=2,
+        help="Minimum samples for HDBSCAN (default: 2)"
+    )
+    args = parser.parse_args()
 
-nproc = 30
-top_dir =  sys.argv[1] 
-analys_dir = os.getcwd()+'/model_analysis/'
+sanity_check_cores(args.nproc)
 
-# Check if analysis dir exists
-if not os.path.isdir(analys_dir):
-    os.makedirs(analys_dir)
+os.makedirs(args.analysis_output_path, exist_ok=True)
 
-# How are the trajectories dir names
-dir_head = sys.argv[2]
-out_dirs = glob.glob(top_dir+'/'+dir_head+'*/')
+traj_dirs = [
+    f'{args.modeling_output_path}/{args.traj_dir_prefix}{i}'
+    for i in range(args.run_start, args.run_end + 1, args.run_interval)
+]
 
-################################
-# Get and organize fields for
-# analysis
-################################
-# Read the total score, plot
-# and check for score convengence
-XLs_cutoffs = {'xl_Sin3A_hdac1':35.0}
+assert all(os.path.exists(traj_dir) for traj_dir in traj_dirs), \
+    "One or more trajectory directories do not exist."
 
-# Load module
-AT = AnalysisTrajectories(out_dirs,
-                          dir_name=dir_head,
-                          analysis_dir = analys_dir,
-                          burn_in_fraction=0.2,
-                          nskip=20,
-                          nproc=nproc)
+res_handles1 = [h.split(':')[1] for h in args.restraint_handles]
+res_handles2 = [
+    h.replace('_sum', '') for h in args.hdbscan_restraint_handles
+    if h not in ['EV_sum', 'CR_sum']
+]
 
-# Define restraints to analyze
-AT.set_analyze_XLs_restraint(XLs_cutoffs = XLs_cutoffs)
-AT.set_analyze_Connectivity_restraint()
-AT.set_analyze_Excluded_volume_restraint()
-# AT.set_analyze_score_only_restraint(handle = 'MinimumPairDistanceBindingRestraint', short_name = 'MPDBR', do_sum = True)
-AT.set_analyze_EM_restraint()
-AT.restraint_names['GaussianEMRestraint']='GaussianEMRestraint'
-# ConnectivityRestraint_None
+assert set(res_handles2).issubset(set(res_handles1)), \
+    f"""
+    All HDBSCAN restraint handles must be included in the restraint handles.
+    Restraint handles: {res_handles1}
+    HDBSCAN restraint handles: {res_handles2}
+    """
 
-# Read stat files
-AT.read_stat_files()
-AT.write_models_info()
-AT.get_psi_stats()
+at_obj = AnalysisTrajectories(
+    out_dirs=traj_dirs,
+    dir_name=args.traj_dir_prefix,
+    nproc=args.nproc,
+    analysis_dir=args.analysis_output_path,
+    burn_in_fraction=args.burn_in_fraction,
+    nskip=args.nskip,
+    detect_equilibration=True,
+)
 
-# What scores do we cluster on?
-AT.hdbscan_clustering(['EV_sum', 'XLs_sum', 'MPDBR_sum']) # , 'GaussianEMRestraint_None'
-AT.summarize_XLs_info()
-# exit()
+# Usual restraints
+at_obj.set_analyze_Connectivity_restraint()
+at_obj.set_analyze_Excluded_volume_restraint()
+# at_obj.set_analyze_EM_restraint()
 
+for handle in args.restraint_handles:
+    restraint, short_name = handle.split(':')
+    at_obj.set_analyze_score_only_restraint(
+        handle=restraint,
+        short_name=short_name,
+        do_sum=True,
+    )
 
+at_obj.read_stat_files()
+at_obj.write_models_info()
+
+at_obj.hdbscan_clustering(
+    args.hdbscan_restraint_handles,
+    min_cluster_size=args.min_cluster_size,
+    min_samples=args.min_samples,
+    skip=args.nskip,
+)
+
+end_time = time.time()
+print(f"Analysis completed in {end_time - start_time:.2f} seconds.")
