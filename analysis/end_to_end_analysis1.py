@@ -32,6 +32,7 @@ HDBSCAN_RESTRAINT_HANDLES = [
 TRAJ_DIR_PREFIX = "run_"
 PRISM_PATH = "/home/$USER/IMP_OMG/prism"
 SAMPCON_PATH = "/home/$USER/IMP_OMG/imp-sampcon"
+IMP_TOOLOBX_PATH = "/home/$USER/IMP_TOOLBOX/IMP_Toolbox"
 SYSNAME = "cardiac_desmosome"
 SAMPCON_DENSITY_TXT = f"/data/{_user}/imp_toolbox_test/input/density_sampcon.txt"
 MODEL_CAP = 30000 # for variable filter
@@ -703,7 +704,7 @@ if __name__ == "__main__":
     if "run_analysis_trajectories" in args.scripts_to_run:
 
         run_analysis_trajectories(
-            script_path="run_analysis_trajectories.py",
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/run_analysis_trajectories.py",
             modeling_output_path=MODELING_OUTPUT_PATH,
             analysis_output_path=pmi_analysis_output_path,
             traj_dir_prefix=TRAJ_DIR_PREFIX,
@@ -776,7 +777,7 @@ if __name__ == "__main__":
         )
         os.makedirs(var_filter_output_path, exist_ok=True)
         variable_filter(
-            script_path="variable_filter.py",
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/variable_filter.py",
             major_cluster_idx=pmi_cluster_idx,
             lowest_cutoff=-2.0,
             highest_cutoff=3.0,
@@ -799,7 +800,7 @@ if __name__ == "__main__":
     if "run_extract_models" in args.scripts_to_run:
 
         run_extract_models(
-            script_path="run_extract_models.py",
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/run_extract_models.py",
             modeling_output_path=MODELING_OUTPUT_PATH,
             analysis_output_path=pmi_analysis_output_path,
             traj_dir_prefix=TRAJ_DIR_PREFIX,
@@ -888,7 +889,7 @@ if __name__ == "__main__":
             Please check if exhaust has been run successfully. """
         )
         extract_sampcon(
-            script_path='extract_sampcon.py',
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/xtract_sampcon.py",
             rmf1=frames_A_rmf,
             list1=frame_ids_A_txt,
             rmf2=frames_B_rmf,
@@ -989,7 +990,7 @@ if __name__ == "__main__":
             """
         )
         rmf_to_xyzr(
-            script_path="rmf_to_xyzr.py",
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/rmf_to_xyzr.py",
             rmf_path=extracted_rmf_path,
             output_path=xyzr_output_path,
             frame_subset=None,
