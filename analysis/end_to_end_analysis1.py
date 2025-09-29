@@ -46,7 +46,8 @@ def return_major_cluster(hdbscan_log_path: str):
 
     if len(models_count) == 0:
         raise ValueError(
-            f"No clusters found in HDBSCAN summary file {hdbscan_log_path}."
+            f"""No clusters found in HDBSCAN summary file {hdbscan_log_path}.
+            Change the parameters for HDBSCAN clustering and try again."""
         )
 
     major_clust = [
@@ -556,7 +557,6 @@ if __name__ == "__main__":
         nargs='+',
         default=[
             "run_analysis_trajectories",
-            "variable_filter",
             "run_extract_models",
             "exhaust",
             "extract_sampcon",
@@ -564,15 +564,13 @@ if __name__ == "__main__":
             "prism_color"
         ],
         help="List of scripts to run in sequence (default: all) \
-            (default: [run_analysis_trajectories, variable_filter, \
-            run_extract_models, exhaust, extract_sampcon, prism_annotate, \
-            prism_color])"
+            (default: [run_analysis_trajectories, run_extract_models \
+            exhaust, extract_sampcon, prism_annotate, prism_color])"
     )
     args = parser.parse_args()
 
     assert all([s in [
         "run_analysis_trajectories",
-        "variable_filter",
         "run_extract_models",
         "exhaust",
         "extract_sampcon",
@@ -583,7 +581,6 @@ if __name__ == "__main__":
         Invalid script name in scripts_to_run.
         Valid options are:
         run_analysis_trajectories
-        variable_filter
         run_extract_models
         exhaust
         extract_sampcon
@@ -598,7 +595,7 @@ if __name__ == "__main__":
 
     ANALYSIS_OUTPUT_PATH = args.analysis_dir
     MODELING_OUTPUT_PATH = args.modeling_dir
-    LOG_DIR = os.path.join(ANALYSIS_OUTPUT_PATH, 'logs')
+    LOG_DIR = os.path.join(ANALYSIS_OUTPUT_PATH, "logs")
 
     assert os.path.exists(MODELING_OUTPUT_PATH), (
         f"""
@@ -610,10 +607,10 @@ if __name__ == "__main__":
     os.makedirs(LOG_DIR, exist_ok=True)
     logger = logging.getLogger(__name__)
     file_handler = logging.FileHandler(
-        os.path.join(LOG_DIR, 'end_to_end_analysis.log'),
+        os.path.join(LOG_DIR, "end_to_end_analysis.log"),
         mode=args.compound_log_mode
     )
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
@@ -625,8 +622,7 @@ if __name__ == "__main__":
     # run analysis trajectories
     ###########################################################################
     pmi_analysis_output_path = os.path.join(
-        ANALYSIS_OUTPUT_PATH,
-        'pmi_analysis'
+        ANALYSIS_OUTPUT_PATH, "pmi_analysis"
     )
     os.makedirs(pmi_analysis_output_path, exist_ok=True)
 
@@ -643,7 +639,10 @@ if __name__ == "__main__":
             nproc=4,
             burn_in_fraction=0.1,
             nskip=1,
-            restraint_handles=["GaussianEMRestraint:EM", "SingleAxisMinGaussianRestraint:SAMGR"],
+            restraint_handles=[
+                "GaussianEMRestraint:EM",
+                "SingleAxisMinGaussianRestraint:SAMGR",
+            ],
             hdbscan_restraint_handles=["EV_sum", "EM_sum"],
             min_cluster_size=15,
             min_samples=2,
@@ -685,26 +684,23 @@ if __name__ == "__main__":
     ###########################################################################
     # variable filter
     ###########################################################################
-    MODEL_CAP = 300
-    if "variable_filter" in args.scripts_to_run:
-        if major_cluster_size <= MODEL_CAP:
-            logger.info(
-                f"""
-                Major cluster size {major_cluster_size} is less than
-                model cap {MODEL_CAP}. Skipping variable filter.
-                """
-            )
-            skip_variable_filter = True
-        else:
-            logger.info(
-                f"""
-                Major cluster size {major_cluster_size} is greater than
-                model cap {MODEL_CAP}. Proceeding with variable filter.
-                """
-            )
-            skip_variable_filter = False
+    MODEL_CAP = 30000
 
-    if "variable_filter" in args.scripts_to_run and not skip_variable_filter:
+    if major_cluster_size <= MODEL_CAP:
+        logger.info(
+            f"""
+            Major cluster size {major_cluster_size} is less than
+            model cap {MODEL_CAP}. Skipping variable filter.
+            """
+        )
+
+    else:
+        logger.info(
+            f"""
+            Major cluster size {major_cluster_size} is greater than
+            model cap {MODEL_CAP}. Proceeding with variable filter.
+            """
+        )
         var_filter_output_path = os.path.join(
             ANALYSIS_OUTPUT_PATH, 'variable_filter_output'
         )
@@ -726,9 +722,6 @@ if __name__ == "__main__":
             f"Completed variable_filter in {lap - start_time:0.4f} seconds"
         )
 
-    elif "variable_filter" in args.scripts_to_run:
-        logger.info("Skipping variable_filter as per user request.")
-
     ###########################################################################
     # extract models
     ###########################################################################
@@ -746,7 +739,7 @@ if __name__ == "__main__":
             burn_in_fraction=0.1,
             nskip=1,
             cluster_id=pmi_cluster_idx,
-            filter_applied=(not skip_variable_filter),
+            filter_applied=major_cluster_size > MODEL_CAP,
             variable_filter_output_dir=var_filter_output_path,
             logger=logger,
             save_log=args.keep_logs
@@ -804,10 +797,12 @@ if __name__ == "__main__":
     )
 
     if "extract_sampcon" in args.scripts_to_run:
-        assert os.path.exists(sampcon_output_dir), (
-            f"""Sampcon output directory {sampcon_output_dir} does not exist.
-            Please check if exhaust has been run successfully.
-            """
+        assert (
+            os.path.exists(sampcon_output_dir, f"cluster.0.sample_A.txt")
+            and os.path.exists(sampcon_output_dir, f"cluster.0.sample_B.txt")
+        ), (
+            f"""Sample A/B txt files does not exist in {sampcon_output_dir}.
+            Please check if exhaust has been run successfully. """
         )
         extract_sampcon(
             script_path='extract_sampcon.py',
