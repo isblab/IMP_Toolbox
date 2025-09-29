@@ -1,34 +1,36 @@
 import os
 import time
 import argparse
+import getpass
 try:
     from analysis_trajectories import AnalysisTrajectories
 except ImportError as e:
-    if "No module named 'analysis_trajectories'" in str(e):
+    if "No module named `analysis_trajectories`" in str(e):
         print(
-            "The 'analysis_trajectories' module is part of PMI_analysis. "
-            "Please ensure that PMI_analysis is installed and added to PYTHONPATH.\n"
-            "You can do this by running:\n"
-            "export PYTHONPATH=$PYTHONPATH:/path/to/PMI_analysis/pyext/src\n"
-            "or by adding the above line to your ~/.bash_profile."
+            """The `analysis_trajectories` module is part of PMI_analysis.
+            Please ensure that PMI_analysis is installed & added to PYTHONPATH.
+            You can do this by running:
+            export PYTHONPATH=$PYTHONPATH:/path/to/PMI_analysis/pyext/src
+            or by adding the above line to your ~/.bash_profile."""
         )
 
-start_time = time.time()
+_user = getpass.getuser()
+start_t = time.time()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run analysis on trajectories of cardiac desmosome simulations."
+        description="Extract good scoring models"
     )
     parser.add_argument(
         "--modeling_output_path",
         type=str,
-        default="/data/omkar/imp_toolbox_test/modeling",
+        default=f"/data/{_user}/imp_toolbox_test/modeling",
         help="Path to the modeling output directory. "
     )
     parser.add_argument(
         "--analysis_output_path",
         type=str,
-        default="/data/omkar/imp_toolbox_test/analysis",
+        default=f"/data/{_user}/imp_toolbox_test/analysis",
         help="Path to the analysis output directory. "
     )
     parser.add_argument(
@@ -47,13 +49,13 @@ if __name__ == "__main__":
         "--filter_applied",
         type=str,
         default='False',
-        help="Whether variable_filter.py was run before this script (default: False)"
+        help="Whether variable_filter was run before this script"
     )
     parser.add_argument(
         "--variable_filter_output_dir",
         type=str,
-        default="/data/omkar/imp_toolbox_test/analysis/variable_filter_output",
-        help="Directory name where variable filter outputs are stored (default: 'variable_filter_output')"
+        default=f"/data/{_user}/imp_toolbox_test/analysis/variable_filter_output",
+        help="Directory where variable filter outputs are stored"
     )
     parser.add_argument(
         "--run_end",
@@ -89,12 +91,12 @@ if __name__ == "__main__":
         "--nskip",
         type=int,
         default=1,
-        help="Number of consecutive frames to skip in the `AnalysisTrajectories` (default: 1)"
+        help="Number of consecutive frames to skip (default: 1)"
     )
     args = parser.parse_args()
 
     traj_dirs = [
-        f'{args.modeling_output_path}/{args.traj_dir_prefix}{i}'
+        f"{args.modeling_output_path}/{args.traj_dir_prefix}{i}"
         for i in range(args.run_start, args.run_end + 1, args.run_interval)
     ]
 
@@ -111,12 +113,12 @@ if __name__ == "__main__":
         nskip=args.nskip,
     )
 
-    # Point to the selected_models file
-    if args.filter_applied == 'True':
-        # variable_output_dir = os.path.join(
-        #     os.path.dirname(args.analysis_output_path), args.variable_filter_output_dir
-        # )
-        print("Variable filter was applied. Extracting models from good_scoring_models files.")
+    if args.filter_applied == "True":
+
+        print(
+            "Variable filter was applied. \
+            Extracting models from good_scoring_models files."
+        )
         df_A = at_obj.get_models_to_extract(
             os.path.join(
                 args.variable_filter_output_dir,
@@ -129,7 +131,9 @@ if __name__ == "__main__":
                 f"good_scoring_models_B_cluster{str(args.cluster_id)}_detailed.csv"
             )
         )
+
     else:
+
         print("Variable filter was NOT applied. Extracting models directly.")
         df_A = at_obj.get_models_to_extract(
             os.path.join(
@@ -147,13 +151,13 @@ if __name__ == "__main__":
     rmf_file_out_A = f"A_models_clust{str(args.cluster_id)}.rmf3"
     rmf_file_out_B = f"B_models_clust{str(args.cluster_id)}.rmf3"
 
-    # Extract models from the RMF files into a single RMF file
+    # Extract models from the RMF files into a single RMF file for each sample
     at_obj.do_extract_models_single_rmf(
         df_A,
-        rmf_file_out_A,  # RMF file outputted for Sample A
-        args.modeling_output_path,  # Top directory containing the PMI output folders
-        args.analysis_output_path,  # Analysis directory to write RMF and score files
-        scores_prefix="A_models_clust" + str(args.cluster_id),   # Prefix for the scores file
+        rmf_file_out_A,
+        args.modeling_output_path,
+        args.analysis_output_path,
+        scores_prefix="A_models_clust" + str(args.cluster_id),
     )
 
     at_obj.do_extract_models_single_rmf(
@@ -163,3 +167,6 @@ if __name__ == "__main__":
         args.analysis_output_path,
         scores_prefix="B_models_clust" + str(args.cluster_id)
     )
+
+    end_t = time.time()
+    print(f"Extracted models in {end_t - start_t:.2f} seconds.")

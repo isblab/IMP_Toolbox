@@ -24,10 +24,12 @@ import time
 import argparse
 import numpy as np
 import pandas as pd
+import getpass
 from scipy.stats import ks_2samp
 from matplotlib import pyplot as plt
 
-start_time = time.time()
+_user = getpass.getuser()
+start_t = time.time()
 
 def variable_filter(
     std_multiplier: float,
@@ -56,12 +58,14 @@ def variable_filter(
 
     temp = None
 
-    for i in score_list:
+    for col in score_list:
 
         if temp is None:
-            temp = df[i] <= (df_mean[i] + std_multiplier * df_std[i])
+            temp = df[col] <= (df_mean[col] + std_multiplier * df_std[col])
         else:
-            temp = temp & (df[i] <= (df_mean[i] + std_multiplier * df_std[i]))
+            temp = temp & (
+                df[col] <= (df_mean[col] + std_multiplier * df_std[col])
+            )
 
     return df[temp]
 
@@ -108,15 +112,15 @@ if __name__ == '__main__':
     parser.add_argument(
         "-g",
         "--gsmsel",
-        default="/data/omkar/imp_toolbox_test/analysis",
+        default=f"/data/{_user}/imp_toolbox_test/analysis",
         type=str,
         help="Path to the directory containing the selected models CSV files \
-            (default: /data/omkar/imp_toolbox_test/analysis)"
+            (default: /data/<_user>/imp_toolbox_test/analysis)"
     )
     parser.add_argument(
         "-o",
         "--output_dir",
-        default="/data/omkar/imp_toolbox_test/analysis/variable_filter_output",
+        default=f"/data/{_user}/imp_toolbox_test/analysis/variable_filter_output",
         type=str,
         help="Path to save theoutput files \
             (default: analysis_output_path/set1/variable_filter_output)",
@@ -182,13 +186,13 @@ if __name__ == '__main__':
 
     for multiplier in std_mult_dtrst:
 
-        default_restraints = args.restraint_handles + ["Total_Score"]
+        cols_to_consider = args.restraint_handles + ["Total_Score"]
 
         sel_dfA = variable_filter(
-            multiplier, dfA, default_restraints, common_df_mean, common_df_std
+            multiplier, dfA, cols_to_consider, common_df_mean, common_df_std
         )
         sel_dfB = variable_filter(
-            multiplier, dfB, default_restraints, common_df_mean, common_df_std
+            multiplier, dfB, cols_to_consider, common_df_mean, common_df_std
         )
 
         # Combining the score files for checking for run representation.
@@ -269,4 +273,4 @@ if __name__ == '__main__':
         print("\nOptimal multiplier not found")
 
     end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
+    print(f"Time taken: {end_time - start_t} seconds")

@@ -1,10 +1,11 @@
-import sys
 import IMP
 import IMP.rmf
 import RMF
 import tqdm
 import argparse
 import os
+import getpass
+_user = getpass.getuser()
 
 def add_frames(
     out_rmf,
@@ -41,31 +42,31 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--rmf_out",
-        default=f"/home/omkar/imp_toolbox_test/sampcon_extract/extracted_frames.rmf",
+        default=f"/home/{_user}/imp_toolbox_test/sampcon_extract/extracted_frames.rmf",
         type=str,
         help="Output RMF file to save the extracted frames."
     )
     parser.add_argument(
         "--rmf1",
-        default=f"/home/omkar/imp_toolbox_test/analysis/pmi_analysis/A_models_clust2.rmf3",
+        default=f"/home/{_user}/imp_toolbox_test/analysis/pmi_analysis/A_models_clust2.rmf3",
         type=str,
         help="Input RMF file 1."
     )
     parser.add_argument(
         "--list1",
-        default=f"/home/omkar/imp_toolbox_test/analysis/sampcon_output/analysis/cluster.0.sample_A.txt",
+        default=f"/home/{_user}/imp_toolbox_test/analysis/sampcon_output/analysis/cluster.0.sample_A.txt",
         type=str,
         help="List of frame IDs for RMF file 1."
     )
     parser.add_argument(
         "--rmf2",
-        default=f"/home/omkar/imp_toolbox_test/analysis/pmi_analysis/B_models_clust2.rmf3",
+        default=f"/home/{_user}/imp_toolbox_test/analysis/pmi_analysis/B_models_clust2.rmf3",
         type=str,
         help="Input RMF file 2."
     )
     parser.add_argument(
         "--list2",
-        default=f"/home/omkar/imp_toolbox_test/analysis/sampcon_output/analysis/cluster.0.sample_B.txt",
+        default=f"/home/{_user}/imp_toolbox_test/analysis/sampcon_output/analysis/cluster.0.sample_B.txt",
         type=str,
         help="List of frame IDs for RMF file 2."
     )

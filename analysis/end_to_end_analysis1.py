@@ -4,6 +4,8 @@ import time
 import random
 import argparse
 import logging
+import getpass
+_user = getpass.getuser()
 
 logging.basicConfig(
     filename=os.path.join(
@@ -14,6 +16,25 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
+
+#NOTE: Change these as per your setup and requirements
+# do not to add CR and EV to RESTRAINT_HANDLES as they are analyzed by default
+RESTRAINT_HANDLES = [
+    "GaussianEMRestraint:EM",
+    "SingleAxisMinGaussianRestraint:SAMGR",
+]
+# restaint sums to be used for HDBSCAN clustering
+# you need to add CR_sum and EV_sum if you wish to use them for clustering
+HDBSCAN_RESTRAINT_HANDLES = [
+    "EV_sum",
+    "EM_sum",
+]
+TRAJ_DIR_PREFIX = "run_"
+PRISM_PATH = "/home/$USER/IMP_OMG/prism"
+SAMPCON_PATH = "/home/$USER/IMP_OMG/imp-sampcon"
+SYSNAME = "cardiac_desmosome"
+SAMPCON_DENSITY_TXT = f"/data/{_user}/imp_toolbox_test/input/density_sampcon.txt"
+MODEL_CAP = 30000 # for variable filter
 
 random.seed(47)
 
@@ -149,6 +170,7 @@ def variable_filter(
     model_cap: int,
     gsmsel_dir: str,
     output_dir: str,
+    restraint_handles: list,
     logger: logging.Logger | None = None,
     save_log: bool = True,
 ):
@@ -179,7 +201,8 @@ def variable_filter(
         "--step_size", str(step_size),
         "--num_models", str(model_cap),
         "--gsmsel", gsmsel_dir,
-        "--output_dir", output_dir
+        "--output_dir", output_dir,
+        "--restraint_handles", *restraint_handles
     ]
 
     if save_log:
@@ -522,22 +545,70 @@ def extract_sampcon(
 
     os.system(" ".join(map(str, command)))
 
+def rmf_to_xyzr(
+    script_path: str,
+    rmf_path: str,
+    output_path: str,
+    frame_subset: str | None = None,
+    round_off: int = 3,
+    nproc: int = 8,
+    logger: logging.Logger | None = None,
+):
+    """ Run the script `rmf_to_xyzr.py`
+
+    - This extracts the bead coordinates and radii from the input rmf3 file
+    - The output is a hdf5 file containing the XYZR data for each molecule
+      organized in a dictionary
+    - key: molecule name with copy index (e.g. "mol1_0")
+    - value: dictionary of fragments with their XYZR data
+      (e.g. {"1-10": [[x, y, z, r], ...], "11": [[x, y, z, r], ...]})
+
+    Args:
+        script_path (str): Path to the `rmf_to_xyzr.py` script
+        rmf_path (str): Path to the input rmf3 file
+        output_path (str): Path to the output hdf5 file
+        frame_subset (str | None, optional): Subset of frames to process
+            (e.g., "0-9,17" for first 10 and 16th frame).
+            Defaults to None (all frames).
+        round_off (int, optional): Decimal places to round off the coordinates
+            and radii. Defaults to 3.
+        nproc (int, optional): Number of cores to use. Defaults to 4.
+        logger (logging.Logger | None, optional): Logger for logging messages.
+    """
+
+    command = [
+        "python", script_path,
+        "--rmf_path", rmf_path,
+        "--output_path", output_path,
+        "--round_off", round_off,
+        "--nproc", nproc,
+    ]
+
+    if frame_subset is not None:
+        command.extend(["--frame_subset", frame_subset])
+
+    if logger is not None:
+        logger.info("Running rmf_to_xyzr with command:")
+        logger.info(" ".join(map(str, command)))
+
+    os.system(" ".join(map(str, command)))
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        description="End-to-end analysis of cardiac desmosome simulations."
+        description="Scripts to analyze modeling output in an end-to-end manner"
     )
     parser.add_argument(
         "--analysis_dir",
         type=str,
-        default="/data/omkar/imp_toolbox_test/analysis",
+        default=f"/data/{_user}/imp_toolbox_test/analysis",
         help="Path to the analysis output directory"
     )
     parser.add_argument(
         "--modeling_dir",
         type=str,
-        default="/data/omkar/imp_toolbox_test/modeling",
+        default=f"/data/{_user}/imp_toolbox_test/modeling",
         help="Path to the modeling output directory"
     )
     parser.add_argument(
@@ -561,7 +632,8 @@ if __name__ == "__main__":
             "exhaust",
             "extract_sampcon",
             "prism_annotate",
-            "prism_color"
+            "prism_color",
+            "rmf_to_xyzr",
         ],
         help="List of scripts to run in sequence (default: all) \
             (default: [run_analysis_trajectories, run_extract_models \
@@ -575,7 +647,8 @@ if __name__ == "__main__":
         "exhaust",
         "extract_sampcon",
         "prism_annotate",
-        "prism_color"
+        "prism_color",
+        "rmf_to_xyzr",
     ] for s in args.scripts_to_run]), (
         f"""
         Invalid script name in scripts_to_run.
@@ -586,12 +659,13 @@ if __name__ == "__main__":
         extract_sampcon
         prism_annotate
         prism_color
+        rmf_to_xyzr
         """
     )
 
     ###########################################################################
 
-    start_time = time.perf_counter()
+    start_t = time.perf_counter()
 
     ANALYSIS_OUTPUT_PATH = args.analysis_dir
     MODELING_OUTPUT_PATH = args.modeling_dir
@@ -632,26 +706,23 @@ if __name__ == "__main__":
             script_path="run_analysis_trajectories.py",
             modeling_output_path=MODELING_OUTPUT_PATH,
             analysis_output_path=pmi_analysis_output_path,
-            traj_dir_prefix="run_",
+            traj_dir_prefix=TRAJ_DIR_PREFIX,
             run_start=1,
             run_end=4,
             run_interval=1,
             nproc=4,
             burn_in_fraction=0.1,
             nskip=1,
-            restraint_handles=[
-                "GaussianEMRestraint:EM",
-                "SingleAxisMinGaussianRestraint:SAMGR",
-            ],
-            hdbscan_restraint_handles=["EV_sum", "EM_sum"],
-            min_cluster_size=15,
-            min_samples=2,
+            restraint_handles=RESTRAINT_HANDLES,
+            hdbscan_restraint_handles=HDBSCAN_RESTRAINT_HANDLES,
+            min_cluster_size=150,
+            min_samples=5,
             logger=logger,
             save_log=args.keep_logs
         )
         lap = time.perf_counter()
         logger.info(
-            f"Completed run_analysis_trajectories in {lap - start_time:0.4f} seconds"
+            f"Completed run_analysis_trajectories in {lap - start_t:0.4f} seconds"
         )
 
     else:
@@ -684,7 +755,6 @@ if __name__ == "__main__":
     ###########################################################################
     # variable filter
     ###########################################################################
-    MODEL_CAP = 30000
 
     if major_cluster_size <= MODEL_CAP:
         logger.info(
@@ -714,12 +784,13 @@ if __name__ == "__main__":
             model_cap=MODEL_CAP,
             gsmsel_dir=pmi_analysis_output_path,
             output_dir=var_filter_output_path,
+            restraint_handles=HDBSCAN_RESTRAINT_HANDLES,
             logger=logger,
             save_log=args.keep_logs
         )
         lap = time.perf_counter()
         logger.info(
-            f"Completed variable_filter in {lap - start_time:0.4f} seconds"
+            f"Completed variable_filter in {lap - start_t:0.4f} seconds"
         )
 
     ###########################################################################
@@ -731,7 +802,7 @@ if __name__ == "__main__":
             script_path="run_extract_models.py",
             modeling_output_path=MODELING_OUTPUT_PATH,
             analysis_output_path=pmi_analysis_output_path,
-            traj_dir_prefix="run_",
+            traj_dir_prefix=TRAJ_DIR_PREFIX,
             run_start=1,
             run_end=4,
             run_interval=1,
@@ -746,7 +817,7 @@ if __name__ == "__main__":
         )
         lap = time.perf_counter()
         logger.info(
-            f"Completed run_extract_models in {lap - start_time:0.4f} seconds"
+            f"Completed run_extract_models in {lap - start_t:0.4f} seconds"
         )
     else:
         logger.info("Skipping run_extract_models as per user request.")
@@ -764,14 +835,14 @@ if __name__ == "__main__":
         _current_dir = os.getcwd()
         os.chdir(sampcon_output_dir)
         exhaust(
-            script_path="/home/$USER/IMP_OMG/imp-sampcon/pyext/src/exhaust.py",
+            script_path=f"{SAMPCON_PATH}/pyext/src/exhaust.py",
             pmi_analysis_output_path=pmi_analysis_output_path,
-            sysname="cardiac_desmosome",
+            sysname=SYSNAME,
             scoreA=f"A_models_clust{str(pmi_cluster_idx)}.txt",
             scoreB=f"B_models_clust{str(pmi_cluster_idx)}.txt",
             rmfA=f"A_models_clust{str(pmi_cluster_idx)}.rmf3",
             rmfB=f"B_models_clust{str(pmi_cluster_idx)}.rmf3",
-            density="/data/omkar/imp_toolbox_test/input/density_sampcon.txt",
+            density=SAMPCON_DENSITY_TXT,
             gnuplot=True,
             prism=True,
             align=True,
@@ -784,7 +855,7 @@ if __name__ == "__main__":
         )
         os.chdir(_current_dir)
         lap = time.perf_counter()
-        logger.info(f"Completed exhaust in {lap - start_time:0.4f} seconds")
+        logger.info(f"Completed exhaust in {lap - start_t:0.4f} seconds")
 
     else:
         logger.info("Skipping exhaust as per user request.")
@@ -792,34 +863,36 @@ if __name__ == "__main__":
     ###########################################################################
     # extract sampcon frames
     ###########################################################################
+    sampcon_cluster_idx = 0 # only analyze the cluster 0 from exhaust.py
     extracted_rmf_path = os.path.join(
         sampcon_output_dir, "sampcon_extracted_frames.rmf3"
+    )
+    frame_ids_A_txt = os.path.join(
+        sampcon_output_dir, f"cluster.{sampcon_cluster_idx}.sample_A.txt"
+    )
+    frame_ids_B_txt = os.path.join(
+        sampcon_output_dir, f"cluster.{sampcon_cluster_idx}.sample_B.txt"
+    )
+    frames_A_rmf = os.path.join(
+        pmi_analysis_output_path, f"A_models_clust{str(pmi_cluster_idx)}.rmf3"
+    )
+    frames_B_rmf = os.path.join(
+        pmi_analysis_output_path, f"B_models_clust{str(pmi_cluster_idx)}.rmf3"
     )
 
     if "extract_sampcon" in args.scripts_to_run:
         assert (
-            os.path.exists(sampcon_output_dir, f"cluster.0.sample_A.txt")
-            and os.path.exists(sampcon_output_dir, f"cluster.0.sample_B.txt")
+            os.path.exists(frame_ids_A_txt) and os.path.exists(frame_ids_B_txt)
         ), (
             f"""Sample A/B txt files does not exist in {sampcon_output_dir}.
             Please check if exhaust has been run successfully. """
         )
         extract_sampcon(
             script_path='extract_sampcon.py',
-            rmf1=os.path.join(
-                pmi_analysis_output_path,
-                f"A_models_clust{str(pmi_cluster_idx)}.rmf3"
-            ),
-            list1=os.path.join(
-                sampcon_output_dir, f"cluster.0.sample_A.txt"
-            ),
-            rmf2=os.path.join(
-                pmi_analysis_output_path,
-                f"B_models_clust{str(pmi_cluster_idx)}.rmf3"
-            ),
-            list2=os.path.join(
-                sampcon_output_dir, f"cluster.0.sample_B.txt"
-            ),
+            rmf1=frames_A_rmf,
+            list1=frame_ids_A_txt,
+            rmf2=frames_B_rmf,
+            list2=frame_ids_B_txt,
             rmf_out=extracted_rmf_path,
             logger=logger
         )
@@ -829,7 +902,7 @@ if __name__ == "__main__":
             """
         )
         lap = time.perf_counter()
-        logger.info(f"Completed extract_sampcon in {lap - start_time:0.4f} seconds")
+        logger.info(f"Completed extract_sampcon in {lap - start_t:0.4f} seconds")
 
     else:
         logger.info("Skipping extract_sampcon as per user request.")
@@ -841,7 +914,7 @@ if __name__ == "__main__":
         ANALYSIS_OUTPUT_PATH, 'prism_output'
     )
     prism_input_path = os.path.join(
-        sampcon_output_dir, f"cluster.0.prism.npz"
+        sampcon_output_dir, f"cluster.{sampcon_cluster_idx}.prism.npz"
     )
     prism_annotation_path = os.path.join(
         prism_output_dir, f"annotations_cl2.txt"
@@ -850,16 +923,16 @@ if __name__ == "__main__":
     if "prism_annotate" in args.scripts_to_run:
         os.makedirs(prism_output_dir, exist_ok=True)
         prism_annotate(
-            script_path="/home/$USER/IMP_OMG/prism/src/main.py",
+            script_path=f"{PRISM_PATH}/src/main.py",
             input=prism_input_path,
             input_type="npz",
-            voxel_size="6",
+            voxel_size=4,
             return_spread=True,
             output=prism_output_dir,
             classes=2,
             cores=16,
-            models=0.2,
-            n_breaks=20,
+            models=1.0,
+            n_breaks=50,
             resolution=1,
             subunit=None,
             selection=None,
@@ -867,7 +940,7 @@ if __name__ == "__main__":
             save_log=args.keep_logs
         )
         lap = time.perf_counter()
-        logger.info(f"Completed prism in {lap - start_time:0.4f} seconds")
+        logger.info(f"Completed prism in {lap - start_t:0.4f} seconds")
 
     else:
         logger.info("Skipping prism as per user request.")
@@ -878,28 +951,68 @@ if __name__ == "__main__":
             Please check if prism has been run successfully.
             """
         )
+        cluster_center_rmf_path = os.path.join(
+            sampcon_output_dir, f"cluster.{sampcon_cluster_idx}", "cluster_center_model.rmf3"
+        )
+        prism_cluster_center_rmf_path = cluster_center_rmf_path.replace(
+            ".rmf3", "_prism_colored.rmf3"
+        )
         prism_color(
-            script_path="/home/$USER/IMP_OMG/prism/src/color_precision.py",
-            input=os.path.join(sampcon_output_dir, "cluster.0", "cluster_center_model.rmf3"),
+            script_path=f"{PRISM_PATH}/src/color_precision.py",
+            input=cluster_center_rmf_path,
             frame_index=0,
             subunit=None,
             resolution=1,
             selection=None,
             annotations_file=prism_annotation_path,
-            output=os.path.join(prism_output_dir, 'cluster_center_model_prism_colored.rmf3'),
+            output=prism_cluster_center_rmf_path,
             logger=logger
         )
 
         lap = time.perf_counter()
-        logger.info(f"Completed prism_color in {lap - start_time:0.4f} seconds")
+        logger.info(f"Completed prism_color in {lap - start_t:0.4f} seconds")
 
     else:
         logger.info("Skipping prism_color as per user request.")
 
     ###########################################################################
+    # rmf to xyzr
+    ###########################################################################
+
+    if "rmf_to_xyzr" in args.scripts_to_run:
+        xyzr_output_path = os.path.join(
+            ANALYSIS_OUTPUT_PATH, "sampcon_extracted_frames_xyzr.h5"
+        )
+        assert os.path.exists(extracted_rmf_path), (
+            f"""Extracted RMF file {extracted_rmf_path} does not exist.
+            Please check if extract_sampcon has been run successfully.
+            """
+        )
+        rmf_to_xyzr(
+            script_path="rmf_to_xyzr.py",
+            rmf_path=extracted_rmf_path,
+            output_path=xyzr_output_path,
+            frame_subset=None,
+            round_off=3,
+            nproc=8,
+            logger=logger
+        )
+        assert os.path.exists(xyzr_output_path), (
+            f"""XYZR output file {xyzr_output_path} does not exist.
+            Please check if rmf_to_xyzr has been run successfully.
+            """
+        )
+        lap = time.perf_counter()
+        logger.info(f"Completed rmf_to_xyzr in {lap - start_t:0.4f} seconds")
+
+    else:
+        logger.info("Skipping rmf_to_xyzr as per user request.")
+
+    ###########################################################################
+
     logger.info("End-to-end analysis completed.")
     logger.info("Ran following scripts:")
     for script in args.scripts_to_run:
         logger.info(f" - {script}")
     end_time = time.perf_counter()
-    logger.info(f"Total time: {end_time - start_time:0.4f} seconds")
+    logger.info(f"Total time: {end_time - start_t:0.4f} seconds")

@@ -2,6 +2,7 @@ import os
 import random
 import time
 import argparse
+import getpass
 from utils import generate_cmap, sanity_check_cores
 try:
     import analysis_trajectories
@@ -16,7 +17,8 @@ except ImportError as e:
             or by adding the above line to your ~/.bash_profile."""
         )
 
-start_time = time.time()
+_user = getpass.getuser()
+start_t = time.time()
 
 random.seed(47)
 analysis_trajectories.color_palette = generate_cmap(
@@ -32,14 +34,14 @@ if __name__ == "__main__":
         "-m",
         "--modeling_output_path",
         type=str,
-        default="/data/omkar/imp_toolbox_test/modeling",
+        default=f"/data/{_user}/imp_toolbox_test/modeling",
         help="Path to the modeling output directory. "
     )
     parser.add_argument(
         "-a",
         "--analysis_output_path",
         type=str,
-        default="/data/omkar/imp_toolbox_test/analysis",
+        default=f"/data/{_user}/imp_toolbox_test/analysis",
         help="Path to the analysis output directory. "
     )
     parser.add_argument(
@@ -185,4 +187,4 @@ at_obj.hdbscan_clustering(
 )
 
 end_time = time.time()
-print(f"Analysis completed in {end_time - start_time:.2f} seconds.")
+print(f"Analysis completed in {end_time - start_t:.2f} seconds.")
