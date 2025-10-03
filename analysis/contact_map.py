@@ -446,7 +446,7 @@ if __name__ == "__main__":
 
         dmap_m1_m2 = np.nan_to_num(dmap_m1_m2, nan=20.0, posinf=20.0, neginf=0.0)
         pairwise_dmaps[pair_name] = dmap_m1_m2.astype(np.float64) / np.float64(num_frames)
-        pairwise_cmaps[pair_name] = cmap_m1_m2.astype(np.int32) / np.int32(num_frames)
+        pairwise_cmaps[pair_name] = cmap_m1_m2.astype(np.int32) / np.float64(num_frames)
 
     del xyzr_mat
 
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     for pair_name in pairwise_dmaps.keys():
 
         dmap = pairwise_dmaps[pair_name].astype(np.float64)
-        cmap = pairwise_cmaps[pair_name].astype(np.int32)
+        cmap = pairwise_cmaps[pair_name].astype(np.float64)
 
         if (
             not os.path.exists(os.path.join(contact_map_dir, f"{pair_name}_dmap.txt"))
@@ -542,7 +542,16 @@ if __name__ == "__main__":
     for pair_name in pairwise_dmaps.keys():
 
         dmap = pairwise_dmaps[pair_name].astype(np.float64)
-        cmap = pairwise_cmaps[pair_name].astype(np.int32)
+        cmap = pairwise_cmaps[pair_name].astype(np.float64)
+
+        # binarize dmap
+        dmap[dmap < args.cutoff] = np.int32(1)
+        dmap[dmap >= args.cutoff] = np.int32(0)
+        dmap = dmap.astype(np.int32)
+
+        # cmap[cmap >= 0.25] = np.int32(1)
+        # cmap[cmap < 0.25] = np.int32(0)
+        # cmap = cmap.astype(np.int32)
 
         mol1, mol2 = pair_name.split(":")
 
@@ -551,13 +560,14 @@ if __name__ == "__main__":
             import plotly.graph_objects as go
             fig = go.Figure(data=go.Heatmap(
                 z=dmap,
-                colorscale='Greens_r',
+                colorscale='Greens',
                 zmin=0,
-                zmax=20.0,
+                zmax=1,
                 colorbar=dict(title='Average Distance (Å)')
             ))
             fig.update_layout(
-                title=f'Average Distance Map: {pair_name}',
+                # title=f'Average Distance Map: {pair_name}',
+                title=f"Binarized Distance Map (cutoff={args.cutoff} Å): {pair_name}",
                 xaxis_title=f"{mol1}",
                 yaxis_title=f"{mol2}",
                 xaxis=dict(tickmode='array',
@@ -595,7 +605,7 @@ if __name__ == "__main__":
 
         elif args.plotting == "matplotlib":
             fig, ax = plt.subplots(figsize=(10, 10))
-            temp = ax.imshow(dmap, cmap='Greens_r', vmin=0, vmax=20)
+            temp = ax.imshow(dmap, cmap='Greens', vmin=0, vmax=1)
             ax.set_title(f'Average Distance Map: {pair_name}')
             ax.set_xlabel(f"{mol2}")
             ax.set_ylabel(f"{mol1}")

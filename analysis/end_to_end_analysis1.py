@@ -604,10 +604,10 @@ def contact_map(
     merge_copies: bool = False,
     logger: logging.Logger | None = None,
 ):
-    """ Run the script `contact_maps.py` and get pairwise distance/contact maps
+    """ Run the script `contact_map.py` and get pairwise distance/contact maps
 
     Args:
-        script_path (str): Path to the `contact_maps.py` script
+        script_path (str): Path to the `contact_map.py` script
         xyzr_file (str): Path to the input hdf5 file containing XYZR data
         nproc (int): Number of cores to use
         cutoff (float): Cutoff distance for contact map (in Angstroms)
@@ -755,7 +755,7 @@ if __name__ == "__main__":
             analysis_output_path=pmi_analysis_output_path,
             traj_dir_prefix=TRAJ_DIR_PREFIX,
             run_start=1,
-            run_end=4,
+            run_end=2,
             run_interval=1,
             nproc=4,
             burn_in_fraction=0.1,
@@ -1074,7 +1074,7 @@ if __name__ == "__main__":
             """
         )
         contact_map(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/contact_map1.py",
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/contact_map.py",
             xyzr_file=xyzr_output_path,
             contact_map_dir=contact_map_dir,
             nproc=24,
