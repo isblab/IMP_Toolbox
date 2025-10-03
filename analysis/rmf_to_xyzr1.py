@@ -10,7 +10,6 @@ import IMP.rmf
 import numpy as np
 from typing import Dict
 from collections import defaultdict
-from multiprocessing import Pool
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from utils import get_res_range_from_key, write_json
 import getpass
@@ -155,7 +154,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_path",
-        default=f"/data/{_user}/imp_toolbox_test/analysis/molwise_xyzr.h5",
+        default=f"/data/{_user}/imp_toolbox_test/analysis/sampcon_extracted_frames_xyzr.h5",
         type=str,
         help="Path to save the output HDF5 file."
     )
@@ -180,7 +179,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start_t = time.perf_counter()
-    # molwise_xyzr = defaultdict(lambda: defaultdict(list))
     molwise_xyzr = defaultdict(list)
 
     mdl = IMP.Model()
@@ -197,12 +195,6 @@ if __name__ == "__main__":
 
     frame_batches = np.array_split(np.arange(num_frames), args.nproc)
 
-    # with Pool(processes=args.nproc) as pool:
-    #     results = pool.starmap(
-    #         batch_worker,
-    #         [(batch, args.rmf_path, args.round_off) for batch in frame_batches]
-    #     )
-
     with ProcessPoolExecutor(max_workers=args.nproc) as executor:
         futures = [
             executor.submit(batch_worker, batch, args.rmf_path, args.round_off)
@@ -216,26 +208,17 @@ if __name__ == "__main__":
         for mol_name, frag_dict in res.items():
             for frag_name, xyzr in frag_dict.items():
                 key = f"{mol_name}_{frag_name}"
-                # molwise_xyzr[mol_name][frag_name].extend(xyzr)
                 molwise_xyzr[key].extend(xyzr)
 
     lap_t = time.perf_counter()
     print(f"Time taken to parse XYZR: {lap_t - start_t} seconds")
 
     with h5py.File(args.output_path, "w") as f:
-        # for mol_name, frag_dict in molwise_xyzr.items():
-        #     mol_grp = f.create_group(mol_name)
-        #     for frag_name, xyzr in frag_dict.items():
-        #         mol_grp.create_dataset(
-        #             frag_name,
-        #             data=np.array(xyzr, dtype=np.float32),
-        #             compression="gzip",
-        #             compression_opts=9
-        #         )
+
         for mol_frag, xyzr in molwise_xyzr.items():
             f.create_dataset(
                 mol_frag,
-                data=np.array(xyzr, dtype=np.float32),
+                data=np.array(xyzr, dtype=np.float64),
                 compression="gzip",
                 compression_opts=9
             )

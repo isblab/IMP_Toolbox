@@ -3,14 +3,12 @@ import numpy as np
 import os
 import h5py
 import tqdm
+import argparse
 import matplotlib.pyplot as plt
 from itertools import combinations, combinations_with_replacement
-from multiprocessing import Pool
-from utils import get_contact_map, get_distance_map, get_key_from_res_range, get_res_range_from_key
-from math import sqrt
 from scipy.spatial.distance import cdist
-from sklearn.metrics.pairwise import euclidean_distances
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from utils import get_key_from_res_range, get_res_range_from_key
 
 def parse_xyzr_h5_file(xyzr_file: str) -> dict:
     """ Parse an HDF5 file containing XYZR data for multiple molecules.
@@ -56,7 +54,28 @@ def parse_xyzr_h5_file(xyzr_file: str) -> dict:
 
     return xyzr_data, all_bead_keys, unique_mols, mol_res_dict
 
-def get_unique_selections(mol_pairs, mol_res_dict):
+def get_unique_selections(mol_pairs: list, mol_res_dict: dict) -> tuple:
+    """ Get unique residue selections for each molecule in the provided pairs.
+
+    e.g. for pairs:
+        [('MOL1|1-10', 'MOL2|5-15'), ('MOL1|8-20', 'MOL3')]
+    returns:
+        {
+            'MOL1': {1, 2, ..., 20},
+            'MOL2': {5, 6, ..., 15},
+            'MOL3': {all residues of MOL3 from mol_res_dict}
+        },
+        {'MOL1', 'MOL2', 'MOL3'}
+
+    Args:
+        mol_pairs (list): List of tuples containing molecule pairs.
+        mol_res_dict (dict): Map of molecule names to lists of all residues.
+
+    Returns:
+        tuple:
+            - A dictionary mapping molecule names to sets of unique residue numbers.
+            - A set of unique molecule names involved in the pairs.
+    """
 
     unique_sels = {mol: set() for mol in mol_res_dict.keys()}
     unique_mols = set()
@@ -89,12 +108,13 @@ def get_unique_selections(mol_pairs, mol_res_dict):
 
     return unique_sels, unique_mols
 
-def update_xyzr_data(xyzr_data, unique_sels):
+def update_xyzr_data(xyzr_data: dict, unique_sels: dict) -> dict:
     """ Update xyzr_data to keep only beads corresponding to unique_sels.
 
     Args:
         xyzr_data (dict): Original xyzr_data dictionary.
-        unique_sels (dict): Dictionary mapping molecule names to sets of residue numbers to keep.
+        unique_sels (dict): Dictionary mapping molecule names to sets of
+            residue numbers to keep.
 
     Returns:
         dict: Updated xyzr_data dictionary with only the relevant beads.
@@ -134,7 +154,7 @@ def update_xyzr_data(xyzr_data, unique_sels):
     return xyzr_data
 
 def sort_xyzr_data(xyzr_data):
-    """ Sort xyzr_data dictionary first by molecule name, then by starting residue number.
+    """ Sort xyzr_data dictionary first by molecule name, residue number.
 
     Args:
         xyzr_data (dict): Original xyzr_data dictionary.
@@ -172,54 +192,46 @@ def get_pairwise_map(xyzr1, xyzr2, cutoff):
               (n_beads1, n_beads2) if contact_map is True, else None.
     """
 
-    coords1 = xyzr1[:, :, :3].copy().astype(np.float32)
-    coords2 = xyzr2[:, :, :3].copy().astype(np.float32)
+    coords1 = xyzr1[:, :, :3].copy().astype(np.float64)
+    coords2 = xyzr2[:, :, :3].copy().astype(np.float64)
 
-    radii1 = xyzr1[:, :, 3].copy().astype(np.float32)
-    radii2 = xyzr2[:, :, 3].copy().astype(np.float32)
+    radii1 = xyzr1[:, :, 3].copy().astype(np.float64)
+    radii2 = xyzr2[:, :, 3].copy().astype(np.float64)
 
     n_frames = coords1.shape[1]
     n_beads1 = coords1.shape[0]
     n_beads2 = coords2.shape[0]
 
-    # radii_sum = radii1[:, None, :] + radii2[None, :, :]
-    radii_sum = np.empty((radii1.shape[0], radii2.shape[0]), dtype=np.float32)
+    radii_sum = np.empty((radii1.shape[0], radii2.shape[0]), dtype=np.float64)
     np.add(
         radii1[:, None, 0].copy(),
         radii2[None, :, 0].copy(),
         out=radii_sum,
     )
-    # radii_sum = n_frames * radii_sum # since radii do not change across frames
 
-    dmap = np.zeros((n_beads1, n_beads2), dtype=np.float32)
+    dmap = np.zeros((n_beads1, n_beads2), dtype=np.float64)
     cmap = np.zeros((n_beads1, n_beads2), dtype=np.int32)
-    # dmap = -radii_sum.astype(np.float32).copy()
-    # del radii_sum, radii1, radii2
-    # del radii1, radii2
 
     for i in range(n_frames):
-        # dmap[:, :] = cdist(coords1[:, f, :], coords2[:, f, :]) - radii_sum
-        # temp_dmap = cdist(coords1[:, i, :], coords2[:, i, :]).astype(np.float32)
-        temp_dmap = np.empty((n_beads1, n_beads2), dtype=np.float32)
+
+        temp_dmap = np.empty((n_beads1, n_beads2), dtype=np.float64)
 
         np.subtract(
-            cdist(coords1[:, i, :], coords2[:, i, :]).astype(np.float32),
+            cdist(coords1[:, i, :], coords2[:, i, :]),
             radii_sum,
             out=temp_dmap,
-            dtype=np.float32,
+            dtype=np.float64,
         )
-
-        temp_dmap[temp_dmap < 1e-3] = 1e-3
+        temp_dmap[temp_dmap < 0.0] = 0.0
 
         np.add(
             dmap,
             temp_dmap,
             out=dmap,
-            dtype=np.float32,
+            dtype=np.float64,
         )
 
         temp_cmap = (temp_dmap <= cutoff).astype(np.int32)
-        # cmap[:, :] += (dmap[:, :] <= cutoff).astype(np.int32)
 
         np.add(
             cmap,
@@ -227,111 +239,53 @@ def get_pairwise_map(xyzr1, xyzr2, cutoff):
             out=cmap,
             dtype=np.int32,
         )
+
+        del temp_dmap, temp_cmap
+
     # exit()
     return dmap, cmap
 
-def get_meta_map(xyzr_mat_b, cutoff, contact_map=True, frame_mask=None):
-    """ Compute distance and contact maps for a set of beads
-
-    This is useful when computing maps for all molecules at once.
-
-    NOTE: Pay attention to the size of the input array to avoid memory issues.
-    TODO: Implement chunked cdist calculation to avoid memory issues.
+def expand_map(q_map, special_keys1, special_keys2):
+    """ Expand a distance/contact map by duplicating rows and columns
 
     Args:
-        xyzr_mat_b (np.ndarray): XYZR data for beads, (n_beads, n_frames, 4).
-        cutoff (float): Distance cutoff for contact map.
-        contact_map (bool, optional): Whether to compute contact map.
-        frame_mask (np.ndarray, optional): Boolean mask of shape (n_beads, n_beads)
+        q_map (np.ndarray): Original distance/contact map.
+        special_keys1 (list): List of tuples (key, row_idx) for rows to duplicate.
+        special_keys2 (list): List of tuples (key, col_idx) for columns to duplicate.
 
     Returns:
-        tuple:
-            - dmap (np.ndarray): Distance map of shape (n_beads, n_beads).
-            - cmap (np.ndarray or None): Contact map of shape
-              (n_beads, n_beads) if contact_map is True, else None.
+        np.ndarray: Expanded distance/contact map.
     """
 
-    coords = xyzr_mat_b[:, :, :3].astype(np.float32)
-    radii = xyzr_mat_b[:, :, 3].astype(np.float32)
+    dup_cols = []
+    dup_rows = []
 
-    n_beads = coords.shape[0]
-    n_frames = coords.shape[1]
+    for key, row_idx in special_keys1:
+        num_repeats = len(get_res_range_from_key(key))
+        to_add = np.tile(q_map[row_idx, :], (num_repeats - 1, 1))
+        dup_rows.append((to_add, row_idx))
 
-    radii_sum = np.empty((radii.shape[0], radii.shape[0]), dtype=np.float32)
-    np.add(
-        radii[:, None, 0],
-        radii[None, :, 0],
-        out=radii_sum,
-    )
-    radii_sum = n_frames * radii_sum # since radii do not change across frames
+    for to_add, row_idx in reversed(dup_rows):
+        q_map = np.insert(q_map, row_idx + 1, to_add, axis=0)
 
-    # dmap = np.zeros((n_beads, n_beads), dtype=np.float32)
-    dmap = -radii_sum.astype(np.float32)
-    cmap = None
-    del radii_sum, radii
+    for key, col_idx in special_keys2:
+        num_repeats = len(get_res_range_from_key(key))
+        to_add = np.tile(q_map[:, col_idx], (num_repeats - 1, 1))
+        dup_cols.append((to_add, col_idx))
 
-    if contact_map is True:
-        cmap = np.zeros((n_beads, n_beads), dtype=np.int32)
+    for to_add, col_idx in reversed(dup_cols):
+        q_map = np.insert(q_map, col_idx + 1, to_add, axis=1)
 
-    for i in range(n_frames):
-        # dmap[:, :] += cdist(coords[:, i, :], coords[:, i, :]) - radii_sum
-        np.add(
-            dmap,
-            cdist(coords[:, i, :], coords[:, i, :]),
-            out=dmap
-        )
+    return q_map
 
-        if cmap is not None:
-            # cmap[:, :] += (dmap[:, :] <= cutoff).astype(np.int32)
-            np.add(
-                cmap,
-                (dmap <= cutoff).astype(np.int32),
-                out=cmap
-            )
-
-    # dmap = np.sum(dmap, axis=2)
-    dmap[~frame_mask] = np.nan
-
-    if cmap is not None:
-        # cmap = np.sum(cmap, axis=2)
-        cmap[~frame_mask] = 0
-
-    return dmap, cmap
-
-def meta_map_to_pairwise_maps(meta_dmap, meta_cmap, xyzr_keys, mol_pairs):
-
-    pairwise_dmaps = {}
-    pairwise_cmaps = {}
-
-    for _m1, _m2 in mol_pairs:
-
-        m1, sel1 = _m1.split("|") if "|" in _m1 else (_m1, None)
-        m2, sel2 = _m2.split("|") if "|" in _m2 else (_m2, None)
-
-        idx1 = [i for i, k in enumerate(xyzr_keys) if k.startswith(m1)]
-        idx2 = [i for i, k in enumerate(xyzr_keys) if k.startswith(m2)]
-
-        dmap_m1_m2 = meta_dmap[np.ix_(idx1, idx2)]
-        cmap_m1_m2 = meta_cmap[np.ix_(idx1, idx2)]
-
-        pair_name = f"{m1}:{m2}"
-        pairwise_dmaps[pair_name] = dmap_m1_m2
-        pairwise_cmaps[pair_name] = cmap_m1_m2
-
-    return pairwise_dmaps, pairwise_cmaps
-
-###############################################################################
-import argparse
 
 if __name__ == "__main__":
 
-    # xyzr_file = "/data/omkar/imp_toolbox_test/analysis/sampcon_extracted_frames_xyzr.h5"
-    # contact_map_dir = "/data/omkar/imp_toolbox_test/analysis/contact_maps1"
-    xyzr_file = "/data/omkar/Projects/cardiac_desmosome/analysis/prod_runs/analysis_cis_dsc_5716/set4_analysis3/sampcon_extracted_frames_xyzr.h5"
-    contact_map_dir = "/data/omkar/imp_toolbox_test/analysis/contact_maps"
+    xyzr_file = "/data/omkar/imp_toolbox_test/analysis/sampcon_extracted_frames_xyzr.h5"
+    contact_map_dir = "/data/omkar/imp_toolbox_test/analysis/contact_maps1"
 
-    nproc = 16
-    cutoff = 15.0
+    # xyzr_file = "/data/omkar/Projects/cardiac_desmosome/analysis/prod_runs/analysis_cis_dsc_5716/set4_analysis3/sampcon_extracted_frames_xyzr.h5"
+    # contact_map_dir = "/data/omkar/imp_toolbox_test/analysis/contact_maps"
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -342,13 +296,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--nproc",
-        default=nproc,
+        default=16,
         type=int,
         help="Number of processes for parallel execution.",
     )
     parser.add_argument(
         "--cutoff",
-        default=cutoff,
+        default=15.0,
         type=float,
         help="Cutoff distance for contact map calculation.",
     )
@@ -359,10 +313,16 @@ if __name__ == "__main__":
         help="Directory to save contact maps.",
     )
     parser.add_argument(
-        "--calculate_pairwise",
+        "--plotting",
+        type=str,
+        default=None,
+        help="Plotting options: 'plotly' or 'matplotlib'.",
+    )
+    parser.add_argument(
+        "--merge_copies",
         action="store_true",
         default=False,
-        help="Whether to calculate contact maps pairwise or at once.",
+        help="Whether to merge copies of the same molecule.",
     )
     args = parser.parse_args()
 
@@ -370,7 +330,6 @@ if __name__ == "__main__":
     nproc = args.nproc
     cutoff = args.cutoff
     contact_map_dir = args.contact_map_dir
-    calculate_pairwise = args.calculate_pairwise
     os.makedirs(contact_map_dir, exist_ok=True)
 
     print("reading", xyzr_file)
@@ -387,7 +346,7 @@ if __name__ == "__main__":
     # mol_pairs = [('DSC2a_0|720-731', 'PG_0|1-50'), ('DSC2a_0|720-731', 'PG_1|1-50'), ('DSC2a_0|720-731', 'PG_2|1-50'), ('DSC2a_0|720-731', 'PG_3|1-50')]
     # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("PKP2") or m2.startswith("PKP2"))]
     # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("DSC2a_0") or m2.startswith("DSC2a_0"))]
-    mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("DSC2a") and m2.startswith("PG")) or (m1.startswith("PG") and m2.startswith("DSC2a"))]
+    # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("DSC2a") and m2.startswith("PG")) or (m1.startswith("PG") and m2.startswith("DSC2a"))]
     mol_pairs = list(set(mol_pairs))
     # print(mol_pairs)
     # exit()
@@ -403,18 +362,13 @@ if __name__ == "__main__":
 
     print("sorting keys...")
     xyzr_data = sort_xyzr_data(xyzr_data)
-    # print(xyzr_data.keys())
-    # exit()
 
     molecules = list(xyzr_data.keys())
     mol_length_keys = {mol: [k for k in xyzr_data.keys() if k.startswith(mol)] for mol in unique_mols}
 
     xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
-    # print(xyzr_mat.shape)
-    # exit()
     xyzr_keys = list(xyzr_data.keys())
-    # print(xyzr_keys)
-    # exit()
+
     del xyzr_data
 
     num_frames = xyzr_mat.shape[1]
@@ -424,150 +378,88 @@ if __name__ == "__main__":
     print("Got xyzr_mat of shape: ", xyzr_mat.shape, " (num_beads, num_frames, 4)")
 
     start_t = time.perf_counter()
-    if calculate_pairwise is True:
 
-        pairwise_dmaps = {}
-        pairwise_cmaps = {}
+    pairwise_dmaps = {}
+    pairwise_cmaps = {}
 
-        for _m1, _m2 in tqdm.tqdm(mol_pairs):
+    for _m1, _m2 in tqdm.tqdm(mol_pairs):
 
-            pair_name = f"{_m1.split('|')[0]}:{_m2.split('|')[0]}"
-            if (
-                os.path.exists(os.path.join(contact_map_dir, f"{pair_name}_dmap.txt"))
-                and os.path.exists(os.path.join(contact_map_dir, f"{pair_name}_cmap.txt"))
-            ):
-                print(f"Skipping {pair_name}, files already exist.")
-                pairwise_cmaps[pair_name] = np.loadtxt(os.path.join(contact_map_dir, f"{pair_name}_cmap.txt"))
-                pairwise_dmaps[pair_name] = np.loadtxt(os.path.join(contact_map_dir, f"{pair_name}_dmap.txt"))
-                continue
+        pair_name = f"{_m1.split('|')[0]}:{_m2.split('|')[0]}"
+        if (
+            os.path.exists(os.path.join(contact_map_dir, f"{pair_name}_dmap.txt"))
+            and os.path.exists(os.path.join(contact_map_dir, f"{pair_name}_cmap.txt"))
+        ):
+            # print(f"Skipping {pair_name}, files already exist.")
+            pairwise_cmaps[pair_name] = np.loadtxt(os.path.join(contact_map_dir, f"{pair_name}_cmap.txt"))
+            pairwise_dmaps[pair_name] = np.loadtxt(os.path.join(contact_map_dir, f"{pair_name}_dmap.txt"))
+            continue
 
-            m1, sel1 = _m1.split("|") if "|" in _m1 else (_m1, None)
-            m2, sel2 = _m2.split("|") if "|" in _m2 else (_m2, None)
+        m1, sel1 = _m1.split("|") if "|" in _m1 else (_m1, None)
+        m2, sel2 = _m2.split("|") if "|" in _m2 else (_m2, None)
 
-            idx1 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m1)])
-            idx2 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m2)])
+        idx1 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m1)])
+        idx2 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m2)])
 
-            xyzr1 = xyzr_mat[idx1, :, :].copy().astype(np.float32)
-            xyzr2 = xyzr_mat[idx2, :, :].copy().astype(np.float32)
+        xyzr1 = xyzr_mat[idx1, :, :].copy().astype(np.float64)
+        xyzr2 = xyzr_mat[idx2, :, :].copy().astype(np.float64)
 
-            xyzr1_batches = [
-                xyzr1[:, f_batch, :].copy().astype(np.float32) for f_batch in frame_batches
+        xyzr1_batches = [
+            xyzr1[:, f_batch, :].copy().astype(np.float64) for f_batch in frame_batches
+        ]
+        xyzr2_batches = [
+            xyzr2[:, f_batch, :].copy().astype(np.float64) for f_batch in frame_batches
+        ]
+
+        with ThreadPoolExecutor(max_workers=nproc) as executor:
+            futures = [
+                executor.submit(get_pairwise_map, xyzr1_b, xyzr2_b, cutoff)
+                for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
             ]
-            xyzr2_batches = [
-                xyzr2[:, f_batch, :].copy().astype(np.float32) for f_batch in frame_batches
-            ]
+            results = []
+            for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
+                results.append(future.result())
 
-            # with Pool(processes=nproc) as pool:
-            #     results = pool.starmap(
-            #         get_pairwise_map,
-            #         [(xyzr1, xyzr2, cutoff) for xyzr1, xyzr2 in zip(xyzr1_batches, xyzr2_batches)]
-            #     )
+        # for i in range(len(xyzr1_batches)):
+        #     print(f"Processing batch {i+1}/{len(xyzr1_batches)} for pair {pair_name}...")
+        #     dmap_, cmap_ = get_pairwise_map(xyzr1_batches[i], xyzr2_batches[i], cutoff)
+        #     if i == 0:
+        #         results = [(dmap_, cmap_)]
+        #     else:
+        #         results.append((dmap_, cmap_))
+        #     del dmap_, cmap_
 
-            with ThreadPoolExecutor(max_workers=nproc) as executor:
-                futures = [
-                    executor.submit(get_pairwise_map, xyzr1_b, xyzr2_b, cutoff)
-                    for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
-                ]
-                results = []
-                for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
-                    results.append(future.result())
+        del xyzr1, xyzr2
+        del xyzr1_batches, xyzr2_batches
 
-            # for i in range(len(xyzr1_batches)):
-            #     print(f"Processing batch {i+1}/{len(xyzr1_batches)} for pair {pair_name}...")
-            #     dmap_, cmap_ = get_pairwise_map(xyzr1_batches[i], xyzr2_batches[i], cutoff)
-            #     if i == 0:
-            #         results = [(dmap_, cmap_)]
-            #     else:
-            #         results.append((dmap_, cmap_))
-            #     del dmap_, cmap_
+        dmap_m1_m2 = np.empty((len(idx1), len(idx2)), dtype=np.float64)
+        cmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=np.int32)
 
-            # del xyzr1, xyzr2
-            # del xyzr1_batches, xyzr2_batches
+        for i, (dmap_, cmap_) in enumerate(results):
 
-            dmap_m1_m2 = np.empty((len(idx1), len(idx2)), dtype=np.float32)
-            cmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=np.int32)
+            dmap_ = np.nan_to_num(dmap_, nan=20.0, posinf=20.0, neginf=0.0)
+            dmap_m1_m2 = np.nan_to_num(dmap_m1_m2, nan=20.0, posinf=20.0, neginf=0.0)
+            np.add(dmap_m1_m2, dmap_, out=dmap_m1_m2, dtype=np.float64)
+            np.add(cmap_m1_m2, cmap_, out=cmap_m1_m2, dtype=np.int32)
 
-            for i, (dmap_, cmap_) in enumerate(results):
-                # print(dmap_.shape, cmap_.shape)
-                # dmap_m1_m2 += dmap_
-                # cmap_m1_m2 += cmap_
-                dmap_ = np.nan_to_num(dmap_, nan=0.0, posinf=0.0, neginf=0.0)
-                np.add(dmap_m1_m2, dmap_, out=dmap_m1_m2, dtype=np.float32)
-                np.add(cmap_m1_m2, cmap_, out=cmap_m1_m2, dtype=np.int32)
+        del results
 
-            # del results
+        pair_name = f"{m1}:{m2}"
 
-            pair_name = f"{m1}:{m2}"
-            # normalize dmap by min max values to bring it to 0-1 range
-            # dmap_max = np.nanmax(dmap_m1_m2)
-            dmap_m1_m2 = np.nan_to_num(dmap_m1_m2, nan=0.0, posinf=0.0, neginf=0.0)
-            pairwise_dmaps[pair_name] = dmap_m1_m2.astype(np.float64) / np.float64(num_frames)
-            pairwise_cmaps[pair_name] = cmap_m1_m2.astype(np.int32) / np.int32(num_frames)
+        dmap_m1_m2 = np.nan_to_num(dmap_m1_m2, nan=20.0, posinf=20.0, neginf=0.0)
+        pairwise_dmaps[pair_name] = dmap_m1_m2.astype(np.float64) / np.float64(num_frames)
+        pairwise_cmaps[pair_name] = cmap_m1_m2.astype(np.int32) / np.int32(num_frames)
 
-        del xyzr_mat
-        # exit()
+    del xyzr_mat
 
-    # else:
-
-    #     frame_mask = np.zeros((xyzr_mat.shape[0], xyzr_mat.shape[0]), dtype=bool)
-    #     for _m1, _m2 in mol_pairs:
-
-    #         m1, sel1 = _m1.split("|") if "|" in _m1 else (_m1, None)
-    #         m2, sel2 = _m2.split("|") if "|" in _m2 else (_m2, None)
-
-    #         idx1 = [i for i, k in enumerate(xyzr_keys) if k.startswith(m1)]
-    #         idx2 = [i for i, k in enumerate(xyzr_keys) if k.startswith(m2)]
-
-    #         frame_mask[np.ix_(idx1, idx2)] = True
-    #         frame_mask[np.ix_(idx2, idx1)] = True
-
-    #     xyzr_batches = [
-    #         xyzr_mat[:, f_batch, :].astype(np.float32) for f_batch in frame_batches
-    #     ]
-
-    #     del xyzr_mat
-    #     # with Pool(processes=nproc) as pool:
-    #     #     results = pool.starmap(
-    #     #         get_meta_map,
-    #     #         [(xyzr_mat_b, cutoff, True, frame_mask) for xyzr_mat_b in xyzr_batches]
-    #     #     )
-
-    #     with ThreadPoolExecutor(max_workers=nproc) as executor:
-    #         futures = [
-    #             executor.submit(get_meta_map, xyzr_mat_b, cutoff, True, frame_mask)
-    #             for xyzr_mat_b in xyzr_batches
-    #         ]
-    #         results = []
-    #         for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
-    #             results.append(future.result())
-
-    #     del xyzr_batches
-
-    #     meta_dmap = np.empty((num_beads, num_beads), dtype=np.float32)
-    #     meta_cmap = np.zeros((num_beads, num_beads), dtype=np.int32)
-
-    #     for i, (dmap_, cmap_) in enumerate(results):
-    #         meta_dmap += dmap_
-    #         meta_cmap += cmap_
-
-    #     del results
-
-    #     pairwise_dmaps, pairwise_cmaps = meta_map_to_pairwise_maps(
-    #         meta_dmap, meta_cmap, xyzr_keys, mol_pairs
-    #     )
-
-    print(pairwise_dmaps.keys())
     end_t = time.perf_counter()
     print(f"Time taken: {end_t - start_t} seconds")
 
+    ################################################################################
+
     for pair_name in pairwise_dmaps.keys():
+
         dmap = pairwise_dmaps[pair_name].astype(np.float64)
         cmap = pairwise_cmaps[pair_name].astype(np.int32)
-        # dmap /= num_frames
-        # dmap = np.round(dmap, 3)
-
-        # cmap /= num_frames
-        # cmap = np.round(cmap, 3)
 
         if (
             not os.path.exists(os.path.join(contact_map_dir, f"{pair_name}_dmap.txt"))
@@ -585,132 +477,150 @@ if __name__ == "__main__":
             )
 
         mol1, mol2 = pair_name.split(":")
-        # print(mol_length_keys[mol1])
-        # exit()
+
         # expand the maps to include all residues in the selection
-        special_keys1 = [(key.rsplit("_", 1)[1], idx) for idx, key in enumerate(mol_length_keys[mol1]) if "-" in key]
-        special_keys2 = [(key.rsplit("_", 1)[1], idx) for idx, key in enumerate(mol_length_keys[mol2]) if "-" in key]
+        special_keys1 = [
+            (key.rsplit("_", 1)[1], idx)
+            for idx, key in enumerate(mol_length_keys[mol1]) if "-" in key
+        ]
+        special_keys2 = [
+            (key.rsplit("_", 1)[1], idx)
+            for idx, key in enumerate(mol_length_keys[mol2]) if "-" in key
+        ]
 
-        # print(special_keys1, special_keys2)
-        # exit()
+        dmap = expand_map(dmap, special_keys1, special_keys2)
+        cmap = expand_map(cmap, special_keys1, special_keys2)
+        pairwise_dmaps[pair_name] = dmap
+        pairwise_cmaps[pair_name] = cmap
 
-        dup_cols = []
-        dup_rows = []
+    if args.merge_copies:
 
-        for key, row_idx in special_keys1:
-            num_repeats = len(get_res_range_from_key(key))
-            to_add = np.tile(dmap[row_idx, :], (num_repeats - 1, 1))
-            dup_rows.append((to_add, row_idx))
+        merged_pairwise_dmaps = {}
+        merged_pairwise_cmaps = {}
 
-        for to_add, row_idx in reversed(dup_rows):
-            dmap = np.insert(dmap, row_idx + 1, to_add, axis=0)
+        for pair_name in pairwise_dmaps.keys():
 
-        for key, col_idx in special_keys2:
-            num_repeats = len(get_res_range_from_key(key))
-            to_add = np.tile(dmap[:, col_idx], (num_repeats - 1, 1))
-            dup_cols.append((to_add, col_idx))
+            mol1, mol2 = pair_name.split(":")
+            base_mol1 = mol1.rsplit("_", 1)[0]
+            base_mol2 = mol2.rsplit("_", 1)[0]
 
-        for to_add, col_idx in reversed(dup_cols):
-            dmap = np.insert(dmap, col_idx + 1, to_add, axis=1)
+            merged_pair_name = f"{base_mol1}:{base_mol2}"
 
+            dmap = pairwise_dmaps[pair_name].copy()
+            cmap = pairwise_cmaps[pair_name].copy()
 
-        dup_cols = []
-        dup_rows = []
+            if merged_pair_name in merged_pairwise_dmaps:
+                merged_pairwise_dmaps[merged_pair_name].append(dmap)
+                merged_pairwise_cmaps[merged_pair_name].append(cmap)
+            else:
+                merged_pairwise_dmaps[merged_pair_name] = [dmap]
+                merged_pairwise_cmaps[merged_pair_name] = [cmap]
 
-        for key, row_idx in special_keys1:
-            num_repeats = len(get_res_range_from_key(key))
-            to_add = np.tile(cmap[row_idx, :], (num_repeats - 1, 1))
-            dup_rows.append((to_add, row_idx))
+        merged_pairwise_dmaps = {
+            k: np.mean(v, axis=0) for k, v in merged_pairwise_dmaps.items()
+        }
+        merged_pairwise_cmaps = {
+            k: np.logical_or.reduce(v, axis=0).astype(np.int32)
+            for k, v in merged_pairwise_cmaps.items()
+        }
 
-        for to_add, row_idx in reversed(dup_rows):
-            cmap = np.insert(cmap, row_idx + 1, to_add, axis=0)
+        pairwise_dmaps = {k: v for k, v in merged_pairwise_dmaps.items()}
+        pairwise_cmaps = {k: v for k, v in merged_pairwise_cmaps.items()}
 
-        for key, col_idx in special_keys2:
-            num_repeats = len(get_res_range_from_key(key))
-            to_add = np.tile(cmap[:, col_idx], (num_repeats - 1, 1))
-            dup_cols.append((to_add, col_idx))
+        del merged_pairwise_dmaps, merged_pairwise_cmaps
 
-        for to_add, col_idx in reversed(dup_cols):
-            cmap = np.insert(cmap, col_idx + 1, to_add, axis=1)
+        merged_mol_res_dict = {}
 
+        for mol in mol_res_dict.keys():
 
-        # plotting average maps
-        # dmap = pairwise_dmaps[pair_name]
-        # cmap = pairwise_cmaps[pair_name]
+            base_mol = mol.rsplit("_", 1)[0]
 
-        # import plotly.graph_objects as go
-        # fig = go.Figure(data=go.Heatmap(
-        #     z=dmap,
-        #     colorscale='Greens',
-        #     zmin=0,
-        #     zmax=min(20, np.nanpercentile(dmap, 95)),
-        #     colorbar=dict(title='Average Distance (Å)')
-        # ))
-        # fig.update_layout(
-        #     title=f'Average Distance Map: {pair_name}',
-        #     xaxis_title='Bead Index',
-        #     yaxis_title='Bead Index'
-        # )
-        # fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_dmap.html"))
+            if base_mol in merged_mol_res_dict:
+                merged_mol_res_dict[base_mol].extend(mol_res_dict[mol])
+            else:
+                merged_mol_res_dict[base_mol] = mol_res_dict[mol].copy()
 
-        # fig = go.Figure(data=go.Heatmap(
-        #     z=cmap,
-        #     colorscale='Reds',
-        #     zmin=0,
-        #     zmax=0.5,
-        #     colorbar=dict(title='Fraction of Frames in Contact')
-        # ))
-        # fig.update_layout(
-        #     title=f'Average Contact Map: {pair_name}',
-        #     xaxis_title='Bead Index',
-        #     yaxis_title='Bead Index'
-        # )
-        # fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_cmap.html"))
+        mol_res_dict = {k: sorted(set(v)) for k, v in merged_mol_res_dict.items()}
 
+    for pair_name in pairwise_dmaps.keys():
 
-        plt.imshow(dmap, cmap='Greens_r', vmin=0, vmax=20, interpolation='nearest')
-        # plt.imshow(dmap, cmap="Greens_r", vmin=0, vmax=np.nanpercentile(dmap, 95), interpolation='nearest')
-        plt.colorbar(label='Average Distance (Å)')
-        plt.title(f'Average Distance Map: {pair_name}')
-        plt.xlabel('Bead Index')
-        plt.ylabel('Bead Index')
-        plt.savefig(os.path.join(contact_map_dir, f"{pair_name}_dmap.png"))
-        plt.close()
+        dmap = pairwise_dmaps[pair_name].astype(np.float64)
+        cmap = pairwise_cmaps[pair_name].astype(np.int32)
 
-        plt.imshow(cmap, cmap='Greens', vmin=0, vmax=0.3, interpolation="nearest")
-        # plt.imshow(cmap, cmap='Greens', vmin=0, vmax=np.percentile(cmap, 95), interpolation='nearest')
-        plt.colorbar(label='Fraction of Frames in Contact')
-        plt.title(f'Average Contact Map: {pair_name}')
-        plt.xlabel('Bead Index')
-        plt.ylabel('Bead Index')
-        plt.savefig(os.path.join(contact_map_dir, f"{pair_name}_cmap.png"))
-        plt.close()
+        mol1, mol2 = pair_name.split(":")
+
+        if args.plotting == "plotly":
+
+            import plotly.graph_objects as go
+            fig = go.Figure(data=go.Heatmap(
+                z=dmap,
+                colorscale='Greens_r',
+                zmin=0,
+                zmax=20.0,
+                colorbar=dict(title='Average Distance (Å)')
+            ))
+            fig.update_layout(
+                title=f'Average Distance Map: {pair_name}',
+                xaxis_title=f"{mol1}",
+                yaxis_title=f"{mol2}",
+                xaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[1], 50),
+                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
+                ),
+                yaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[0], 50),
+                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
+                ),
+            )
+            fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_dmap.html"))
+
+            fig = go.Figure(data=go.Heatmap(
+                z=cmap,
+                colorscale='Greens',
+                zmin=0,
+                zmax=0.3,
+                colorbar=dict(title='Fraction of Frames in Contact')
+            ))
+            fig.update_layout(
+                title=f'Average Contact Map: {pair_name}',
+                xaxis_title=f"{mol1}",
+                yaxis_title=f"{mol2}",
+                xaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[1], 50),
+                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
+                ),
+                yaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[0], 50),
+                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
+                ),
+            )
+            fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_cmap.html"))
+
+        elif args.plotting == "matplotlib":
+            fig, ax = plt.subplots(figsize=(10, 10))
+            temp = ax.imshow(dmap, cmap='Greens_r', vmin=0, vmax=20)
+            ax.set_title(f'Average Distance Map: {pair_name}')
+            ax.set_xlabel(f"{mol2}")
+            ax.set_ylabel(f"{mol1}")
+            ax.set_xticks(ticks=np.arange(0, dmap.shape[1], 50))
+            ax.set_yticks(ticks=np.arange(0, dmap.shape[0], 50))
+            ax.set_xticklabels(labels=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50))
+            ax.set_yticklabels(labels=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50))
+            plt.colorbar(temp, label='Average Distance (Å)')
+            fig.savefig(os.path.join(contact_map_dir, f"{pair_name}_dmap.png"))
+            plt.close("all")
+
+            fig, ax = plt.subplots(figsize=(10, 10))
+            temp = ax.imshow(cmap, cmap='Greens', vmin=0, vmax=0.3)
+            ax.set_title(f'Average Contact Map: {pair_name}')
+            ax.set_xlabel(f"{mol2}")
+            ax.set_ylabel(f"{mol1}")
+            ax.set_xticks(ticks=np.arange(0, cmap.shape[1], 50))
+            ax.set_yticks(ticks=np.arange(0, cmap.shape[0], 50))
+            ax.set_xticklabels(labels=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50))
+            ax.set_yticklabels(labels=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50))
+            plt.colorbar(temp, label='Fraction of Frames in Contact')
+            fig.savefig(os.path.join(contact_map_dir, f"{pair_name}_cmap.png"))
+            plt.close("all")
 
     print(f"Saved contact maps to {contact_map_dir}")
-
-
-# Average distance map
-# meta_dmap /= num_frames
-# meta_dmap = np.round(meta_dmap, 3)
-
-# import matplotlib.pyplot as plt
-
-# plt.imshow(meta_dmap, cmap='Greens_r', vmin=0, vmax=20)
-# plt.colorbar(label='Average Distance (Å)')
-# plt.title('Average Distance Map')
-# plt.xlabel('Bead Index')
-# plt.ylabel('Bead Index')
-# plt.show()
-# plt.close()
-
-# # Average contact map
-# meta_cmap = meta_cmap / num_frames  # Fraction of frames in contact
-# meta_cmap = np.round(meta_cmap, 3)
-
-# plt.imshow(meta_cmap, cmap='Reds', vmin=0, vmax=1)
-# plt.colorbar(label='Fraction of Frames in Contact')
-# plt.title('Average Contact Map')
-# plt.xlabel('Bead Index')
-# plt.ylabel('Bead Index')
-# plt.show()
-# plt.close()
