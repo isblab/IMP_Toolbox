@@ -84,7 +84,7 @@ def batch_worker(
                 radius = round(radius, round_off)
 
             bead_name = get_bead_name(leaf)
-            mol_rmf_dict[bead_name] = coord + [radius]
+            mol_rmf_dict[bead_name].append(coord + [radius])
 
     mol_rmf_dict = dict(mol_rmf_dict)
 
