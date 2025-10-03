@@ -155,8 +155,10 @@ if __name__ == "__main__":
             results.append(future.result())
 
     for res in results:
-        for bead_name, xyzr in res.items():
-            molwise_xyzr[bead_name].append(xyzr)
+        for bead_name, xyzr_list in res.items():
+            molwise_xyzr[bead_name].extend(xyzr_list)
+
+    molwise_xyzr = dict(molwise_xyzr)
 
     lap_t = time.perf_counter()
     print(f"Time taken to parse XYZR: {lap_t - start_t} seconds")
