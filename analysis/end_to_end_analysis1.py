@@ -32,7 +32,7 @@ HDBSCAN_RESTRAINT_HANDLES = [
 TRAJ_DIR_PREFIX = "run_"
 PRISM_PATH = "/home/$USER/IMP_OMG/prism"
 SAMPCON_PATH = "/home/$USER/IMP_OMG/imp-sampcon"
-IMP_TOOLOBX_PATH = "/home/$USER/IMP_TOOLBOX/IMP_Toolbox"
+IMP_TOOLOBX_PATH = "/home/$USER/Omkar/IMP_TOOLBOX/IMP_Toolbox"
 SYSNAME = "cardiac_desmosome"
 SAMPCON_DENSITY_TXT = f"/data/{_user}/imp_toolbox_test/input/density_sampcon.txt"
 MODEL_CAP = 30000 # for variable filter
@@ -551,8 +551,8 @@ def rmf_to_xyzr(
     rmf_path: str,
     output_path: str,
     frame_subset: str | None = None,
-    round_off: int = 3,
-    nproc: int = 8,
+    round_off: int = 5,
+    nproc: int = 24,
     logger: logging.Logger | None = None,
 ):
     """ Run the script `rmf_to_xyzr.py`
@@ -572,8 +572,8 @@ def rmf_to_xyzr(
             (e.g., "0-9,17" for first 10 and 16th frame).
             Defaults to None (all frames).
         round_off (int, optional): Decimal places to round off the coordinates
-            and radii. Defaults to 3.
-        nproc (int, optional): Number of cores to use. Defaults to 4.
+            and radii. Defaults to 5.
+        nproc (int, optional): Number of cores to use. Defaults to 24.
         logger (logging.Logger | None, optional): Logger for logging messages.
     """
 
@@ -590,6 +590,48 @@ def rmf_to_xyzr(
 
     if logger is not None:
         logger.info("Running rmf_to_xyzr with command:")
+        logger.info(" ".join(map(str, command)))
+
+    os.system(" ".join(map(str, command)))
+
+def contact_map(
+    script_path: str,
+    xyzr_file: str,
+    contact_map_dir: str,
+    nproc: int = 24,
+    cutoff: float = 10.0,
+    plotting: str = "matplotlib",
+    merge_copies: bool = False,
+    logger: logging.Logger | None = None,
+):
+    """ Run the script `contact_maps.py` and get pairwise distance/contact maps
+
+    Args:
+        script_path (str): Path to the `contact_maps.py` script
+        xyzr_file (str): Path to the input hdf5 file containing XYZR data
+        nproc (int): Number of cores to use
+        cutoff (float): Cutoff distance for contact map (in Angstroms)
+        contact_map_dir (str): Directory to save contact map outputs
+        plotting (str): Type of plotting to perform ('matplotlib', 'plotly')
+        merge_copies (bool): Whether to merge maps across copies for protein
+            pairs
+        logger (logging.Logger | None, optional): Logger for logging messages.
+    """
+
+    command = [
+        "python", script_path,
+        "--xyzr_file", xyzr_file,
+        "--nproc", nproc,
+        "--cutoff", cutoff,
+        "--contact_map_dir", contact_map_dir,
+        "--plotting", plotting,
+    ]
+
+    if merge_copies:
+        command.append("--merge_copies")
+
+    if logger is not None:
+        logger.info("Running contact_map with command:")
         logger.info(" ".join(map(str, command)))
 
     os.system(" ".join(map(str, command)))
@@ -644,23 +686,27 @@ if __name__ == "__main__":
 
     assert all([s in [
         "run_analysis_trajectories",
+        "variable_filter",
         "run_extract_models",
         "exhaust",
         "extract_sampcon",
         "prism_annotate",
         "prism_color",
         "rmf_to_xyzr",
+        "contact_map",
     ] for s in args.scripts_to_run]), (
         f"""
         Invalid script name in scripts_to_run.
         Valid options are:
         run_analysis_trajectories
+        variable_filter
         run_extract_models
         exhaust
         extract_sampcon
         prism_annotate
         prism_color
         rmf_to_xyzr
+        contact_map
         """
     )
 
@@ -757,42 +803,48 @@ if __name__ == "__main__":
     # variable filter
     ###########################################################################
 
-    if major_cluster_size <= MODEL_CAP:
-        logger.info(
-            f"""
-            Major cluster size {major_cluster_size} is less than
-            model cap {MODEL_CAP}. Skipping variable filter.
-            """
-        )
+    if "variable_filter" in args.scripts_to_run:
+
+        if major_cluster_size <= MODEL_CAP:
+            logger.info(
+                f"""
+                Major cluster size {major_cluster_size} is less than
+                model cap {MODEL_CAP}. Skipping variable filter.
+                """
+            )
+
+        else:
+            logger.info(
+                f"""
+                Major cluster size {major_cluster_size} is greater than
+                model cap {MODEL_CAP}. Proceeding with variable filter.
+                """
+            )
+            var_filter_output_path = os.path.join(
+                ANALYSIS_OUTPUT_PATH, 'variable_filter_output'
+            )
+            os.makedirs(var_filter_output_path, exist_ok=True)
+            variable_filter(
+                script_path=f"{IMP_TOOLOBX_PATH}/analysis/variable_filter.py",
+                major_cluster_idx=pmi_cluster_idx,
+                lowest_cutoff=-2.0,
+                highest_cutoff=3.0,
+                step_size=0.01,
+                model_cap=MODEL_CAP,
+                gsmsel_dir=pmi_analysis_output_path,
+                output_dir=var_filter_output_path,
+                restraint_handles=HDBSCAN_RESTRAINT_HANDLES,
+                logger=logger,
+                save_log=args.keep_logs
+            )
+            lap = time.perf_counter()
+            logger.info(
+                f"Completed variable_filter in {lap - start_t:0.4f} seconds"
+            )
 
     else:
-        logger.info(
-            f"""
-            Major cluster size {major_cluster_size} is greater than
-            model cap {MODEL_CAP}. Proceeding with variable filter.
-            """
-        )
-        var_filter_output_path = os.path.join(
-            ANALYSIS_OUTPUT_PATH, 'variable_filter_output'
-        )
-        os.makedirs(var_filter_output_path, exist_ok=True)
-        variable_filter(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/variable_filter.py",
-            major_cluster_idx=pmi_cluster_idx,
-            lowest_cutoff=-2.0,
-            highest_cutoff=3.0,
-            step_size=0.01,
-            model_cap=MODEL_CAP,
-            gsmsel_dir=pmi_analysis_output_path,
-            output_dir=var_filter_output_path,
-            restraint_handles=HDBSCAN_RESTRAINT_HANDLES,
-            logger=logger,
-            save_log=args.keep_logs
-        )
-        lap = time.perf_counter()
-        logger.info(
-            f"Completed variable_filter in {lap - start_t:0.4f} seconds"
-        )
+        logger.info("Skipping variable_filter as per user request.")
+        var_filter_output_path = None
 
     ###########################################################################
     # extract models
@@ -990,12 +1042,12 @@ if __name__ == "__main__":
             """
         )
         rmf_to_xyzr(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/rmf_to_xyzr.py",
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/rmf_to_xyzr1.py",
             rmf_path=extracted_rmf_path,
             output_path=xyzr_output_path,
             frame_subset=None,
-            round_off=3,
-            nproc=8,
+            round_off=5,
+            nproc=24,
             logger=logger
         )
         assert os.path.exists(xyzr_output_path), (
@@ -1010,7 +1062,31 @@ if __name__ == "__main__":
         logger.info("Skipping rmf_to_xyzr as per user request.")
 
     ###########################################################################
+    # contact map
+    ###########################################################################
 
+    if "contact_map" in args.scripts_to_run:
+        contact_map_dir = os.path.join(ANALYSIS_OUTPUT_PATH, "contact_map")
+        os.makedirs(contact_map_dir, exist_ok=True)
+        assert os.path.exists(xyzr_output_path), (
+            f"""XYZR output file {xyzr_output_path} does not exist.
+            Please check if rmf_to_xyzr has been run successfully.
+            """
+        )
+        contact_map(
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/contact_map1.py",
+            xyzr_file=xyzr_output_path,
+            contact_map_dir=contact_map_dir,
+            nproc=24,
+            cutoff=10.0,
+            plotting="matplotlib",
+            merge_copies=False,
+            logger=logger,
+        )
+        lap = time.perf_counter()
+        logger.info(f"Completed contact_map in {lap - start_t:0.4f} seconds")
+
+    ###########################################################################
     logger.info("End-to-end analysis completed.")
     logger.info("Ran following scripts:")
     for script in args.scripts_to_run:

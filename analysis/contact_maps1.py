@@ -242,10 +242,9 @@ def get_pairwise_map(xyzr1, xyzr2, cutoff):
 
         del temp_dmap, temp_cmap
 
-    # exit()
     return dmap, cmap
 
-def expand_map(q_map, special_keys1, special_keys2):
+def expand_map(q_map: np.ndarray, special_keys1: list, special_keys2: list) -> np.ndarray:
     """ Expand a distance/contact map by duplicating rows and columns
 
     Args:
@@ -322,7 +321,7 @@ if __name__ == "__main__":
         "--merge_copies",
         action="store_true",
         default=False,
-        help="Whether to merge copies of the same molecule.",
+        help="Whether to merge maps across copies of the same protein pair.",
     )
     args = parser.parse_args()
 
@@ -479,19 +478,17 @@ if __name__ == "__main__":
         mol1, mol2 = pair_name.split(":")
 
         # expand the maps to include all residues in the selection
-        special_keys1 = [
+        spec_keys1 = [
             (key.rsplit("_", 1)[1], idx)
             for idx, key in enumerate(mol_length_keys[mol1]) if "-" in key
         ]
-        special_keys2 = [
+        spec_keys2 = [
             (key.rsplit("_", 1)[1], idx)
             for idx, key in enumerate(mol_length_keys[mol2]) if "-" in key
         ]
 
-        dmap = expand_map(dmap, special_keys1, special_keys2)
-        cmap = expand_map(cmap, special_keys1, special_keys2)
-        pairwise_dmaps[pair_name] = dmap
-        pairwise_cmaps[pair_name] = cmap
+        pairwise_dmaps[pair_name] = expand_map(dmap, spec_keys1, spec_keys2)
+        pairwise_cmaps[pair_name] = expand_map(cmap, spec_keys1, spec_keys2)
 
     if args.merge_copies:
 
