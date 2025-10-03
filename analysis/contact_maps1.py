@@ -192,11 +192,11 @@ def get_pairwise_map(xyzr1, xyzr2, cutoff):
               (n_beads1, n_beads2) if contact_map is True, else None.
     """
 
-    coords1 = xyzr1[:, :, :3].copy().astype(np.float64)
-    coords2 = xyzr2[:, :, :3].copy().astype(np.float64)
+    coords1 = xyzr1[:, :, :3].astype(np.float64)
+    coords2 = xyzr2[:, :, :3].astype(np.float64)
 
-    radii1 = xyzr1[:, :, 3].copy().astype(np.float64)
-    radii2 = xyzr2[:, :, 3].copy().astype(np.float64)
+    radii1 = xyzr1[:, :, 3].astype(np.float64)
+    radii2 = xyzr2[:, :, 3].astype(np.float64)
 
     n_frames = coords1.shape[1]
     n_beads1 = coords1.shape[0]
@@ -353,14 +353,14 @@ if __name__ == "__main__":
 
     unique_sels, unique_mols = get_unique_selections(mol_pairs, mol_res_dict)
 
-    print("Unique mols in pairs:", unique_mols)
-    print("Unique sels in pairs:", {k: get_key_from_res_range(sorted(v)) for k, v in unique_sels.items()})
+    # print("Unique mols in pairs:", unique_mols)
+    # print("Unique sels in pairs:", {k: get_key_from_res_range(sorted(v)) for k, v in unique_sels.items()})
 
-    print(f"Before filtering, {len(xyzr_data)} beads present.")
+    # print(f"Before filtering, {len(xyzr_data)} beads present.")
     xyzr_data = update_xyzr_data(xyzr_data, unique_sels)
-    print(f"After filtering, {len(xyzr_data)} beads remain.")
+    # print(f"After filtering, {len(xyzr_data)} beads remain.")
 
-    print("sorting keys...")
+    # print("sorting keys...")
     xyzr_data = sort_xyzr_data(xyzr_data)
 
     molecules = list(xyzr_data.keys())
@@ -400,14 +400,14 @@ if __name__ == "__main__":
         idx1 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m1)])
         idx2 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m2)])
 
-        xyzr1 = xyzr_mat[idx1, :, :].copy().astype(np.float64)
-        xyzr2 = xyzr_mat[idx2, :, :].copy().astype(np.float64)
+        xyzr1 = xyzr_mat[idx1, :, :].astype(np.float64)
+        xyzr2 = xyzr_mat[idx2, :, :].astype(np.float64)
 
         xyzr1_batches = [
-            xyzr1[:, f_batch, :].copy().astype(np.float64) for f_batch in frame_batches
+            xyzr1[:, f_batch, :].astype(np.float64) for f_batch in frame_batches
         ]
         xyzr2_batches = [
-            xyzr2[:, f_batch, :].copy().astype(np.float64) for f_batch in frame_batches
+            xyzr2[:, f_batch, :].astype(np.float64) for f_batch in frame_batches
         ]
 
         with ThreadPoolExecutor(max_workers=nproc) as executor:
