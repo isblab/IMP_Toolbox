@@ -1,15 +1,54 @@
 import warnings
-from Bio.PDB import Select
 import Bio
 import json
 import numpy as np
 import pandas as pd
 import requests
+import requests.adapters
 import os
+import yaml
+from Bio.PDB import Select
 from itertools import product
+from ruamel.yaml import YAML
+
+
+def sanity_check_cores(nproc: int):
+    """Sanity check for number of cores
+
+    Args:
+        nproc (int): Number of cores to use
+    """
+
+    if nproc < 1:
+        raise ValueError("Number of cores must be greater than 0")
+
+    elif nproc > os.cpu_count():
+        raise ValueError(
+            f"Number of cores ({nproc}) exceeds available cores ({os.cpu_count()})"
+        )
+
+
+def symmetrize_matrix(matrix: np.ndarray) -> np.ndarray:
+    """Symmetrize a matrix by averaging it with its transpose
+
+    Args:
+        matrix (np.ndarray): input matrix
+
+    Returns:
+        sym_matrix (np.ndarray): symmetrized matrix
+    """
+
+    assert isinstance(matrix, np.ndarray), "Input must be a numpy array"
+    assert matrix.ndim == 2, "Input must be a 2D array"
+
+    sym_matrix = (matrix + matrix.T) / 2
+
+    return sym_matrix
+
 
 ## API related functions
-def request_session(max_retries=3):
+# general
+def request_session(max_retries: int=3) -> requests.sessions.Session:
     """Create a request session with set max retries
 
     Args:
@@ -24,13 +63,19 @@ def request_session(max_retries=3):
         "https://",
         requests.adapters.HTTPAdapter(max_retries=max_retries)
     )
+    req_sess.trust_env = False  # Disable environment variables for proxies
     return req_sess
 
-def request_result(get_request, uniprot_id, ignore_error=False):
-    """Get the result of a get request
+# imp toolbox specific
+def request_result(
+    get_request: requests.models.Response,
+    uniprot_id: str,
+    ignore_error: bool=False
+) -> dict | bytes | None:
+    """Get the result of a `get_request`
 
     Args:
-        get_request (requests.models.Response): get request
+        get_request (requests.models.Response): `get_request`
         uniprot_id (str): valid entrypoint id
         ignore_error (bool, optional): Defaults to False.
 
@@ -42,12 +87,18 @@ def request_result(get_request, uniprot_id, ignore_error=False):
         except json.decoder.JSONDecodeError:
             return get_request.content
     else:
-        print(f"Error while requesting {uniprot_id}") if not ignore_error else None
+        print(f"Error while requesting {uniprot_id}") \
+            if not ignore_error else None
+
         return None
 
 
 ## read and write functions
-def write_json(file_path, data):
+# general
+def write_json(
+    file_path: str,
+    data
+):
     """Write data to a json file
 
     Args:
@@ -58,21 +109,24 @@ def write_json(file_path, data):
     with open(file_path, "w") as f:
         json.dump(data, f)
 
-def read_json(file_path):
+# general
+def read_json(file_path: str):
     """Load a json file
 
     Args:
         file_path (str): path to json file
 
     Returns:
-        data (dict): data from json file
+        data: data from json file
     """
 
     with open(file_path, "r") as f:
         data = json.load(f)
+
     return data
 
-def read_fasta(fasta_file):
+# general
+def read_fasta(fasta_file: str) -> dict:
     """
     Read a fasta file and return a dictionary of sequences
 
@@ -101,14 +155,19 @@ def read_fasta(fasta_file):
 
     return all_sequences
 
-def fill_up_the_blanks(li: list):
+# general
+def fill_up_the_blanks(li: list) -> list:
     """Fill up the blanks in a list
+
+    Example:
+        fill_up_the_blanks([1, 2, 4, 5]) -> [1, 2, 3, 4, 5]
 
     Args:
         li (list): list with missing numbers
 
     Returns:
-        new_li (list): list with all the missing numbers filled up between the minimum and maximum values
+        new_li (list): list with all the missing numbers filled 
+            up between the minimum and maximum values
     """
 
     min_li_val = min(li)
@@ -120,8 +179,11 @@ def fill_up_the_blanks(li: list):
 
 # uncomment the line below to test in an interactive shell
 ##%%
-
-def get_key_from_res_range(res_range: list, as_list=False):
+# imp toolbox specific
+def get_key_from_res_range(
+    res_range: list,
+    as_list=False
+) -> str | list:
     """Returns a residue range string from a list of residue numbers.
 
     Args:
@@ -164,14 +226,18 @@ def get_key_from_res_range(res_range: list, as_list=False):
         return ",".join(ranges)
 
 #%%
-
-def get_patches_from_matrix(matrix, chain1, chain2):
+# general
+def get_patches_from_matrix(
+    matrix: np.ndarray,
+    row_obj: str = "row_obj",
+    col_obj: str = "col_obj"
+):
     """Get all interacting patches from a binary matrix
 
     Args:
         matrix (np.ndarray): binary matrix
-        chain1 (str): chain 1 identifier
-        chain2 (str): chain 2 identifier
+        row_obj (str): chain 1 identifier
+        col_obj (str): chain 2 identifier
 
     Returns:
         patches (dict): dictionary of interacting patches
@@ -198,7 +264,10 @@ def get_patches_from_matrix(matrix, chain1, chain2):
 
     # Required inner functions
     ##%%
-    def get_ones(matrix, axis=0):
+    def get_ones(
+        matrix: np.ndarray,
+        axis: int = 0
+    ):
         """Get the indices of 1s in a binary matrix rowwise or columnwise
 
         Args:
@@ -217,7 +286,7 @@ def get_patches_from_matrix(matrix, chain1, chain2):
         get_ones(matrix, axis=0) -> {0: {0, 2}, 1: {1}, 2: {0, 1}} \n
         get_ones(matrix, axis=1) -> {0: {0, 2}, 1: {1, 2}, 2: {0}}
         """
-        import numpy as np
+
         assert np.unique(matrix).tolist() == [0, 1]; "Matrix must be binary"
 
         one_sets = {}
@@ -543,13 +612,13 @@ def get_patches_from_matrix(matrix, chain1, chain2):
     split_row_sets = extend_sets_by_subsets(row_sets)
     split_col_sets = extend_sets_by_subsets(col_sets)
 
-    df_row = special_dict_to_df(split_row_sets, [chain1, chain2])
-    df_col = special_dict_to_df(split_col_sets, [chain2, chain1])
+    df_row = special_dict_to_df(split_row_sets, [row_obj, col_obj])
+    df_col = special_dict_to_df(split_col_sets, [col_obj, row_obj])
 
-    df_row = groupby_df(df_row, chain2, chain1)
-    df_col = groupby_df(df_col, chain1, chain2)
+    df_row = groupby_df(df_row, col_obj, row_obj)
+    df_col = groupby_df(df_col, row_obj, col_obj)
 
-    combined_df = combine_dfs(df_row, df_col, chain1, chain2)
+    combined_df = combine_dfs(df_row, df_col, row_obj, col_obj)
 
     def res_range_to_set(range_str):
         """ Convert a residue range string to a set of residue numbers
@@ -577,10 +646,10 @@ def get_patches_from_matrix(matrix, chain1, chain2):
 
         return range_set
 
-    for col in [chain1, chain2]:
+    for col in [row_obj, col_obj]:
         combined_df[col] = combined_df[col].apply(res_range_to_set)
 
-    combined_df = remove_subset_rows(combined_df, chain1, chain2)
+    combined_df = remove_subset_rows(combined_df, row_obj, col_obj)
 
     return combined_df
 
@@ -661,6 +730,16 @@ def generate_cmap(n, scheme="soft-warm"):
                 r = random.randint(140, 200)
                 g = random.randint(140, 200)
                 b = random.randint(140, 200)
+
+        elif scheme == "contrasting":
+            if len(colors) % 2 == 0:
+                r = random.randint(0, 100)
+                g = random.randint(0, 100)
+                b = random.randint(0, 100)
+            else:
+                r = random.randint(155, 255)
+                g = random.randint(155, 255)
+                b = random.randint(155, 255)
 
         else:
             raise ValueError(
@@ -991,13 +1070,14 @@ def save_structure_obj(
                     """
                 )
 
+        #! remove this
         if "af_offset" in kwargs:
             print(f"Adding af_offset to the end of the file: {kwargs['af_offset']}")
             # add af_offset to the end of the file
             af_offset = kwargs["af_offset"]
             af_offset_lines = "".join(
                 [
-                    f"{key} {" ".join(map(str, val))}\n"
+                    f"{key} {' '.join(map(str, val))}\n"
                     for key, val
                     in af_offset.items()
                 ]
@@ -1215,3 +1295,59 @@ def get_duplicate_indices(
             duplicate_indices[res] = (indices[0], indices[-1])
 
         return duplicate_indices
+
+def update_config(
+    input_file: str,
+    updates: dict = None,
+    mode: str = "replace",
+):
+    """ Update config file with a new field or update an existing field
+
+    Args:
+        input_file (str): Path to input config file
+        updates (dict, optional): Fields to update in the config file. Defaults to None.
+        mode (str, optional): Mode to update the config file. Defaults to "replace". ("append" or "replace")
+    """
+
+    yaml = YAML()
+
+    update_fields = list(updates.keys()) if updates else []
+
+    if len(update_fields) == 0:
+
+        print("No fields to update in config")
+        return None
+
+    yaml.preserve_quotes = True
+
+    with open(input_file, "r") as f:
+        config_yaml = yaml.load(f)
+
+    existing_fields = list(config_yaml.keys())
+
+    for field in update_fields:
+
+        add_field = False
+
+        if field in existing_fields:
+            if mode == "replace":
+                config_yaml[field] = updates[field]
+            elif mode == "append":
+                # need to change this, not working as expected
+                config_yaml[field].update(updates[field])
+            else:
+                raise ValueError("Invalid mode. Use 'replace' or 'append")
+
+        else:
+            print(f"{field} not found in config")
+            print("Adding field to config")
+            add_field = True
+
+        if add_field:
+            config_yaml[field] = updates[field]
+            add_field = False
+
+    with open(input_file, "w") as f:
+        yaml.dump(config_yaml, f)
+
+    print(f"Config file updated with {update_fields}")

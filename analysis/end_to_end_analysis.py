@@ -81,8 +81,8 @@ def return_major_cluster(hdbscan_log_path: str):
 
 def run_analysis_trajectories(
     script_path: str,
-    modeling_output_path: str,
-    analysis_output_path: str,
+    modeling_dir: str,
+    analysis_dir: str,
     traj_dir_prefix: str,
     run_start: int,
     run_end: int,
@@ -96,6 +96,7 @@ def run_analysis_trajectories(
     min_samples: int,
     logger: logging.Logger | None = None,
     save_log: bool = True,
+    log_dir: str = None,
 ):
     """ Run the script `run_analysis_trajectories.py`
 
@@ -115,8 +116,8 @@ def run_analysis_trajectories(
 
     Args:
         script_path (str): Path to the `run_analysis_trajectories.py` script
-        modeling_output_path (str): Path to the modeling output directory
-        analysis_output_path (str): Path to the pmi_analysis output directory
+        modeling_dir (str): Path to the modeling output directory
+        analysis_dir (str): Path to the pmi_analysis output directory
         traj_dir_prefix (str): Prefix for trajectory directories (e.g., 'run_')
         run_start (int): Starting run number
         run_end (int): Ending run number
@@ -133,8 +134,8 @@ def run_analysis_trajectories(
 
     command = [
         "python", script_path,
-        "--modeling_output_path", modeling_output_path,
-        "--analysis_output_path", analysis_output_path,
+        "--modeling_dir", modeling_dir,
+        "--analysis_dir", analysis_dir,
         "--traj_dir_prefix", traj_dir_prefix,
         "--run_start", run_start,
         "--run_end", run_end,
@@ -149,12 +150,11 @@ def run_analysis_trajectories(
     ]
 
     if save_log:
-        if "LOG_DIR" not in globals():
-            global LOG_DIR
-            LOG_DIR = os.path.join(os.getcwd(), 'logs')
-        os.makedirs(LOG_DIR, exist_ok=True)
-        log_path = os.path.join(LOG_DIR, 'run_analysis_trajectories.log')
-        command.append(f">> {log_path} 2>&1")
+        if log_dir is None:
+            log_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'run_analysis_trajectories.log')
+        command.append(f"> {log_path} 2>&1")
 
     if logger is not None:
         logger.info("Running analysis of trajectories with command:")
@@ -164,7 +164,7 @@ def run_analysis_trajectories(
 
 def variable_filter(
     script_path: str,
-    major_cluster_idx: int,
+    pmi_clust_idx: int,
     lowest_cutoff: float,
     highest_cutoff: float,
     step_size: float,
@@ -174,6 +174,7 @@ def variable_filter(
     restraint_handles: list,
     logger: logging.Logger | None = None,
     save_log: bool = True,
+    log_dir: str = None,
 ):
     """ Run the script `variable_filter.py`
 
@@ -183,7 +184,7 @@ def variable_filter(
 
     Args:
         script_path (str): Path to the `variable_filter.py` script
-        major_cluster_idx (int): Index of the major cluster from HDBSCAN
+        pmi_clust_idx (int): Index of the major cluster from HDBSCAN
         lowest_cutoff (float): stdev multiplier for the most stringent cutoff
         highest_cutoff (float): stdev multiplier for the most lenient cutoff
         step_size (float): step size for the cutoff
@@ -196,7 +197,7 @@ def variable_filter(
 
     command = [
         "python", script_path,
-        "--cluster_num", str(major_cluster_idx),
+        "--cluster_num", str(pmi_clust_idx),
         "--lowest_cutoff", str(lowest_cutoff),
         "--highest_cutoff", str(highest_cutoff),
         "--step_size", str(step_size),
@@ -207,11 +208,10 @@ def variable_filter(
     ]
 
     if save_log:
-        if "LOG_DIR" not in globals():
-            global LOG_DIR
-            LOG_DIR = os.path.join(os.getcwd(), 'logs')
-        os.makedirs(LOG_DIR, exist_ok=True)
-        log_path = os.path.join(LOG_DIR, 'variable_filter.log')
+        if log_dir is None:
+            log_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'variable_filter.log')
         command.append(f">> {log_path} 2>&1")
 
     if logger is not None:
@@ -222,8 +222,8 @@ def variable_filter(
 
 def run_extract_models(
     script_path: str,
-    modeling_output_path: str,
-    analysis_output_path: str,
+    modeling_dir: str,
+    analysis_dir: str,
     traj_dir_prefix: str,
     run_start: int,
     run_end: int,
@@ -236,6 +236,7 @@ def run_extract_models(
     variable_filter_output_dir: str,
     logger: logging.Logger | None = None,
     save_log: bool = True,
+    log_dir: str = None,
 ):
     """ Run the script `run_extract_models.py`
 
@@ -243,12 +244,12 @@ def run_extract_models(
     - The csv files are the output of `variable_filter.py` if run before
       otherwise the output of `run_analysis_trajectories.py`
     - The extracted rmf3 and txt files indicating scores per frame are stored
-      in `analysis_output_path` for sample A and B respectively.
+      in `analysis_dir` for sample A and B respectively.
 
     Args:
         script_path (str): Path to the `run_extract_models.py` script
-        modeling_output_path (str): Path to the modeling output directory
-        analysis_output_path (str): Path to the analysis output directory
+        modeling_dir (str): Path to the modeling output directory
+        analysis_dir (str): Path to the analysis output directory
         traj_dir_prefix (str): Prefix for trajectory directories (e.g., 'run_')
         run_start (int): Starting run number
         run_end (int): Ending run number
@@ -265,8 +266,8 @@ def run_extract_models(
 
     command = [
         "python", script_path,
-        "--modeling_output_path", modeling_output_path,
-        "--analysis_output_path", analysis_output_path,
+        "--modeling_dir", modeling_dir,
+        "--analysis_dir", analysis_dir,
         "--traj_dir_prefix", traj_dir_prefix,
         "--run_start", run_start,
         "--run_end", run_end,
@@ -277,19 +278,18 @@ def run_extract_models(
         "--cluster_id", cluster_id
     ]
 
-    if filter_applied:
-        command.append("--filter_applied 'True'")
-        command.append([
-            "--variable_filter_output_dir", variable_filter_output_dir
-        ])
+    if filter_applied and variable_filter_output_dir is not None:
+        command.append("--filter_applied")
+        command.append(
+            f"--variable_filter_output_dir {variable_filter_output_dir}"
+        )
 
     if save_log:
-        if "LOG_DIR" not in globals():
-            global LOG_DIR
-            LOG_DIR = os.path.join(os.getcwd(), 'logs')
-        os.makedirs(LOG_DIR, exist_ok=True)
-        log_path = os.path.join(LOG_DIR, 'run_extract_models.log')
-        command.append(f">> {log_path} 2>&1")
+        if log_dir is None:
+            log_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'run_extract_models.log')
+        command.append(f"> {log_path} 2>&1")
 
     logger.info("Running extract models with command:")
     logger.info(" ".join(map(str, command)))
@@ -297,7 +297,7 @@ def run_extract_models(
 
 def exhaust(
     script_path: str,
-    pmi_analysis_output_path: str,
+    pmi_analysis_dir: str,
     sysname: str,
     scoreA: str,
     scoreB: str,
@@ -313,6 +313,7 @@ def exhaust(
     gridsize: int,
     logger: logging.Logger | None = None,
     save_log: bool = True,
+    log_dir: str = None,
 ):
     """ Run the script `exhaust.py` from imp-sampcon
 
@@ -329,7 +330,7 @@ def exhaust(
 
     Args:
         script_path (str): Path to the `exhaust.py` script
-        pmi_analysis_output_path (str): Path to the pmi_analysis output directory
+        pmi_analysis_dir (str): Path to the pmi_analysis output directory
         sysname (str): System name for the analysis (e.g., 'cardiac_desmosome')
         scoreA (str): txt file containing scores for sample A
         scoreB (str): txt file containing scores for sample B
@@ -359,7 +360,7 @@ def exhaust(
         "--scoreB", scoreB,
         "--rmfA", rmfA,
         "--rmfB", rmfB,
-        "--path", pmi_analysis_output_path
+        "--path", pmi_analysis_dir
     ]
 
     if gnuplot:
@@ -370,11 +371,10 @@ def exhaust(
         command.append("--align")
 
     if save_log:
-        if "LOG_DIR" not in globals():
-            global LOG_DIR
-            LOG_DIR = os.path.join(os.getcwd(), 'logs')
-        os.makedirs(LOG_DIR, exist_ok=True)
-        log_path = os.path.join(LOG_DIR, 'exhaust.log')
+        if log_dir is None:
+            log_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'exhaust.log')
         command.append(f">> {log_path} 2>&1")
 
     if logger is not None:
@@ -399,6 +399,7 @@ def prism_annotate(
     selection: None,
     logger: logging.Logger | None = None,
     save_log: bool = True,
+    log_dir: str = None,
 ):
     """ Run the script `main.py` from prism
 
@@ -445,11 +446,10 @@ def prism_annotate(
         command.append("--return_spread")
 
     if save_log:
-        if "LOG_DIR" not in globals():
-            global LOG_DIR
-            LOG_DIR = os.path.join(os.getcwd(), 'logs')
-        os.makedirs(LOG_DIR, exist_ok=True)
-        log_path = os.path.join(LOG_DIR, 'prism_annotate.log')
+        if log_dir is None:
+            log_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'prism_annotate.log')
         command.append(f"> {log_path}")
 
     if logger is not None:
@@ -715,12 +715,12 @@ if __name__ == "__main__":
     start_t = time.perf_counter()
 
     ANALYSIS_OUTPUT_PATH = args.analysis_dir
-    MODELING_OUTPUT_PATH = args.modeling_dir
+    modeling_dir = args.modeling_dir
     LOG_DIR = os.path.join(ANALYSIS_OUTPUT_PATH, "logs")
 
-    assert os.path.exists(MODELING_OUTPUT_PATH), (
+    assert os.path.exists(modeling_dir), (
         f"""
-        Modeling output path {MODELING_OUTPUT_PATH} does not exist.
+        Modeling output path {modeling_dir} does not exist.
         Please check run modeling script first.
         """
     )
@@ -751,7 +751,7 @@ if __name__ == "__main__":
 
         run_analysis_trajectories(
             script_path=f"{IMP_TOOLOBX_PATH}/analysis/run_analysis_trajectories.py",
-            modeling_output_path=MODELING_OUTPUT_PATH,
+            modeling_dir=modeling_dir,
             analysis_output_path=pmi_analysis_output_path,
             traj_dir_prefix=TRAJ_DIR_PREFIX,
             run_start=1,
@@ -853,7 +853,7 @@ if __name__ == "__main__":
 
         run_extract_models(
             script_path=f"{IMP_TOOLOBX_PATH}/analysis/run_extract_models.py",
-            modeling_output_path=MODELING_OUTPUT_PATH,
+            modeling_dir=modeling_dir,
             analysis_output_path=pmi_analysis_output_path,
             traj_dir_prefix=TRAJ_DIR_PREFIX,
             run_start=1,
@@ -1032,10 +1032,11 @@ if __name__ == "__main__":
     # rmf to xyzr
     ###########################################################################
 
+    xyzr_output_path = os.path.join(
+        ANALYSIS_OUTPUT_PATH, "sampcon_extracted_frames_xyzr.h5"
+    )
     if "rmf_to_xyzr" in args.scripts_to_run:
-        xyzr_output_path = os.path.join(
-            ANALYSIS_OUTPUT_PATH, "sampcon_extracted_frames_xyzr.h5"
-        )
+
         assert os.path.exists(extracted_rmf_path), (
             f"""Extracted RMF file {extracted_rmf_path} does not exist.
             Please check if extract_sampcon has been run successfully.
@@ -1066,6 +1067,7 @@ if __name__ == "__main__":
     ###########################################################################
 
     if "contact_map" in args.scripts_to_run:
+
         contact_map_dir = os.path.join(ANALYSIS_OUTPUT_PATH, "contact_map")
         os.makedirs(contact_map_dir, exist_ok=True)
         assert os.path.exists(xyzr_output_path), (
@@ -1085,6 +1087,9 @@ if __name__ == "__main__":
         )
         lap = time.perf_counter()
         logger.info(f"Completed contact_map in {lap - start_t:0.4f} seconds")
+
+    else:
+        logger.info("Skipping contact_map as per user request.")
 
     ###########################################################################
     logger.info("End-to-end analysis completed.")

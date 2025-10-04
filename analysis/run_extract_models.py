@@ -22,15 +22,15 @@ if __name__ == "__main__":
         description="Extract good scoring models"
     )
     parser.add_argument(
-        "--modeling_output_path",
+        "--modeling_dir",
         type=str,
         default=f"/data/{_user}/imp_toolbox_test/modeling",
         help="Path to the modeling output directory. "
     )
     parser.add_argument(
-        "--analysis_output_path",
+        "--analysis_dir",
         type=str,
-        default=f"/data/{_user}/imp_toolbox_test/analysis",
+        default=f"/data/{_user}/imp_toolbox_test/analysis/pmi_analysis_output",
         help="Path to the analysis output directory. "
     )
     parser.add_argument(
@@ -47,8 +47,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--filter_applied",
-        type=str,
-        default='False',
+        action="store_true",
+        default=False,
         help="Whether variable_filter was run before this script"
     )
     parser.add_argument(
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     traj_dirs = [
-        f"{args.modeling_output_path}/{args.traj_dir_prefix}{i}"
+        f"{args.modeling_dir}/{args.traj_dir_prefix}{i}"
         for i in range(args.run_start, args.run_end + 1, args.run_interval)
     ]
 
@@ -108,12 +108,12 @@ if __name__ == "__main__":
         out_dirs=traj_dirs,
         dir_name=args.traj_dir_prefix,
         nproc=args.nproc,
-        analysis_dir=args.analysis_output_path,
+        analysis_dir=args.analysis_dir,
         burn_in_fraction=args.burn_in_fraction,
         nskip=args.nskip,
     )
 
-    if args.filter_applied == "True":
+    if args.filter_applied == True:
 
         print(
             "Variable filter was applied. \
@@ -137,13 +137,13 @@ if __name__ == "__main__":
         print("Variable filter was NOT applied. Extracting models directly.")
         df_A = at_obj.get_models_to_extract(
             os.path.join(
-                args.analysis_output_path,
+                args.analysis_dir,
                 f"selected_models_A_cluster{str(args.cluster_id)}_detailed.csv"
             )
         )
         df_B = at_obj.get_models_to_extract(
             os.path.join(
-                args.analysis_output_path,
+                args.analysis_dir,
                 f"selected_models_B_cluster{str(args.cluster_id)}_detailed.csv"
             )
         )
@@ -155,16 +155,16 @@ if __name__ == "__main__":
     at_obj.do_extract_models_single_rmf(
         df_A,
         rmf_file_out_A,
-        args.modeling_output_path,
-        args.analysis_output_path,
+        args.modeling_dir,
+        args.analysis_dir,
         scores_prefix="A_models_clust" + str(args.cluster_id),
     )
 
     at_obj.do_extract_models_single_rmf(
         df_B,
         rmf_file_out_B,
-        args.modeling_output_path,
-        args.analysis_output_path,
+        args.modeling_dir,
+        args.analysis_dir,
         scores_prefix="B_models_clust" + str(args.cluster_id)
     )
 

@@ -32,14 +32,14 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-m",
-        "--modeling_output_path",
+        "--modeling_dir",
         type=str,
         default=f"/data/{_user}/imp_toolbox_test/modeling",
         help="Path to the modeling output directory. "
     )
     parser.add_argument(
         "-a",
-        "--analysis_output_path",
+        "--analysis_dir",
         type=str,
         default=f"/data/{_user}/imp_toolbox_test/analysis",
         help="Path to the analysis output directory. "
@@ -130,10 +130,10 @@ if __name__ == "__main__":
 
 sanity_check_cores(args.nproc)
 
-os.makedirs(args.analysis_output_path, exist_ok=True)
+os.makedirs(args.analysis_dir, exist_ok=True)
 
 traj_dirs = [
-    f"{args.modeling_output_path}/{args.traj_dir_prefix}{i}"
+    f"{args.modeling_dir}/{args.traj_dir_prefix}{i}"
     for i in range(args.run_start, args.run_end + 1, args.run_interval)
 ]
 
@@ -156,11 +156,13 @@ assert set(res_handles2).issubset(set(res_handles1)), \
 at_obj = AnalysisTrajectories(
     out_dirs=traj_dirs,
     dir_name=args.traj_dir_prefix,
-    nproc=args.nproc,
-    analysis_dir=args.analysis_output_path,
-    burn_in_fraction=args.burn_in_fraction,
-    nskip=args.nskip,
+    analysis_dir=args.analysis_dir,
     detect_equilibration=True,
+    burn_in_fraction=args.burn_in_fraction,
+    nproc=args.nproc,
+    nskip=args.nskip,
+    number_models_out=29999,
+    plot_fmt="pdf",
 )
 
 # Usual restraints
