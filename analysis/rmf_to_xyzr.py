@@ -10,7 +10,7 @@ import IMP.rmf
 import numpy as np
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from utils import get_res_range_from_key, write_json
+from IMP_Toolbox.utils import get_res_range_from_key, write_json
 import getpass
 _user = getpass.getuser()
 

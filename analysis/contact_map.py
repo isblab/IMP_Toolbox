@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from itertools import combinations, combinations_with_replacement
 from scipy.spatial.distance import cdist
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from utils import get_key_from_res_range, get_res_range_from_key
+from IMP_Toolbox.utils import get_key_from_res_range, get_res_range_from_key
 _user = getpass.getuser()
 
 def parse_xyzr_h5_file(xyzr_file: str) -> dict:
