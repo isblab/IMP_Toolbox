@@ -13,6 +13,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from IMP_Toolbox.utils import get_res_range_from_key, write_json
 import getpass
 _user = getpass.getuser()
+_f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
 
 def get_bead_name(p):
     """ Get bead name in the format:
@@ -41,7 +42,6 @@ def get_bead_name(p):
 def batch_worker(
     frame_batch: np.ndarray,
     rmf_path: str,
-    round_off: int | None = None,
 ):
     """ Worker function to process a batch of frames from the RMF file.
 
@@ -54,8 +54,8 @@ def batch_worker(
     Args:
         frame_batch (np.ndarray):
             Array of frame indices to process.
-        round_off (int | None, optional):
-            Decimal places to round off coordinates and radii.
+        rmf_path (str):
+            Path to the RMF file.
 
     Returns:
         Dict[str, Dict[str, list]]:
@@ -79,10 +79,6 @@ def batch_worker(
             coord = list(p.get_coordinates())
             radius = p.get_radius()
 
-            if round_off is not None:
-                coord = [round(x, round_off) for x in coord]
-                radius = round(radius, round_off)
-
             bead_name = get_bead_name(leaf)
             mol_rmf_dict[bead_name].append(coord + [radius])
 
@@ -90,7 +86,6 @@ def batch_worker(
 
     del rmf_data
     return mol_rmf_dict
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -115,16 +110,17 @@ if __name__ == "__main__":
         help="Number of processes for parallel execution."
     )
     parser.add_argument(
-        "--round_off",
-        default=5,
-        type=int,
-        help="Decimal places to round off coordinates and radii."
-    )
-    parser.add_argument(
         "--frame_subset",
         default=None,
         type=str,
         help="Which frames to process. e.g. '0-1000' or '0-1000,2000-3000'."
+    )
+    parser.add_argument(
+        "--float_dtype",
+        type=int,
+        default=64,
+        choices=[16, 32, 64],
+        help="Data type for storing coordinates and radii in the output file."
     )
     args = parser.parse_args()
 
@@ -140,6 +136,7 @@ if __name__ == "__main__":
     if args.frame_subset is not None:
         frame_indices = get_res_range_from_key(args.frame_subset)
         frame_indices = sorted(set(frame_indices))
+        frame_indices = [i for i in frame_indices if i < num_frames]
         num_frames = len(frame_indices)
         print(f"Processing {num_frames} frames as per --frame_subset")
 
@@ -147,7 +144,7 @@ if __name__ == "__main__":
 
     with ProcessPoolExecutor(max_workers=args.nproc) as executor:
         futures = [
-            executor.submit(batch_worker, batch, args.rmf_path, args.round_off)
+            executor.submit(batch_worker, batch, args.rmf_path)
             for batch in frame_batches
         ]
         results = []
@@ -166,9 +163,10 @@ if __name__ == "__main__":
     with h5py.File(args.output_path, "w") as f:
 
         for bead_name, xyzr in molwise_xyzr.items():
+
             f.create_dataset(
                 bead_name,
-                data=np.array(xyzr, dtype=np.float64),
+                data=np.array(xyzr, dtype=_f_dtypes.get(args.float_dtype, np.float64)),
                 compression="gzip",
                 compression_opts=9
             )

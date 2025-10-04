@@ -11,6 +11,8 @@ from scipy.spatial.distance import cdist
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from IMP_Toolbox.utils import get_key_from_res_range, get_res_range_from_key
 _user = getpass.getuser()
+_f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
+_i_dtypes = {8: np.int8, 16: np.int16, 32: np.int32, 64: np.int64}
 
 def parse_xyzr_h5_file(xyzr_file: str) -> dict:
     """ Parse an HDF5 file containing XYZR data for multiple molecules.
@@ -174,7 +176,7 @@ def sort_xyzr_data(xyzr_data):
         )
     )
 
-def get_pairwise_map(xyzr1, xyzr2, cutoff):
+def get_pairwise_map(xyzr1, xyzr2, cutoff, f_dtype=np.float64, i_dtype=np.int32):
     """ Compute pairwise distance and contact maps between two sets of beads
     over multiple frames.
 
@@ -194,35 +196,35 @@ def get_pairwise_map(xyzr1, xyzr2, cutoff):
               (n_beads1, n_beads2) if contact_map is True, else None.
     """
 
-    coords1 = xyzr1[:, :, :3].astype(np.float64)
-    coords2 = xyzr2[:, :, :3].astype(np.float64)
+    coords1 = xyzr1[:, :, :3].astype(f_dtype)
+    coords2 = xyzr2[:, :, :3].astype(f_dtype)
 
-    radii1 = xyzr1[:, :, 3].astype(np.float64)
-    radii2 = xyzr2[:, :, 3].astype(np.float64)
+    radii1 = xyzr1[:, :, 3].astype(f_dtype)
+    radii2 = xyzr2[:, :, 3].astype(f_dtype)
 
     n_frames = coords1.shape[1]
     n_beads1 = coords1.shape[0]
     n_beads2 = coords2.shape[0]
 
-    radii_sum = np.empty((radii1.shape[0], radii2.shape[0]), dtype=np.float64)
+    radii_sum = np.zeros((radii1.shape[0], radii2.shape[0]), dtype=f_dtype)
     np.add(
         radii1[:, None, 0].copy(),
         radii2[None, :, 0].copy(),
         out=radii_sum,
     )
 
-    dmap = np.zeros((n_beads1, n_beads2), dtype=np.float64)
-    cmap = np.zeros((n_beads1, n_beads2), dtype=np.int32)
+    dmap = np.zeros((n_beads1, n_beads2), dtype=f_dtype)
+    cmap = np.zeros((n_beads1, n_beads2), dtype=i_dtype)
 
     for i in range(n_frames):
 
-        temp_dmap = np.empty((n_beads1, n_beads2), dtype=np.float64)
+        temp_dmap = np.zeros((n_beads1, n_beads2), dtype=f_dtype)
 
         np.subtract(
             cdist(coords1[:, i, :], coords2[:, i, :]),
             radii_sum,
             out=temp_dmap,
-            dtype=np.float64,
+            dtype=f_dtype,
         )
         temp_dmap[temp_dmap < 0.0] = 0.0
 
@@ -230,16 +232,16 @@ def get_pairwise_map(xyzr1, xyzr2, cutoff):
             dmap,
             temp_dmap,
             out=dmap,
-            dtype=np.float64,
+            dtype=f_dtype,
         )
 
-        temp_cmap = (temp_dmap <= cutoff).astype(np.int32)
+        temp_cmap = (temp_dmap <= cutoff).astype(i_dtype)
 
         np.add(
             cmap,
             temp_cmap,
             out=cmap,
-            dtype=np.int32,
+            dtype=i_dtype,
         )
 
         del temp_dmap, temp_cmap
@@ -310,7 +312,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--plotting",
         type=str,
-        default=None,
+        default="matplotlib",
         help="Plotting options: 'plotly' or 'matplotlib'.",
     )
     parser.add_argument(
@@ -319,12 +321,28 @@ if __name__ == "__main__":
         default=False,
         help="Whether to merge maps across copies of the same protein pair.",
     )
+    parser.add_argument(
+        "--float_dtype",
+        type=int,
+        default=64,
+        choices=[16, 32, 64],
+        help="Float dtype for distance map calculations.",
+    )
+    parser.add_argument(
+        "--int_dtype",
+        type=int,
+        default=32,
+        choices=[8, 16, 32, 64],
+        help="Integer dtype for contact map calculations.",
+    )
     args = parser.parse_args()
 
     xyzr_file = args.xyzr_file
     nproc = args.nproc
     cutoff = args.cutoff
     contact_map_dir = args.contact_map_dir
+    f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
+    i_dtype = _i_dtypes.get(args.int_dtype, np.int32)
     os.makedirs(contact_map_dir, exist_ok=True)
 
     print("reading", xyzr_file)
@@ -390,19 +408,19 @@ if __name__ == "__main__":
         idx1 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m1)])
         idx2 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m2)])
 
-        xyzr1 = xyzr_mat[idx1, :, :].astype(np.float64)
-        xyzr2 = xyzr_mat[idx2, :, :].astype(np.float64)
+        xyzr1 = xyzr_mat[idx1, :, :].astype(f_dtype)
+        xyzr2 = xyzr_mat[idx2, :, :].astype(f_dtype)
 
         xyzr1_batches = [
-            xyzr1[:, f_batch, :].astype(np.float64) for f_batch in frame_batches
+            xyzr1[:, f_batch, :].astype(f_dtype) for f_batch in frame_batches
         ]
         xyzr2_batches = [
-            xyzr2[:, f_batch, :].astype(np.float64) for f_batch in frame_batches
+            xyzr2[:, f_batch, :].astype(f_dtype) for f_batch in frame_batches
         ]
 
         with ThreadPoolExecutor(max_workers=nproc) as executor:
             futures = [
-                executor.submit(get_pairwise_map, xyzr1_b, xyzr2_b, cutoff)
+                executor.submit(get_pairwise_map, xyzr1_b, xyzr2_b, cutoff, f_dtype, i_dtype)
                 for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
             ]
             results = []
@@ -411,7 +429,9 @@ if __name__ == "__main__":
 
         # for i in range(len(xyzr1_batches)):
         #     print(f"Processing batch {i+1}/{len(xyzr1_batches)} for pair {pair_name}...")
-        #     dmap_, cmap_ = get_pairwise_map(xyzr1_batches[i], xyzr2_batches[i], cutoff)
+        #     dmap_, cmap_ = get_pairwise_map(
+        #         xyzr1_batches[i], xyzr2_batches[i], cutoff, f_dtype, i_dtype
+        #     )
         #     if i == 0:
         #         results = [(dmap_, cmap_)]
         #     else:
@@ -421,23 +441,20 @@ if __name__ == "__main__":
         del xyzr1, xyzr2
         del xyzr1_batches, xyzr2_batches
 
-        dmap_m1_m2 = np.empty((len(idx1), len(idx2)), dtype=np.float64)
-        cmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=np.int32)
+        dmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=f_dtype)
+        cmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=i_dtype)
 
         for i, (dmap_, cmap_) in enumerate(results):
 
-            dmap_ = np.nan_to_num(dmap_, nan=20.0, posinf=20.0, neginf=0.0)
-            dmap_m1_m2 = np.nan_to_num(dmap_m1_m2, nan=20.0, posinf=20.0, neginf=0.0)
-            np.add(dmap_m1_m2, dmap_, out=dmap_m1_m2, dtype=np.float64)
-            np.add(cmap_m1_m2, cmap_, out=cmap_m1_m2, dtype=np.int32)
+            np.add(dmap_m1_m2, dmap_, out=dmap_m1_m2, dtype=f_dtype)
+            np.add(cmap_m1_m2, cmap_, out=cmap_m1_m2, dtype=i_dtype)
 
         del results
 
         pair_name = f"{m1}:{m2}"
 
-        dmap_m1_m2 = np.nan_to_num(dmap_m1_m2, nan=20.0, posinf=20.0, neginf=0.0)
-        pairwise_dmaps[pair_name] = dmap_m1_m2.astype(np.float64) / np.float64(num_frames)
-        pairwise_cmaps[pair_name] = cmap_m1_m2.astype(np.int32) / np.float64(num_frames)
+        pairwise_dmaps[pair_name] = dmap_m1_m2.astype(f_dtype) / f_dtype(num_frames)
+        pairwise_cmaps[pair_name] = cmap_m1_m2.astype(i_dtype) / f_dtype(num_frames)
 
     del xyzr_mat
 
@@ -448,8 +465,8 @@ if __name__ == "__main__":
 
     for pair_name in pairwise_dmaps.keys():
 
-        dmap = pairwise_dmaps[pair_name].astype(np.float64)
-        cmap = pairwise_cmaps[pair_name].astype(np.float64)
+        dmap = pairwise_dmaps[pair_name].astype(f_dtype)
+        cmap = pairwise_cmaps[pair_name].astype(f_dtype)
 
         if (
             not os.path.exists(os.path.join(contact_map_dir, f"{pair_name}_dmap.txt"))
@@ -508,7 +525,7 @@ if __name__ == "__main__":
             k: np.mean(v, axis=0) for k, v in merged_pairwise_dmaps.items()
         }
         merged_pairwise_cmaps = {
-            k: np.logical_or.reduce(v, axis=0).astype(np.int32)
+            k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
             for k, v in merged_pairwise_cmaps.items()
         }
 
@@ -532,13 +549,13 @@ if __name__ == "__main__":
 
     for pair_name in pairwise_dmaps.keys():
 
-        dmap = pairwise_dmaps[pair_name].astype(np.float64)
-        cmap = pairwise_cmaps[pair_name].astype(np.float64)
+        dmap = pairwise_dmaps[pair_name].astype(f_dtype)
+        cmap = pairwise_cmaps[pair_name].astype(f_dtype)
 
         # binarize dmap
-        dmap[dmap < args.cutoff] = np.int32(1)
-        dmap[dmap >= args.cutoff] = np.int32(0)
-        dmap = dmap.astype(np.int32)
+        dmap[dmap < args.cutoff] = i_dtype(1)
+        dmap[dmap >= args.cutoff] = i_dtype(0)
+        dmap = dmap.astype(i_dtype)
 
         # cmap[cmap >= 0.25] = np.int32(1)
         # cmap[cmap < 0.25] = np.int32(0)
