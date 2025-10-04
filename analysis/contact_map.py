@@ -3,12 +3,14 @@ import numpy as np
 import os
 import h5py
 import tqdm
+import getpass
 import argparse
 import matplotlib.pyplot as plt
 from itertools import combinations, combinations_with_replacement
 from scipy.spatial.distance import cdist
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils import get_key_from_res_range, get_res_range_from_key
+_user = getpass.getuser()
 
 def parse_xyzr_h5_file(xyzr_file: str) -> dict:
     """ Parse an HDF5 file containing XYZR data for multiple molecules.
@@ -280,16 +282,10 @@ def expand_map(q_map: np.ndarray, special_keys1: list, special_keys2: list) -> n
 
 if __name__ == "__main__":
 
-    xyzr_file = "/data/omkar/imp_toolbox_test/analysis/sampcon_extracted_frames_xyzr.h5"
-    contact_map_dir = "/data/omkar/imp_toolbox_test/analysis/contact_maps1"
-
-    # xyzr_file = "/data/omkar/Projects/cardiac_desmosome/analysis/prod_runs/analysis_cis_dsc_5716/set4_analysis3/sampcon_extracted_frames_xyzr.h5"
-    # contact_map_dir = "/data/omkar/imp_toolbox_test/analysis/contact_maps"
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--xyzr_file",
-        default=xyzr_file,
+        default=f"/data/{_user}/imp_toolbox_test/analysis/sampcon_extracted_frames_xyzr.h5",
         type=str,
         help="Path to the input HDF5 file containing XYZR data.",
     )
@@ -307,7 +303,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--contact_map_dir",
-        default=contact_map_dir,
+        default=f"/data/{_user}/imp_toolbox_test/analysis/contact_maps1",
         type=str,
         help="Directory to save contact maps.",
     )
@@ -347,19 +343,14 @@ if __name__ == "__main__":
     # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("DSC2a_0") or m2.startswith("DSC2a_0"))]
     # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("DSC2a") and m2.startswith("PG")) or (m1.startswith("PG") and m2.startswith("DSC2a"))]
     mol_pairs = list(set(mol_pairs))
-    # print(mol_pairs)
-    # exit()
 
     unique_sels, unique_mols = get_unique_selections(mol_pairs, mol_res_dict)
 
     # print("Unique mols in pairs:", unique_mols)
     # print("Unique sels in pairs:", {k: get_key_from_res_range(sorted(v)) for k, v in unique_sels.items()})
 
-    # print(f"Before filtering, {len(xyzr_data)} beads present.")
     xyzr_data = update_xyzr_data(xyzr_data, unique_sels)
-    # print(f"After filtering, {len(xyzr_data)} beads remain.")
 
-    # print("sorting keys...")
     xyzr_data = sort_xyzr_data(xyzr_data)
 
     molecules = list(xyzr_data.keys())
@@ -563,7 +554,7 @@ if __name__ == "__main__":
                 colorscale='Greens',
                 zmin=0,
                 zmax=1,
-                colorbar=dict(title='Average Distance (Å)')
+                colorbar=dict(title='Contact (1) / No Contact (0)'),
             ))
             fig.update_layout(
                 # title=f'Average Distance Map: {pair_name}',
@@ -606,14 +597,14 @@ if __name__ == "__main__":
         elif args.plotting == "matplotlib":
             fig, ax = plt.subplots(figsize=(10, 10))
             temp = ax.imshow(dmap, cmap='Greens', vmin=0, vmax=1)
-            ax.set_title(f'Average Distance Map: {pair_name}')
+            ax.set_title(f"Binarized Distance Map (cutoff={args.cutoff} Å): {pair_name}")
             ax.set_xlabel(f"{mol2}")
             ax.set_ylabel(f"{mol1}")
             ax.set_xticks(ticks=np.arange(0, dmap.shape[1], 50))
             ax.set_yticks(ticks=np.arange(0, dmap.shape[0], 50))
             ax.set_xticklabels(labels=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50))
             ax.set_yticklabels(labels=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50))
-            plt.colorbar(temp, label='Average Distance (Å)')
+            plt.colorbar(temp, label='Contact (1) / No Contact (0)')
             fig.savefig(os.path.join(contact_map_dir, f"{pair_name}_dmap.png"))
             plt.close("all")
 
