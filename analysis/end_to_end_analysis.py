@@ -551,7 +551,7 @@ def rmf_to_xyzr(
     rmf_path: str,
     output_path: str,
     frame_subset: str | None = None,
-    round_off: int = 5,
+    float_dtype: int = 64,
     nproc: int = 24,
     logger: logging.Logger | None = None,
 ):
@@ -571,8 +571,6 @@ def rmf_to_xyzr(
         frame_subset (str | None, optional): Subset of frames to process
             (e.g., "0-9,17" for first 10 and 16th frame).
             Defaults to None (all frames).
-        round_off (int, optional): Decimal places to round off the coordinates
-            and radii. Defaults to 5.
         nproc (int, optional): Number of cores to use. Defaults to 24.
         logger (logging.Logger | None, optional): Logger for logging messages.
     """
@@ -581,7 +579,7 @@ def rmf_to_xyzr(
         "python", script_path,
         "--rmf_path", rmf_path,
         "--output_path", output_path,
-        "--round_off", round_off,
+        "--float_dtype", float_dtype,
         "--nproc", nproc,
     ]
 
@@ -602,6 +600,8 @@ def contact_map(
     cutoff: float = 10.0,
     plotting: str = "matplotlib",
     merge_copies: bool = False,
+    float_dtype: int = 64,
+    int_dtype: int = 32,
     logger: logging.Logger | None = None,
 ):
     """ Run the script `contact_map.py` and get pairwise distance/contact maps
@@ -625,6 +625,8 @@ def contact_map(
         "--cutoff", cutoff,
         "--contact_map_dir", contact_map_dir,
         "--plotting", plotting,
+        "--float_dtype", float_dtype,
+        "--int_dtype", int_dtype,
     ]
 
     if merge_copies:
@@ -1047,7 +1049,7 @@ if __name__ == "__main__":
             rmf_path=extracted_rmf_path,
             output_path=xyzr_output_path,
             frame_subset=None,
-            round_off=5,
+            float_dtype=64,
             nproc=24,
             logger=logger
         )
@@ -1083,6 +1085,8 @@ if __name__ == "__main__":
             cutoff=10.0,
             plotting="matplotlib",
             merge_copies=False,
+            float_dtype=64,
+            int_dtype=32,
             logger=logger,
         )
         lap = time.perf_counter()
