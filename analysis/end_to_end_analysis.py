@@ -597,7 +597,8 @@ def contact_map(
     xyzr_file: str,
     contact_map_dir: str,
     nproc: int = 24,
-    cutoff: float = 10.0,
+    dist_cutoff: float = 10.0,
+    frac_cutoff: float = 0.25,
     plotting: str = "matplotlib",
     merge_copies: bool = False,
     float_dtype: int = 64,
@@ -610,7 +611,8 @@ def contact_map(
         script_path (str): Path to the `contact_map.py` script
         xyzr_file (str): Path to the input hdf5 file containing XYZR data
         nproc (int): Number of cores to use
-        cutoff (float): Cutoff distance for contact map (in Angstroms)
+        dist_cutoff (float): dist_cutoff distance for contact map (in Angstroms)
+        frac_cutoff (float): Minimum fraction of frames for a contact
         contact_map_dir (str): Directory to save contact map outputs
         plotting (str): Type of plotting to perform ('matplotlib', 'plotly')
         merge_copies (bool): Whether to merge maps across copies for protein
@@ -622,7 +624,8 @@ def contact_map(
         "python", script_path,
         "--xyzr_file", xyzr_file,
         "--nproc", nproc,
-        "--cutoff", cutoff,
+        "--dist_cutoff", dist_cutoff,
+        "--frac_cutoff", frac_cutoff,
         "--contact_map_dir", contact_map_dir,
         "--plotting", plotting,
         "--float_dtype", float_dtype,
@@ -1082,7 +1085,8 @@ if __name__ == "__main__":
             xyzr_file=xyzr_output_path,
             contact_map_dir=contact_map_dir,
             nproc=24,
-            cutoff=10.0,
+            dist_cutoff=10.0,
+            frac_cutoff=0.25,
             plotting="matplotlib",
             merge_copies=False,
             float_dtype=64,

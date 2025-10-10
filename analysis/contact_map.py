@@ -10,6 +10,9 @@ from itertools import combinations, combinations_with_replacement
 from scipy.spatial.distance import cdist
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from IMP_Toolbox.utils import get_key_from_res_range, get_res_range_from_key
+from IMP_Toolbox.utils_imp_toolbox.special_helpers import MatrixPatches
+from IMP_Toolbox.utils_imp_toolbox.viz_helpers import save_map
+
 _user = getpass.getuser()
 _f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
 _i_dtypes = {8: np.int8, 16: np.int16, 32: np.int32, 64: np.int64}
@@ -298,10 +301,16 @@ if __name__ == "__main__":
         help="Number of processes for parallel execution.",
     )
     parser.add_argument(
-        "--cutoff",
+        "--dist_cutoff",
         default=15.0,
         type=float,
         help="Cutoff distance for contact map calculation.",
+    )
+    parser.add_argument(
+        "--frac_cutoff",
+        default=0.25,
+        type=float,
+        help="Fraction cutoff for contact map binarization.",
     )
     parser.add_argument(
         "--contact_map_dir",
@@ -339,7 +348,8 @@ if __name__ == "__main__":
 
     xyzr_file = args.xyzr_file
     nproc = args.nproc
-    cutoff = args.cutoff
+    cutoff1 = args.dist_cutoff
+    cutoff2 = args.frac_cutoff
     contact_map_dir = args.contact_map_dir
     f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
     i_dtype = _i_dtypes.get(args.int_dtype, np.int32)
@@ -420,7 +430,7 @@ if __name__ == "__main__":
 
         with ThreadPoolExecutor(max_workers=nproc) as executor:
             futures = [
-                executor.submit(get_pairwise_map, xyzr1_b, xyzr2_b, cutoff, f_dtype, i_dtype)
+                executor.submit(get_pairwise_map, xyzr1_b, xyzr2_b, cutoff1, f_dtype, i_dtype)
                 for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
             ]
             results = []
@@ -514,6 +524,15 @@ if __name__ == "__main__":
             dmap = pairwise_dmaps[pair_name].copy()
             cmap = pairwise_cmaps[pair_name].copy()
 
+            # binarize dmap
+            dmap[dmap < args.dist_cutoff] = i_dtype(1)
+            dmap[dmap >= args.dist_cutoff] = i_dtype(0)
+            dmap = dmap.astype(i_dtype)
+
+            cmap[cmap >= cutoff2] = np.int32(1)
+            cmap[cmap < cutoff2] = np.int32(0)
+            cmap = cmap.astype(np.int32)
+
             if merged_pair_name in merged_pairwise_dmaps:
                 merged_pairwise_dmaps[merged_pair_name].append(dmap)
                 merged_pairwise_cmaps[merged_pair_name].append(cmap)
@@ -522,7 +541,9 @@ if __name__ == "__main__":
                 merged_pairwise_cmaps[merged_pair_name] = [cmap]
 
         merged_pairwise_dmaps = {
-            k: np.mean(v, axis=0) for k, v in merged_pairwise_dmaps.items()
+            # k: np.mean(v, axis=0) for k, v in merged_pairwise_dmaps.items()
+            k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
+            for k, v in merged_pairwise_dmaps.items()
         }
         merged_pairwise_cmaps = {
             k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
@@ -547,21 +568,79 @@ if __name__ == "__main__":
 
         mol_res_dict = {k: sorted(set(v)) for k, v in merged_mol_res_dict.items()}
 
+    region_of_interest = {
+        mol: (min(res_list), max(res_list))
+        for mol, res_list in mol_res_dict.items()
+    }
+
     for pair_name in pairwise_dmaps.keys():
 
-        dmap = pairwise_dmaps[pair_name].astype(f_dtype)
-        cmap = pairwise_cmaps[pair_name].astype(f_dtype)
-
-        # binarize dmap
-        dmap[dmap < args.cutoff] = i_dtype(1)
-        dmap[dmap >= args.cutoff] = i_dtype(0)
-        dmap = dmap.astype(i_dtype)
-
-        # cmap[cmap >= 0.25] = np.int32(1)
-        # cmap[cmap < 0.25] = np.int32(0)
-        # cmap = cmap.astype(np.int32)
+        dmap = pairwise_dmaps[pair_name].astype(i_dtype)
+        cmap = pairwise_cmaps[pair_name].astype(i_dtype)
 
         mol1, mol2 = pair_name.split(":")
+
+        if mol1 == mol2:
+            print(f"Skipping self-interaction for {pair_name}")
+            continue
+
+        if len(np.unique(cmap)) == 1 and np.unique(cmap)[0] == 0:
+            print(f"No contacts found for {pair_name}, skipping plot.")
+            continue
+
+        matrix_patches = MatrixPatches(
+            matrix=cmap,
+            row_obj=mol1,
+            col_obj=mol2,
+        )
+
+        patches_df = matrix_patches.get_patches_from_matrix()
+        patches = {}
+        for patch_idx, patch in patches_df.iterrows():
+
+            ch1_patch = patch[mol1]
+            ch2_patch = patch[mol2]
+
+            ch1_patch = sorted([int(x) for x in ch1_patch])
+            ch2_patch = sorted([int(x) for x in ch2_patch])
+
+            ch1_patch = np.array(ch1_patch) + region_of_interest[mol1][0]
+            ch2_patch = np.array(ch2_patch) + region_of_interest[mol2][0]
+
+            patches[patch_idx] = {
+                mol1: np.array(ch1_patch),
+                mol2: np.array(ch2_patch),
+            }
+
+
+        if len(patches) > 0:
+
+            file_name = "_".join(
+                [
+                    f"{k}:{v[0]}-{v[1]}"
+                    for k, v in region_of_interest.items()
+                    if k in [mol1, mol2]
+                ]
+            )
+
+            save_map(
+                contact_map=cmap,
+                avg_contact_probs_mat=None,
+                patches=patches,
+                chain1=mol1,
+                chain2=mol2,
+                p1_name=mol1,
+                p2_name=mol2,
+                p1_region=region_of_interest[mol1],
+                p2_region=region_of_interest[mol2],
+                out_file=os.path.join(
+                    args.contact_map_dir, f"patches_{file_name}.png"
+                ),
+                save_plot=False,
+                plot_type="static",
+                concat_residues=True,
+                contact_probability=False,
+            )
 
         if args.plotting == "plotly":
 
@@ -575,7 +654,7 @@ if __name__ == "__main__":
             ))
             fig.update_layout(
                 # title=f'Average Distance Map: {pair_name}',
-                title=f"Binarized Distance Map (cutoff={args.cutoff} Å): {pair_name}",
+                title=f"Binarized Distance Map (cutoff={args.dist_cutoff} Å): {pair_name}",
                 xaxis_title=f"{mol1}",
                 yaxis_title=f"{mol2}",
                 xaxis=dict(tickmode='array',
@@ -593,11 +672,11 @@ if __name__ == "__main__":
                 z=cmap,
                 colorscale='Greens',
                 zmin=0,
-                zmax=0.3,
+                zmax=args.frac_cutoff,
                 colorbar=dict(title='Fraction of Frames in Contact')
             ))
             fig.update_layout(
-                title=f'Average Contact Map: {pair_name}',
+                title=f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}',
                 xaxis_title=f"{mol1}",
                 yaxis_title=f"{mol2}",
                 xaxis=dict(tickmode='array',
@@ -614,7 +693,7 @@ if __name__ == "__main__":
         elif args.plotting == "matplotlib":
             fig, ax = plt.subplots(figsize=(10, 10))
             temp = ax.imshow(dmap, cmap='Greens', vmin=0, vmax=1)
-            ax.set_title(f"Binarized Distance Map (cutoff={args.cutoff} Å): {pair_name}")
+            ax.set_title(f"Binarized Distance Map (cutoff={args.dist_cutoff} Å): {pair_name}")
             ax.set_xlabel(f"{mol2}")
             ax.set_ylabel(f"{mol1}")
             ax.set_xticks(ticks=np.arange(0, dmap.shape[1], 50))
@@ -626,8 +705,8 @@ if __name__ == "__main__":
             plt.close("all")
 
             fig, ax = plt.subplots(figsize=(10, 10))
-            temp = ax.imshow(cmap, cmap='Greens', vmin=0, vmax=0.3)
-            ax.set_title(f'Average Contact Map: {pair_name}')
+            temp = ax.imshow(cmap, cmap='Greens', vmin=0, vmax=args.frac_cutoff)
+            ax.set_title(f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}')
             ax.set_xlabel(f"{mol2}")
             ax.set_ylabel(f"{mol1}")
             ax.set_xticks(ticks=np.arange(0, cmap.shape[1], 50))
