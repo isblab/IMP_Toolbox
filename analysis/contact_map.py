@@ -529,9 +529,9 @@ if __name__ == "__main__":
             dmap[dmap >= args.dist_cutoff] = i_dtype(0)
             dmap = dmap.astype(i_dtype)
 
-            cmap[cmap >= cutoff2] = np.int32(1)
-            cmap[cmap < cutoff2] = np.int32(0)
-            cmap = cmap.astype(np.int32)
+            cmap[cmap >= cutoff2] = i_dtype(1)
+            cmap[cmap < cutoff2] = i_dtype(0)
+            cmap = cmap.astype(i_dtype)
 
             if merged_pair_name in merged_pairwise_dmaps:
                 merged_pairwise_dmaps[merged_pair_name].append(dmap)
@@ -567,6 +567,24 @@ if __name__ == "__main__":
                 merged_mol_res_dict[base_mol] = mol_res_dict[mol].copy()
 
         mol_res_dict = {k: sorted(set(v)) for k, v in merged_mol_res_dict.items()}
+
+    else:
+        for pair_name in pairwise_dmaps.keys():
+
+            dmap = pairwise_dmaps[pair_name]
+            cmap = pairwise_cmaps[pair_name]
+
+            # binarize dmap
+            dmap[dmap < args.dist_cutoff] = i_dtype(1)
+            dmap[dmap >= args.dist_cutoff] = i_dtype(0)
+            dmap = dmap.astype(i_dtype)
+
+            cmap[cmap >= cutoff2] = i_dtype(1)
+            cmap[cmap < cutoff2] = i_dtype(0)
+            cmap = cmap.astype(i_dtype)
+
+            pairwise_dmaps[pair_name] = dmap
+            pairwise_cmaps[pair_name] = cmap
 
     region_of_interest = {
         mol: (min(res_list), max(res_list))
@@ -611,7 +629,6 @@ if __name__ == "__main__":
                 mol1: np.array(ch1_patch),
                 mol2: np.array(ch2_patch),
             }
-
 
         if len(patches) > 0:
 
