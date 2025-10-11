@@ -351,6 +351,7 @@ if __name__ == "__main__":
     cutoff1 = args.dist_cutoff
     cutoff2 = args.frac_cutoff
     contact_map_dir = args.contact_map_dir
+    binarize_cmap = False
     f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
     i_dtype = _i_dtypes.get(args.int_dtype, np.int32)
     os.makedirs(contact_map_dir, exist_ok=True)
@@ -529,9 +530,12 @@ if __name__ == "__main__":
             dmap[dmap >= args.dist_cutoff] = i_dtype(0)
             dmap = dmap.astype(i_dtype)
 
-            cmap[cmap >= cutoff2] = i_dtype(1)
-            cmap[cmap < cutoff2] = i_dtype(0)
-            cmap = cmap.astype(i_dtype)
+            if binarize_cmap:
+                cmap[cmap >= cutoff2] = i_dtype(1)
+                cmap[cmap < cutoff2] = i_dtype(0)
+                cmap = cmap.astype(i_dtype)
+            else:
+                cmap = num_frames * cmap
 
             if merged_pair_name in merged_pairwise_dmaps:
                 merged_pairwise_dmaps[merged_pair_name].append(dmap)
@@ -545,10 +549,17 @@ if __name__ == "__main__":
             k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
             for k, v in merged_pairwise_dmaps.items()
         }
-        merged_pairwise_cmaps = {
-            k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
-            for k, v in merged_pairwise_cmaps.items()
-        }
+        if binarize_cmap:
+            merged_pairwise_cmaps = {
+                k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
+                for k, v in merged_pairwise_cmaps.items()
+            }
+
+        else:
+            merged_pairwise_cmaps = {
+                k: np.sum(v, axis=0).astype(f_dtype) / f_dtype(num_frames * len(v))
+                for k, v in merged_pairwise_cmaps.items()
+            }
 
         pairwise_dmaps = {k: v for k, v in merged_pairwise_dmaps.items()}
         pairwise_cmaps = {k: v for k, v in merged_pairwise_cmaps.items()}
@@ -579,12 +590,13 @@ if __name__ == "__main__":
             dmap[dmap >= args.dist_cutoff] = i_dtype(0)
             dmap = dmap.astype(i_dtype)
 
-            cmap[cmap >= cutoff2] = i_dtype(1)
-            cmap[cmap < cutoff2] = i_dtype(0)
-            cmap = cmap.astype(i_dtype)
+            if binarize_cmap:
+                cmap[cmap >= cutoff2] = i_dtype(1)
+                cmap[cmap < cutoff2] = i_dtype(0)
+                cmap = cmap.astype(i_dtype)
+                pairwise_cmaps[pair_name] = cmap
 
             pairwise_dmaps[pair_name] = dmap
-            pairwise_cmaps[pair_name] = cmap
 
     region_of_interest = {
         mol: (min(res_list), max(res_list))
@@ -594,7 +606,11 @@ if __name__ == "__main__":
     for pair_name in pairwise_dmaps.keys():
 
         dmap = pairwise_dmaps[pair_name].astype(i_dtype)
-        cmap = pairwise_cmaps[pair_name].astype(i_dtype)
+
+        if binarize_cmap:
+            cmap = pairwise_cmaps[pair_name].astype(i_dtype)
+        else:
+            cmap = pairwise_cmaps[pair_name].astype(f_dtype)
 
         mol1, mol2 = pair_name.split(":")
 
@@ -602,8 +618,89 @@ if __name__ == "__main__":
             print(f"Skipping self-interaction for {pair_name}")
             continue
 
+        if args.plotting == "plotly":
+
+            import plotly.graph_objects as go
+            fig = go.Figure(data=go.Heatmap(
+                z=dmap,
+                colorscale='Greens',
+                zmin=0,
+                zmax=1,
+                colorbar=dict(title='Contact (1) / No Contact (0)'),
+            ))
+            fig.update_layout(
+                # title=f'Average Distance Map: {pair_name}',
+                title=f"Binarized Average Distance Map (cutoff={args.dist_cutoff} Å): {pair_name}",
+                xaxis_title=f"{mol1}",
+                yaxis_title=f"{mol2}",
+                xaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[1], 50),
+                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
+                ),
+                yaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[0], 50),
+                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
+                ),
+            )
+            fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_dmap.html"))
+
+            fig = go.Figure(data=go.Heatmap(
+                z=cmap,
+                colorscale='Greens',
+                zmin=0,
+                zmax=1 if binarize_cmap else args.frac_cutoff,
+                colorbar=dict(title='Fraction of Frames in Contact')
+            ))
+            fig.update_layout(
+                title=f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}',
+                xaxis_title=f"{mol1}",
+                yaxis_title=f"{mol2}",
+                xaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[1], 50),
+                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
+                ),
+                yaxis=dict(tickmode='array',
+                    tickvals=np.arange(0, dmap.shape[0], 50),
+                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
+                ),
+            )
+            fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_cmap.html"))
+
+        elif args.plotting == "matplotlib":
+            fig, ax = plt.subplots(figsize=(10, 10))
+            temp = ax.imshow(dmap, cmap='Greens', vmin=0, vmax=1)
+            ax.set_title(f"Binarized Distance Map (cutoff={args.dist_cutoff} Å): {pair_name}")
+            ax.set_xlabel(f"{mol2}")
+            ax.set_ylabel(f"{mol1}")
+            ax.set_xticks(ticks=np.arange(0, dmap.shape[1], 50))
+            ax.set_yticks(ticks=np.arange(0, dmap.shape[0], 50))
+            ax.set_xticklabels(labels=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50))
+            ax.set_yticklabels(labels=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50))
+            plt.colorbar(temp, label='Contact (1) / No Contact (0)')
+            fig.savefig(os.path.join(contact_map_dir, f"{pair_name}_dmap.png"))
+            plt.close("all")
+
+            fig, ax = plt.subplots(figsize=(10, 10))
+            temp = ax.imshow(cmap, cmap='Greens', vmin=0, vmax=1 if binarize_cmap else args.frac_cutoff)
+            ax.set_title(f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}')
+            ax.set_xlabel(f"{mol2}")
+            ax.set_ylabel(f"{mol1}")
+            ax.set_xticks(ticks=np.arange(0, cmap.shape[1], 50))
+            ax.set_yticks(ticks=np.arange(0, cmap.shape[0], 50))
+            ax.set_xticklabels(labels=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50))
+            ax.set_yticklabels(labels=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50))
+            plt.colorbar(temp, label='Fraction of Frames in Contact')
+            fig.savefig(os.path.join(contact_map_dir, f"{pair_name}_cmap.png"))
+            plt.close("all")
+
+        if not binarize_cmap:
+            cmap[cmap >= cutoff2] = i_dtype(1)
+            cmap[cmap < cutoff2] = i_dtype(0)
+            cmap = cmap.astype(i_dtype)
+            pairwise_cmaps[pair_name] = cmap
+
         if len(np.unique(cmap)) == 1 and np.unique(cmap)[0] == 0:
-            print(f"No contacts found for {pair_name}, skipping plot.")
+            print(f"No contacts found for {pair_name}, skipping patches.")
             continue
 
         matrix_patches = MatrixPatches(
@@ -658,80 +755,5 @@ if __name__ == "__main__":
                 concat_residues=True,
                 contact_probability=False,
             )
-
-        if args.plotting == "plotly":
-
-            import plotly.graph_objects as go
-            fig = go.Figure(data=go.Heatmap(
-                z=dmap,
-                colorscale='Greens',
-                zmin=0,
-                zmax=1,
-                colorbar=dict(title='Contact (1) / No Contact (0)'),
-            ))
-            fig.update_layout(
-                # title=f'Average Distance Map: {pair_name}',
-                title=f"Binarized Distance Map (cutoff={args.dist_cutoff} Å): {pair_name}",
-                xaxis_title=f"{mol1}",
-                yaxis_title=f"{mol2}",
-                xaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[1], 50),
-                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
-                ),
-                yaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[0], 50),
-                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
-                ),
-            )
-            fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_dmap.html"))
-
-            fig = go.Figure(data=go.Heatmap(
-                z=cmap,
-                colorscale='Greens',
-                zmin=0,
-                zmax=args.frac_cutoff,
-                colorbar=dict(title='Fraction of Frames in Contact')
-            ))
-            fig.update_layout(
-                title=f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}',
-                xaxis_title=f"{mol1}",
-                yaxis_title=f"{mol2}",
-                xaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[1], 50),
-                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
-                ),
-                yaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[0], 50),
-                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
-                ),
-            )
-            fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_cmap.html"))
-
-        elif args.plotting == "matplotlib":
-            fig, ax = plt.subplots(figsize=(10, 10))
-            temp = ax.imshow(dmap, cmap='Greens', vmin=0, vmax=1)
-            ax.set_title(f"Binarized Distance Map (cutoff={args.dist_cutoff} Å): {pair_name}")
-            ax.set_xlabel(f"{mol2}")
-            ax.set_ylabel(f"{mol1}")
-            ax.set_xticks(ticks=np.arange(0, dmap.shape[1], 50))
-            ax.set_yticks(ticks=np.arange(0, dmap.shape[0], 50))
-            ax.set_xticklabels(labels=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50))
-            ax.set_yticklabels(labels=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50))
-            plt.colorbar(temp, label='Contact (1) / No Contact (0)')
-            fig.savefig(os.path.join(contact_map_dir, f"{pair_name}_dmap.png"))
-            plt.close("all")
-
-            fig, ax = plt.subplots(figsize=(10, 10))
-            temp = ax.imshow(cmap, cmap='Greens', vmin=0, vmax=args.frac_cutoff)
-            ax.set_title(f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}')
-            ax.set_xlabel(f"{mol2}")
-            ax.set_ylabel(f"{mol1}")
-            ax.set_xticks(ticks=np.arange(0, cmap.shape[1], 50))
-            ax.set_yticks(ticks=np.arange(0, cmap.shape[0], 50))
-            ax.set_xticklabels(labels=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50))
-            ax.set_yticklabels(labels=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50))
-            plt.colorbar(temp, label='Fraction of Frames in Contact')
-            fig.savefig(os.path.join(contact_map_dir, f"{pair_name}_cmap.png"))
-            plt.close("all")
 
     print(f"Saved contact maps to {contact_map_dir}")
