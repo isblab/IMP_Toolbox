@@ -7,7 +7,7 @@ import warnings
 import pandas as pd
 from ruamel.yaml import YAML
 import numpy as np
-from utils_imp_toolbox.obj_helpers import (
+from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key,
 )
