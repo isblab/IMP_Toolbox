@@ -960,9 +960,9 @@ if __name__ == "__main__":
         "-r",
         "--run_type",
         type=str,
-        default="replica",
-        help="Type of run: replica or single. Default is replica",
-        choices=["replica", "single"]
+        default="multiple",
+        help="Type of run: multiple or single. Default is multiple",
+        choices=["multiple", "single"]
     )
     args.add_argument(
         "-c",
@@ -972,17 +972,11 @@ if __name__ == "__main__":
         help="Number of processes to use. Do not use too many, you might run out of memory.",
     )
     args.add_argument(
-        "-s",
-        "--sysname",
-        type=str,
-        default="cardiac_desmosome",
-        help="System name for specific analysis. Default is cardiac_desmosome",
-    )
-    args.add_argument(
         "--restraints",
         nargs="+",
         type=str,
-        default=["ExcludedVolumeSphere:EVR", "GaussianEMRestraint:EMR"],
+        default=[],
+        # default=["ExcludedVolumeSphere:EVR", "GaussianEMRestraint:EMR"],
         help="List of restraint names for specific analysis.",
     )
     args.add_argument(
@@ -1058,7 +1052,7 @@ if __name__ == "__main__":
             all_res_info
         )
 
-    elif args.run_type == "replica":
+    elif args.run_type == "multiple":
 
         from concurrent.futures import ProcessPoolExecutor, as_completed
         from tqdm import tqdm
