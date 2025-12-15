@@ -31,17 +31,7 @@ cd build ;
 if grep -q "Fedora" /etc/os-release; then
 
     fedora_version=$(cat /etc/os-release | grep VERSION_ID | awk -F '=' '{print $2}')
-
-    if [ $fedora_version -ge 29 ] && [ $fedora_version -lt 32 ]; then
-        cgal_dir="%{_libdir}/cmake/CGAL"
-
-    elif [ $fedora_version -eq 32 ]; then
-        cgal_dir="/usr/share/CGAL/cmake"
-
-    elif [ $fedora_version -ge 33 ]; then
-        cgal_dir="/usr/share/cmake/CGAL"
-
-    fi
+    cgal_dir="/usr/share/cmake/CGAL"
 
 else
     echo "This is not a Fedora system"
