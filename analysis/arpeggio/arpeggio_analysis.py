@@ -132,7 +132,7 @@ def run_arpeggio_docker(
     processed_struct_path = os.path.join(container_path, f"{result_head}.pdb")
 
     if not os.path.isfile(processed_struct_path):
-        warnings.warn(
+        raise Exception(
             f"Processed structure file not found for \
             {result_head}: {processed_struct_path}. Skipping."
         )
