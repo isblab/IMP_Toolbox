@@ -10,7 +10,7 @@ class BestStructures:
     def __init__(self, uniprot_ids):
         self.uniprot_ids = uniprot_ids
 
-    def get_best_structures(self, uniprot_id):
+    def get_best_structures(self, uniprot_id: str) -> dict:
         """Get best structures for given uniprot id
 
         Args:
@@ -20,11 +20,11 @@ class BestStructures:
             dict: best structures for given uniprot id
         """
 
-        pisa_url = "https://www.ebi.ac.uk/pdbe/graph-api/mappings/best_structures"
+        PDBE_API_URL = "https://www.ebi.ac.uk/pdbe/graph-api/mappings/best_structures"
 
         req_sess = request_session(max_retries=3)
         get_request = req_sess.get(
-            url=f"{pisa_url}/{uniprot_id}"
+            url=f"{PDBE_API_URL}/{uniprot_id}"
         )
 
         best_structures = request_result(
@@ -34,7 +34,7 @@ class BestStructures:
         return best_structures
 
 
-    def make_best_structures_df(self, best_structures):
+    def make_best_structures_df(self, best_structures: dict) -> pd.DataFrame:
         """Create a dataframe of best structures from dictionary
 
         Args:
@@ -48,27 +48,26 @@ class BestStructures:
 
         for uniprot_id, best_structure in best_structures.items():
 
-            if best_structure:
-                best_chains = best_structure[uniprot_id]
-
-                for _, chain in enumerate(best_chains):
-
-                    all_best_chains.append(
-                    {
-                        "uniprot_id": uniprot_id,
-                        "best_chain": chain["chain_id"],
-                        "best_structure": chain["pdb_id"],
-                        "coverage": chain["coverage"],
-                        "unp_start": chain["unp_start"],
-                        "unp_end": chain["unp_end"],
-                        "start": chain["start"],
-                        "end": chain["end"],
-                        "resolution": chain["resolution"],
-                    }
-                )
-
-            else:
+            if not best_structure:
                 print(f"No best structure found for {uniprot_id}")
+
+            best_chains = best_structure[uniprot_id]
+
+            for _, chain in enumerate(best_chains):
+
+                all_best_chains.append(
+                {
+                    "uniprot_id": uniprot_id,
+                    "best_chain": chain["chain_id"],
+                    "best_structure": chain["pdb_id"],
+                    "coverage": chain["coverage"],
+                    "unp_start": chain["unp_start"],
+                    "unp_end": chain["unp_end"],
+                    "start": chain["start"],
+                    "end": chain["end"],
+                    "resolution": chain["resolution"],
+                }
+            )
 
         df = pd.DataFrame(all_best_chains)
         mask = df.duplicated(subset=['uniprot_id'], keep='first')
@@ -78,7 +77,11 @@ class BestStructures:
         return df
 
 
-    def fetch_best_structures(self, save_path, overwrite=False):
+    def fetch_best_structures(
+        self,
+        save_path: str,
+        overwrite: bool=False,
+    ) -> dict:
         """Fetch best structures for given proteins
 
         Args:

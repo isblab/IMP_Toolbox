@@ -34,7 +34,20 @@ class EMDBMaps:
         else:
             raise Exception("Error while requesting EMDB map for given EMDB id")
 
-    def fetch_emdb_mask(self, mask_name, max_retries=3):
+    def fetch_emdb_mask(
+        self,
+        mask_name: str,
+        max_retries: int = 3,
+    ):
+        """ Fetch mask from EMDB
+
+        Args:
+            mask_name (str): Name of the mask to be fetched
+            max_retries (int, optional): Maximum number of retries.
+
+        Returns:
+            bytes: Mask file content
+        """
 
         if mask_name is None:
             raise ValueError("Mask name must be provided to fetch EMDB mask")
@@ -50,4 +63,6 @@ class EMDBMaps:
             return response.content
 
         else:
-            raise Exception("Error while requesting EMDB mask for given EMDB id and mask name")
+            raise Exception(
+                "Error while requesting EMDB mask for given EMDB id and mask name"
+            )

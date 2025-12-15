@@ -15,11 +15,11 @@ class FetchSequences:
             max_retries (int, optional): Defaults to 3.
         """
 
-        UniProt_API = "https://rest.uniprot.org/"
+        UNIPROT_API_URL = "https://rest.uniprot.org/"
         joined = ",".join(self.uniprot_ids)
         req_sess = request_session(max_retries=max_retries)
         response = req_sess.get(
-            f"{UniProt_API}/uniprotkb/accessions?accessions={joined}&format=fasta"
+            f"{UNIPROT_API_URL}/uniprotkb/accessions?accessions={joined}&format=fasta"
         )
 
         if response.status_code == 200:
@@ -32,6 +32,9 @@ class FetchSequences:
 
     def only_uniprot_id_as_name(self, fasta=None) -> str:
         """Keep only uniprot id as name in fasta file
+
+        Assumes the fasta headers are in the format:
+        >sp|P12345|PROT_HUMAN Some description here
 
         Args:
             fasta (str): fasta file

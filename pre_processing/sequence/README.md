@@ -10,7 +10,7 @@ classDiagram
     class FetchSequences {
         + uniprot_ids
         - __init__(self, uniprot_ids) None
-        + uniprot_to_sequences(self, max_retries)
+        + query_uniprot_api_for_sequences(self, max_retries)
         + only_uniprot_id_as_name(self, fasta)
     }
 ```
@@ -20,6 +20,7 @@ classDiagram
 
 Refer to:
 - `fetch_sequences.py` in IMP_Toolbox/examples for usage
+
 ## paralog_alignment
 ```mermaid
 classDiagram
