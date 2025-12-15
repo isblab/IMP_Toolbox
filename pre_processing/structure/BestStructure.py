@@ -52,6 +52,7 @@ class BestStructures:
                 print(f"No best structure found for {uniprot_id}")
 
             best_chains = best_structure[uniprot_id]
+            best_chains = sorted(best_chains, key=lambda x: x['resolution'])
 
             for _, chain in enumerate(best_chains):
 
