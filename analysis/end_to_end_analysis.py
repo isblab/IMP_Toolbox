@@ -383,6 +383,26 @@ def exhaust(
 
     os.system(" ".join(map(str, command)))
 
+def fit_pdb_to_ccm(
+    script_path: str,
+    ccm_file: str,
+    input_config: str,
+    output_dir: str,
+    logger: logging.Logger | None = None,
+):
+    command = [
+        "python", script_path,
+        "--ccm_file", ccm_file,
+        "--input", input_config,
+        "--output_dir", output_dir,
+    ]
+
+    if logger is not None:
+        logging.info("Running fit PDB to CCM with command:")
+        logging.info(" ".join(map(str, command)))
+
+    os.system(" ".join(map(str, command)))
+
 def prism_annotate(
     script_path: str,
     input: str,
