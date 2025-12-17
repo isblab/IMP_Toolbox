@@ -748,47 +748,54 @@ class ArpeggioChimeraX:
             atom_spec = f"{model_id}/{row['chain_1']}:{row['res_1']}@{row['atom_1']}"
             ring_marker_id = row["marker_id"]
             ring_spec = f"{MARKER_ATTRIBUTES["model_id"]}/M:{ring_marker_id}@M"
-            interaction = row["interaction_type"]
-            assert interaction in CHOSEN_ARI_TYPES, (
-                f"Unexpected interaction type '{interaction}' found in ARI data."
+            interactions = row["interaction_type"]
+            if "," in interactions:
+                interactions = interactions.split(",")
+            if isinstance(interactions, str):
+                interactions = [interactions]
+            assert all([_it in CHOSEN_ARI_TYPES for _it in interactions]), (
+                f"Unexpected interaction type '{interactions}' found in ARI data."
             )
-            if interaction not in sub_model_ids:
-                sub_model_ids[interaction] = sub_model_id
-                sub_model_id += 1
 
-            command = command_template.substitute(
-                spec1=atom_spec,
-                spec2=ring_spec,
-                bond_name=interaction,
-                bond_color=PBOND_ATTRIBUTES.get(
-                    interaction, PBOND_ATTRIBUTES["ari"]
-                    ).get("color", "yellow"),
-                bond_radius=PBOND_ATTRIBUTES.get(
-                    interaction, PBOND_ATTRIBUTES["ari"]
-                    ).get("radius", 0.1),
-                bond_dashes=PBOND_ATTRIBUTES.get(
-                    interaction, PBOND_ATTRIBUTES["ari"]
-                    ).get("dashes", 6),
-            )
-            commands.append(command)
+            for interaction in interactions:
 
-            if add_selections:
-                chain1 = row["chain_1"]
-                res1 = row["res_1"]
-                chain2 = row["chain_2"]
-                res2 = row["res_2"]
-                sel_cmd = f"sel add #{MODEL_ID}/{chain1}:{res1}#{MODEL_ID}/{chain2}:{res2}"
-                if sel_cmd not in commands:
-                    commands.append(sel_cmd)
+                if interaction not in sub_model_ids:
+                    sub_model_ids[interaction] = sub_model_id
+                    sub_model_id += 1
 
-            command = transparency_template.substitute(
-                model_id=f"{model_id}.{sub_model_ids[interaction]}",
-                target_spec="p",
-                transparency=PBOND_ATTRIBUTES.get(
-                    interaction, PBOND_ATTRIBUTES["ari"]
-                    ).get("transparency", 0),
-            )
-            commands.append(command)
+                command = command_template.substitute(
+                    spec1=atom_spec,
+                    spec2=ring_spec,
+                    bond_name=interaction,
+                    bond_color=PBOND_ATTRIBUTES.get(
+                        interaction, PBOND_ATTRIBUTES["ari"]
+                        ).get("color", "yellow"),
+                    bond_radius=PBOND_ATTRIBUTES.get(
+                        interaction, PBOND_ATTRIBUTES["ari"]
+                        ).get("radius", 0.1),
+                    bond_dashes=PBOND_ATTRIBUTES.get(
+                        interaction, PBOND_ATTRIBUTES["ari"]
+                        ).get("dashes", 6),
+                )
+                commands.append(command)
+
+                if add_selections:
+                    chain1 = row["chain_1"]
+                    res1 = row["res_1"]
+                    chain2 = row["chain_2"]
+                    res2 = row["res_2"]
+                    sel_cmd = f"sel add #{MODEL_ID}/{chain1}:{res1}#{MODEL_ID}/{chain2}:{res2}"
+                    if sel_cmd not in commands:
+                        commands.append(sel_cmd)
+
+                command = transparency_template.substitute(
+                    model_id=f"{model_id}.{sub_model_ids[interaction]}",
+                    target_spec="p",
+                    transparency=PBOND_ATTRIBUTES.get(
+                        interaction, PBOND_ATTRIBUTES["ari"]
+                        ).get("transparency", 0),
+                )
+                commands.append(command)
 
         if save_path:
             ArpeggioChimeraX.save_commands_to_file(save_path, commands)
