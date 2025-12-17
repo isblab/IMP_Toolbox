@@ -130,6 +130,36 @@ def run_arpeggio_docker(
     dry_run: bool=False,
     overwrite: bool=False,
 ):
+    """ Run Arpeggio analysis inside a Docker container.
+
+    Note: Assumes that at least a subset of the selections are in the
+    structure. If no part of the selection is in the structure, it will
+    raise an error.
+
+    Args:
+
+        docker_base_command (Template):
+            Template for the Docker command to run Arpeggio.
+
+        container_path (str):
+            Path inside the Docker container where input files are located.
+
+        docker_result_dir (str):
+            Path on the host machine where Docker results will be stored.
+
+        result_head (str):
+            Identifier for the result set.
+
+        result_metadata (dict):
+            Metadata for the result set, including selections.
+
+        dry_run (bool, optional):
+            If True, only print the Docker command without executing it.
+
+        overwrite (bool, optional):
+            If True, overwrite existing results.
+    """
+
     path_to_mount = os.path.join(docker_result_dir, result_head)
     if os.path.exists(path_to_mount) and overwrite is False:
         warnings.warn(
@@ -157,7 +187,6 @@ def run_arpeggio_docker(
         input_pdb_path=processed_struct_path,
     )
 
-    # arpeggio_sel = " ".join(result_metadata.get("selections", [])) or ""
     arpeggio_sels = result_metadata.get("selections", [""])
 
     selection_strs = []
@@ -176,7 +205,6 @@ def run_arpeggio_docker(
                 f"/{chain}/{res}/" for res in res_list
             ])
 
-        # docker_command = docker_command.strip() + f" -s {arpeggio_sel}"
     docker_command = docker_command.strip() + f" -s {' '.join(selection_strs)}"
 
     print(f"Running Docker command for {result_head}:\n{docker_command}\n")
