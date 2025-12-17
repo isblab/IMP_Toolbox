@@ -12,6 +12,7 @@ import os
 import warnings
 from string import Template
 import pandas as pd
+from IMP_Toolbox.utils_imp_toolbox.obj_helpers import get_res_range_from_key
 from IMP_Toolbox.analysis.arpeggio.arpeggio_constants import (
     CONTACTS_FIELDS,
     RI_FIELDS,
@@ -127,10 +128,18 @@ def run_arpeggio_docker(
     result_head: str,
     result_metadata: dict,
     dry_run: bool=False,
+    overwrite: bool=False,
 ):
     path_to_mount = os.path.join(docker_result_dir, result_head)
-    processed_struct_path = os.path.join(container_path, f"{result_head}.pdb")
+    if os.path.exists(path_to_mount) and overwrite is False:
+        warnings.warn(
+            f"""Arpeggio results already exist for {result_head} at \
+            {path_to_mount}. Skipping.
+            To overwrite, set overwrite=True."""
+        )
+        return  # already processed
 
+    processed_struct_path = os.path.join(container_path, f"{result_head}.pdb")
     if not os.path.isfile(processed_struct_path):
         raise Exception(
             f"Processed structure file not found for \
@@ -148,9 +157,27 @@ def run_arpeggio_docker(
         input_pdb_path=processed_struct_path,
     )
 
-    arpeggio_sel = " ".join(result_metadata.get("selections", [])) or ""
-    if arpeggio_sel:
-        docker_command = docker_command.strip() + f" -s {arpeggio_sel}"
+    # arpeggio_sel = " ".join(result_metadata.get("selections", [])) or ""
+    arpeggio_sels = result_metadata.get("selections", [""])
+
+    selection_strs = []
+    for arpeggio_sel in arpeggio_sels:
+
+        if len(arpeggio_sel) == 0:
+            continue
+
+        _, chain, res, _ = arpeggio_sel.split("/")
+
+        if len(res) == 0:
+            selection_strs.append(f"/{chain}/")
+        else:
+            res_list = get_res_range_from_key(res)
+            selection_strs.extend([
+                f"/{chain}/{res}/" for res in res_list
+            ])
+
+        # docker_command = docker_command.strip() + f" -s {arpeggio_sel}"
+    docker_command = docker_command.strip() + f" -s {' '.join(selection_strs)}"
 
     print(f"Running Docker command for {result_head}:\n{docker_command}\n")
     if dry_run is False:
