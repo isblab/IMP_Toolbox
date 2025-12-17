@@ -1,5 +1,6 @@
 import os
 import warnings
+import pandas as pd
 from string import Template
 from IMP_Toolbox.utils_imp_toolbox.file_helpers import write_json
 from IMP_Toolbox.analysis.cocomap.cocomap_constants import (
@@ -70,3 +71,35 @@ def run_cocomap_docker(
         os.system(docker_command)
         os.system(f"sudo chown -R $USER:$USER {cocomap_output_dir}")
     print("=" * 100 + "\n")
+
+    proteins = result_metadata.get("proteins", [])
+    if len(proteins) == 2:
+        prot_1, prot_2 = proteins[0], proteins[1]
+        new_cols = {
+            "Chain 1": prot_1,
+            "Chain 2": prot_2,
+        }
+        csv_files = [
+            f for f in os.listdir(cocomap_output_dir) if f.endswith(".csv")
+        ]
+        for csv_file in csv_files:
+            csv_path = os.path.join(cocomap_output_dir, csv_file)
+            df = pd.read_csv(csv_path, index_col=0)
+            df = df.rename(columns=new_cols)
+            df.to_csv(csv_path)
+
+    final_csvs = [
+        f for f in os.listdir(cocomap_output_dir)
+        if f.endswith("final_file.csv")
+    ]
+
+    for final_csv in final_csvs:
+        final_csv_path = os.path.join(cocomap_output_dir, final_csv)
+        df = pd.read_csv(final_csv_path, index_col=0)
+        df["Type of Interactions"] = df["Type of Interactions"].str.split("; ")
+        df_exploded = df.explode("Type of Interactions")
+        df_exploded = df_exploded[
+            df_exploded["Type of Interactions"].str.strip() != ""
+        ]
+        df_exploded = df_exploded.drop_duplicates()
+        df_exploded.to_csv(final_csv_path, index=False)
