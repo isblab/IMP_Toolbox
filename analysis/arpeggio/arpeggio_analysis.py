@@ -123,7 +123,7 @@ def get_interactions(
 
 def run_arpeggio_docker(
     docker_base_command: Template,
-    container_path: str,
+    processed_struct_path: str,
     docker_result_dir: str,
     result_head: str,
     result_metadata: dict,
@@ -141,8 +141,8 @@ def run_arpeggio_docker(
         docker_base_command (Template):
             Template for the Docker command to run Arpeggio.
 
-        container_path (str):
-            Path inside the Docker container where input files are located.
+        processed_struct_path (str):
+            Path to the processed structure file on the host machine.
 
         docker_result_dir (str):
             Path on the host machine where Docker results will be stored.
@@ -169,11 +169,11 @@ def run_arpeggio_docker(
         )
         return  # already processed
 
-    processed_struct_path = os.path.join(container_path, f"{result_head}.pdb")
+    processed_struct_path = os.path.abspath(processed_struct_path)
     if not os.path.isfile(processed_struct_path):
         raise Exception(
             f"Processed structure file not found for \
-            {result_head}: {processed_struct_path}. Skipping."
+            {result_head}: {processed_struct_path}."
         )
 
     os.makedirs(path_to_mount, exist_ok=True)
@@ -183,8 +183,8 @@ def run_arpeggio_docker(
 
     docker_command = docker_base_command.substitute(
         path_to_mount=path_to_mount,
-        container_path=container_path,
-        input_pdb_path=processed_struct_path,
+        container_path=os.path.dirname(target_path),
+        input_pdb_path=target_path,
     )
 
     arpeggio_sels = result_metadata.get("selections", [""])
