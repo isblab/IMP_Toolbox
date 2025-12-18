@@ -363,8 +363,20 @@ def add_af_metrics(
                 pae_submatrix = initializer.avg_pae[atom1_idx_list, :][:, atom2_idx_list]
                 pae_values.append(pae_submatrix.mean().item())
 
-            assert len(pae_values) == len(atom1_plddts) == len(atom2_plddts), "Length mismatch in computed AF metrics."
-            df["AF_PAE"] = pae_values
+            contact_prob_values = []
+            if initializer.contact_probs is not None:
+                for atom1_idx_list, atom2_idx_list in zip(atom1_idxs, atom2_idxs):
+                    contact_prob_submatrix_ij = initializer.contact_probs[atom1_idx_list, :][:, atom2_idx_list]
+                    contact_prob_submatrix_ji = initializer.contact_probs[atom2_idx_list, :][:, atom1_idx_list]
+                    contact_prob_value = (
+                        contact_prob_submatrix_ij.mean().item()
+                        + contact_prob_submatrix_ji.mean().item()
+                    ) / 2
+                    contact_prob_values.append(contact_prob_value)
+
+            assert len(pae_values) == len(atom1_plddts) == len(atom2_plddts) == len(contact_prob_values), "Length mismatch in computed AF metrics."
+            df["AF PAE"] = pae_values
+            df["AF Contact Probability"] = contact_prob_values
             df["Atom 1 pLDDT"] = atom1_plddts
             df["Atom 2 pLDDT"] = atom2_plddts
             new_csv_path = os.path.join(
@@ -384,7 +396,8 @@ def add_af_metrics(
                     "Res. Number 2": df_res_2,
                     chains_set_2_prot: df_chains_2,
                     "Type of Interactions": df_type_of_interactions_w_clash,
-                    "AF_PAE": pae_values,
+                    "AF PAE": pae_values,
+                    "AF Contact Probability": contact_prob_values,
                     "Atom 1 pLDDT": atom1_plddts,
                     "Atom 2 pLDDT": atom2_plddts,
                     "Atom 1": atom1_names,
