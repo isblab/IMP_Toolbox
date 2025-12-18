@@ -51,7 +51,7 @@ ATOM_COL_NAMES = {
 }
 
 VALID_INTERACTIONS = {
-    "Clash": "Clash",
+    # "Clash": "Clash", # there is a bug here
     "H-bond": "H-bond",
     "Salt_bridge": "Salt-bridge",
     "SS_bond": "S-S Bond",
