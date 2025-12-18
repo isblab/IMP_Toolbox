@@ -399,8 +399,7 @@ def extract_af3_metrics(
             initializer,
             chain_1,
             res_1,
-            atom_1,
-            atom1_idx
+            atom_1
         )
 
         atom2_plddt, metric_atom2 = get_atom_plddt(
@@ -408,8 +407,7 @@ def extract_af3_metrics(
             initializer,
             chain_2,
             res_2,
-            atom_2,
-            atom2_idx
+            atom_2
         )
 
         metric_atom1_names.append(metric_atom1)
@@ -450,7 +448,6 @@ def get_atom_plddt(
     chain: str,
     res: int,
     atom: str,
-    atom_idx: list,
 ):
     """ Get pLDDT score for a specific atom.
 
@@ -470,9 +467,6 @@ def get_atom_plddt(
 
         atom (str):
             Atom name.
-
-        atom_idx (list):
-            List of atom indices corresponding to the specified atom.
 
     Returns:
         tuple:
@@ -494,39 +488,34 @@ def get_atom_plddt(
         Bio.PDB.Atom.Atom: lambda x: x.get_name(),
     }
 
-    if len(atom_idx) > 1:
-        atom1_plddt = initializer.token_plddts[atom_idx]
-        metric_atom1 = atom
+    orig_res = initializer.renumber.original_chain_res_num(
+        chain_res_num=res,
+        chain_id=chain,
+    )
+    res_obj = initializer.structure[0][chain][orig_res]
+
+    if "-" in atom: # Ring From column has residue as (PHE-125)
+        res1_name = atom.split("-")[0]
+        assert res1_name == res_obj.get_resname(), (
+            f"Residue name mismatch: {res1_name} vs {res_obj.get_resname()}"
+        )
+
+        rep_atom = rep_atom_dict.get(
+            res_obj.get_resname(),
+            StructureParser.get_rep_atom(residue=res_obj)
+        )
+
+        metric_atom1 = metric_dict[type(rep_atom)](rep_atom)
 
     else:
-        orig_res = initializer.renumber.original_chain_res_num(
-            chain_res_num=res,
-            chain_id=chain,
-        )
-        res_obj = initializer.structure[0][chain][orig_res]
+        metric_atom1 = atom
 
-        if "-" in atom: # Ring From column has residue as (PHE-125)
-            res1_name = atom.split("-")[0]
-            assert res1_name == res_obj.get_resname(), (
-                f"Residue name mismatch: {res1_name} vs {res_obj.get_resname()}"
-            )
-
-            rep_atom = rep_atom_dict.get(
-                res_obj.get_resname(),
-                StructureParser.get_rep_atom(residue=res_obj)
-            )
-
-            metric_atom1 = metric_dict[type(rep_atom)](rep_atom)
-
-        else:
-            metric_atom1 = atom
-
-        quants = StructureParser.extract_perresidue_quantities(
-            residue=res_obj,
-            quantities=["plddt"],
-            rep_atom=metric_atom1,
-        )
-        atom1_plddt = quants["plddt"]
+    quants = StructureParser.extract_perresidue_quantities(
+        residue=res_obj,
+        quantities=["plddt"],
+        rep_atom=metric_atom1,
+    )
+    atom1_plddt = quants["plddt"]
 
     return atom1_plddt, metric_atom1
 
