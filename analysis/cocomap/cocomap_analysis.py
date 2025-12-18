@@ -1,3 +1,4 @@
+from math import prod
 import os
 import warnings
 import pandas as pd
@@ -72,21 +73,28 @@ def run_cocomap_docker(
         os.system(f"sudo chown -R $USER:$USER {cocomap_output_dir}")
     print("=" * 100 + "\n")
 
+def postprocess_cocomap_results(
+    result_metadata: dict,
+    docker_result_dir: str,
+    result_head: str,
+):
+    cocomap_output_dir = os.path.join(docker_result_dir, result_head)
+    cocomap_output_dir = os.path.abspath(cocomap_output_dir)
     proteins = result_metadata.get("proteins", [])
-    if len(proteins) == 2:
-        prot_1, prot_2 = proteins[0], proteins[1]
-        new_cols = {
-            "Chain 1": prot_1,
-            "Chain 2": prot_2,
-        }
-        csv_files = [
-            f for f in os.listdir(cocomap_output_dir) if f.endswith(".csv")
-        ]
-        for csv_file in csv_files:
-            csv_path = os.path.join(cocomap_output_dir, csv_file)
-            df = pd.read_csv(csv_path, index_col=0)
-            df = df.rename(columns=new_cols)
-            df.to_csv(csv_path)
+    assert len(proteins) in [0, 2], "proteins must 0 or 2"
+    prot_1, prot_2 = proteins[0], proteins[1]
+    new_cols = {
+        "Chain 1": prot_1,
+        "Chain 2": prot_2,
+    }
+    csv_files = [
+        f for f in os.listdir(cocomap_output_dir) if f.endswith(".csv")
+    ]
+    for csv_file in csv_files:
+        csv_path = os.path.join(cocomap_output_dir, csv_file)
+        df = pd.read_csv(csv_path, index_col=0)
+        df = df.rename(columns=new_cols)
+        df.to_csv(csv_path)
 
     final_csvs = [
         f for f in os.listdir(cocomap_output_dir)
