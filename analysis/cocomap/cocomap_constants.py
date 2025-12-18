@@ -34,7 +34,6 @@ TEMPLATE_CONFIG = {
 ATOM_COL_NAMES = {
     "H-bond": ["Atom 1", "Atom 2"],
     "Salt_bridge": ["Atom 1", "Atom 2"],
-    # "Clash": ["Atom 1", "Atom 2"],
     "SS_bond": ["Atom 1", "Atom 2"],
     "C-H_ON": ["Atom 1", "Atom 2"],
     "Polar_vdw": ["Atom 1", "Atom 2"],
@@ -43,12 +42,12 @@ ATOM_COL_NAMES = {
     "Proximal": ["Atom 1", "Atom 2"],
     # "Metal_Mediated": ["Atom 1", "Atom 2", "Metal Identity"], # Not implemented
     # "Water_Mediated": ["Atom 1", "Atom 2", "Water Identity"], # Not implemented
-    "Lone_pair_pi": ["Lone_pair Atom","Ring From", "Lone_pair From"], # not tested
-    "Cation_pi": ["Cation Atom", "Cation From", "Ring From"], # not tested
-    "Anion_pi": ["Anion Atom", "Anion From", "Ring From"], # not tested
-    "Amino_pi": ["Polar Atom", "Polar From", "Ring From"], # not tested
-    "N-S-O-H_pi": ["C Atom", "C Atom From", "Ring From"], # not tested
-    "C-H_pi": ["C Atom", "C Atom From", "Ring From"], # not tested
+    "Lone_pair_pi": ["Lone_pair Atom","Ring From", "Lone_pair From"],
+    "Cation_pi": ["Cation Atom", "Cation From", "Ring From"],
+    "Anion_pi": ["Anion Atom", "Anion From", "Ring From"],
+    "Amino_pi": ["Polar Atom", "Polar From", "Ring From"],
+    "N-S-O-H_pi": ["C Atom", "C Atom From", "Ring From"],
+    "C-H_pi": ["C Atom", "C Atom From", "Ring From"],
 }
 
 VALID_INTERACTIONS = {
