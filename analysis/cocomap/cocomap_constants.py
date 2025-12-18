@@ -30,3 +30,44 @@ TEMPLATE_CONFIG = {
     "NSOH_PI_THETA1": 120,
     "NSOH_PI_THETA2": 30
 }
+
+ATOM_COL_NAMES = {
+    "H-bond": ["Atom 1", "Atom 2"],
+    "Salt_bridge": ["Atom 1", "Atom 2"],
+    # "Clash": ["Atom 1", "Atom 2"],
+    "SS_bond": ["Atom 1", "Atom 2"],
+    "C-H_ON": ["Atom 1", "Atom 2"],
+    "Polar_vdw": ["Atom 1", "Atom 2"],
+    "Apolar_vdw": ["Atom 1", "Atom 2"],
+    "Halogen_bond": ["Atom 1", "Atom 2"],
+    "Proximal": ["Atom 1", "Atom 2"],
+    # "Metal_Mediated": ["Atom 1", "Atom 2", "Metal Identity"], # Not implemented
+    # "Water_Mediated": ["Atom 1", "Atom 2", "Water Identity"], # Not implemented
+    "Lone_pair_pi": ["Lone_pair Atom","Ring From", "Lone_pair From"], # not tested
+    "Cation_pi": ["Cation Atom", "Cation From", "Ring From"], # not tested
+    "Anion_pi": ["Anion Atom", "Anion From", "Ring From"], # not tested
+    "Amino_pi": ["Polar Atom", "Polar From", "Ring From"], # not tested
+    "N-S-O-H_pi": ["C Atom", "C Atom From", "Ring From"], # not tested
+    "C-H_pi": ["C Atom", "C Atom From", "Ring From"], # not tested
+}
+
+VALID_INTERACTIONS = {
+    "Clash": "Clash",
+    "H-bond": "H-bond",
+    "Salt_bridge": "Salt-bridge",
+    "SS_bond": "S-S Bond",
+    "C-H_ON": "CH-O/N bond",
+    "Polar_vdw": "Polar vdW contact",
+    "Apolar_vdw": "Apolar vdW contact",
+    "Halogen_bond": "Halogen bond",
+    "Proximal": "Proximal contact",
+    # "Metal_Mediated": "Metal mediated contact", # not implemented
+    # "Water_Mediated": "Water mediated contact", # not implemented
+    "Lone_pair_pi": "lp-π interaction",
+    "Cation_pi": "Cation-π interaction",
+    "Anion_pi": "Anion-π interaction",
+    "Amino_pi": "Amino-π interaction",
+    "N-S-O-H_pi": "O/N/SH-π interaction",
+    "C-H_pi": "CH-π interaction",
+    "pi-pi": "π-π interaction",
+}
