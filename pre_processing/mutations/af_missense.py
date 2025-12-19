@@ -6,21 +6,188 @@ import pandas as pd
 from io import StringIO
 from pprint import pprint
 from IMP_Toolbox.pre_processing.sequence.Sequence import FetchSequences
-# from cardiac_desmosome.utils.where_is_it import WhereIsIt
-# from cardiac_desmosome.constants.input_constants import ConfigYaml
 from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_fasta
 from IMP_Toolbox.utils_imp_toolbox.special_helpers import handle_pairwise_alignment
 from IMP_Toolbox.utils_imp_toolbox.obj_helpers import fasta_str_to_dict
 from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
     split_missense_mutation,
-    get_af_missense_data,
+)
+from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
+    request_session,
 )
 from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
     AMINO_ACID_MAP,
     AFM_PATHOGENICITY,
     API_URLS,
+    AF_MISSENSE_CSV_SUFFIX,
+    AF_MISSENSE_PAIR_ALN_SUFFIX,
+    AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
 )
 
+def get_af_missense_data(
+    uniprot_id: str,
+    api_url: str,
+    api_parameters: dict = {},
+    return_type: str = "csv",
+    ignore_error: bool = False,
+    max_retries: int = 3,
+):
+    """ Fetch alpha missense variants for a given Uniprot ID from the
+    AlphaMissense database.
+
+    Args:
+        uniprot_id (str): Valid Uniprot ID to fetch variants for.
+        ignore_error (bool, optional): Defaults to False.
+        max_retries (int, optional): Defaults to 3.
+
+    Returns:
+        list: List of alpha missense variants for the given Uniprot ID if found
+    """
+
+    for key, value in api_parameters.items():
+        api_url = api_url.replace(key, value)
+
+    req_sess = request_session(max_retries=max_retries)
+    response = req_sess.get(api_url)
+
+    if response.status_code == 200:
+
+        if return_type == "json":
+            return response.json()
+
+        elif return_type == "csv":
+            return response.text
+
+        else:
+            raise ValueError(f"Invalid return type: {return_type}")
+
+    elif ignore_error:
+        return None
+
+    else:
+        raise ValueError(
+            f"""Error fetching AlphaMissense data for {uniprot_id}
+            {response.status_code}: {response.text}
+            """
+        )
+
+def get_af_missense_data_offline(
+    uniprot_ids: list,
+):
+    try:
+        import duckdb
+    except ImportError:
+        raise ImportError(
+            "duckdb is required for offline AlphaMissense data retrieval. "
+            "Please install it via"
+            "'pip install duckdb' or 'conda install -c conda-forge duckdb'."
+        )
+
+    assert os.path.exists(AF_MISSENSE_AA_SUBSTITUTIONS_TSV), (
+        f"AlphaMissense aa substitutions TSV file not found at "
+        f"{AF_MISSENSE_AA_SUBSTITUTIONS_TSV}."
+    )
+
+    uniprot_ids = list(set(uniprot_ids))
+    uids_df = pd.DataFrame({"uniprot_id": uniprot_ids})
+    query = f"""
+    SELECT t.*
+    FROM '{AF_MISSENSE_AA_SUBSTITUTIONS_TSV}' t
+    JOIN uids_df u USING (uniprot_id)
+    """
+
+    result_df = duckdb.sql(query).fetchdf()
+
+    # split into multiple dataframes per uniprot id
+    result_dfs = {}
+    for uid in uniprot_ids:
+        result_dfs[uid] = result_df[result_df["uniprot_id"] == uid].copy()
+
+    return result_dfs
+
+def fetch_af_missense_data(
+    alpha_missense_dir: str,
+    uniprot_bases: list,
+    mode: str = "online",
+    overwrite: bool = False,
+):
+    """ Fetch AlphaMissense data for a list of UniProt IDs.
+
+    Args:
+
+        alpha_missense_dir (str):
+            Directory to save AlphaMissense CSV files.
+
+        uniprot_bases (list):
+            List of UniProt base IDs (without isoform suffix).
+
+        mode (str, optional):
+            Mode to fetch data: 'online' or 'offline'.
+
+        overwrite (bool, optional):
+            Whether to overwrite existing files. Defaults to False.
+
+    Yields:
+        tuple:
+            pd.DataFrame: AlphaMissense dataframe for the UniProt ID.
+            str: UniProt base ID.
+    """
+
+    remainder_bases = []
+    os.makedirs(alpha_missense_dir, exist_ok=True)
+
+    for uniprot_base in uniprot_bases:
+
+        af_missense_file = os.path.join(
+            alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+        )
+
+        if os.path.exists(af_missense_file):
+            print(f"File {af_missense_file} already exists. Skipping...")
+            af_missense_df = pd.read_csv(af_missense_file)
+        else:
+            remainder_bases.append(uniprot_base)
+
+    remainder_bases = uniprot_bases if overwrite else remainder_bases
+
+    if len(remainder_bases) == 0:
+        print("All AlphaMissense data files already exist. Nothing to fetch.")
+        return
+
+    if mode == "online":
+
+        for uniprot_base in sorted(remainder_bases):
+
+            try:
+                af_missense_csv = get_af_missense_data(
+                    uniprot_base,
+                    api_url=API_URLS["af_missense_csv"],
+                    api_parameters={"uniprot_id": uniprot_base},
+                    return_type="csv",
+                    ignore_error=False,
+                )
+                af_missense_df = pd.read_csv(StringIO(af_missense_csv))
+                remainder_bases.remove(uniprot_base)
+
+                yield af_missense_df, uniprot_base
+
+            except Exception as e:
+                warnings.warn(
+                    f"""Error fetching AlphaMissense data for {uniprot_base}:
+                    {e}"""
+                )
+                yield pd.DataFrame(), uniprot_base
+
+    if mode == "offline":
+
+        af_missense_dfs = get_af_missense_data_offline(
+            uniprot_ids=remainder_bases,
+        )
+
+        for uniprot_base in remainder_bases:
+            af_missense_df = af_missense_dfs.get(uniprot_base, pd.DataFrame())
+
+            yield af_missense_df, uniprot_base
 
 def af_missense_df_to_dict(
     p_name: str,
@@ -105,60 +272,8 @@ def af_missense_df_to_dict(
 
     return af_missense_dict
 
-if __name__ == "__main__":
+def get_fasta_dict_for_af_missense(protein_uniprot_map):
 
-    # where_is_it = WhereIsIt()
-
-    # config_file = where_is_it.config_file
-    # odp_sequences_fasta = where_is_it.sequences.odp_sequences_fasta
-
-    # # config_file = "/home/omkar/Projects/wnt2/config.yaml"
-    # # odp_sequences_fasta = "/home/omkar/Projects/wnt2/sequences.fasta"
-
-    # pairwise_alignments_dir = where_is_it.alignments.pairwise_alignments_dir
-    # alpha_missense_dir = where_is_it.literature_parsing.alpha_missense_dir
-
-    # config_yaml = yaml.load(open(config_file, "r"), Loader=yaml.FullLoader)
-
-    # # protein_uniprot_map = config_yaml["protein_uniprot_map"]
-    # protein_uniprot_map = config_yaml[ConfigYaml.cardiac_p_to_u]
-
-    parser = argparse.ArgumentParser(
-        description="Fetch and save UniProt variants for cardiac ODP proteins."
-    )
-
-    parser.add_argument(
-        "--config_file",
-        type=str,
-        # default=WhereIsIt().config_file,
-        help="Path to configuration YAML file.",
-    )
-
-    parser.add_argument(
-        "--alpha_missense_dir",
-        type=str,
-        # default=alpha_missense_dir,
-        help="Directory to save AlphaMissense variant CSV files.",
-    )
-    parser.add_argument(
-        "--pairwise_alignments_dir",
-        type=str,
-        # default=pairwise_alignments_dir,
-        help="Directory to save pairwise alignment files.",
-    )
-    parser.add_argument(
-        "--odp_sequences_fasta",
-        type=str,
-        # default=odp_sequences_fasta,
-        help="FASTA file containing modeled protein sequences.",
-    )
-
-    args = parser.parse_args()
-
-    config_yaml = yaml.load(open(args.config_file, "r"), Loader=yaml.FullLoader)
-    protein_uniprot_map = config_yaml["protein_uniprot_map"]
-
-    odp_sequences = read_fasta(args.odp_sequences_fasta)
     # For AF-missense, the reference sequence is the Uniprot sequence
     # for non-isoform-specific uniprot ids
     uniprot_ids = list(protein_uniprot_map.values())
@@ -168,68 +283,116 @@ if __name__ == "__main__":
     fasta_str = fetchit.only_uniprot_id_as_name(fasta_str)
     fasta_dict = fasta_str_to_dict(fasta_str)
 
-    af_missense_dict = {}
-    for p_name, uniprot_id in protein_uniprot_map.items():
+    return fasta_dict
 
-        print(f"\nProcessing {p_name} ({uniprot_id})...")
+if __name__ == "__main__":
 
-        modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)
-        if modeled_seq is None:
-            warnings.warn(
-                f"""
-                Modeled sequence not found for {p_name} ({uniprot_id}). Got:
-                {modeled_seq=}
+    parser = argparse.ArgumentParser(
+        description="Fetch and save Alpha-Missense variants."
+    )
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        default="/home/omkar/Projects/cardiac_desmosome/input/config.yaml",
+        help="Path to configuration YAML file.",
+    )
+    parser.add_argument(
+        "--alpha_missense_dir",
+        type=str,
+        default="/home/omkar/Projects/cardiac_desmosome/data/literature_parsing/mutations/alpha_missense",
+        help="Directory to save AlphaMissense variant CSV files.",
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="offline",
+        help="Mode to fetch AlphaMissense data: 'online' or 'offline'.",
+    )
+    # parser.add_argument(
+    #     "--pairwise_alignments_dir",
+    #     type=str,
+    #     default="/home/omkar/Projects/cardiac_desmosome/data/sequence_alignments/pairwise_alignments",
+    #     help="Directory to save pairwise alignment files.",
+    # )
+    # parser.add_argument(
+    #     "--odp_sequences_fasta",
+    #     type=str,
+    #     default="/home/omkar/Projects/cardiac_desmosome/data/sequences/odp_protein_sequences.fasta",
+    #     help="FASTA file containing modeled protein sequences.",
+    # )
 
-                Skipping...
-                """
-            )
+    args = parser.parse_args()
+
+    config_yaml = yaml.load(open(args.config_file, "r"), Loader=yaml.FullLoader)
+    protein_uniprot_map = config_yaml["cardiac_odp_protein_uniprot_map"]
+    uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
+
+    af_missense_df_gen = fetch_af_missense_data(
+        args.alpha_missense_dir,
+        uniprot_bases,
+        mode="offline"
+    )
+
+    for af_missense_df, uniprot_base in af_missense_df_gen:
+
+        if af_missense_df.empty:
+            print(f"No AlphaMissense data found for {uniprot_base}. Skipping...")
             continue
+
+        af_missense_file = os.path.join(
+            args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+        )
+        af_missense_df.to_csv(af_missense_file, index=False)
+
+        print(f"Saved AlphaMissense variants to {af_missense_file}")
+
+    # afm_fasta_dict = get_fasta_dict_for_af_missense(protein_uniprot_map)
+    # odp_sequences = read_fasta(args.odp_sequences_fasta)
+    # af_missense_dict = {}
+    # for p_name, uniprot_id in protein_uniprot_map.items():
+
+    #     print(f"\nProcessing {p_name} ({uniprot_id})...")
+
+    #     modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)
+    #     if modeled_seq is None:
+    #         warnings.warn(
+    #             f"""
+    #             Modeled sequence not found for {p_name} ({uniprot_id}). Got:
+    #             {modeled_seq=}
+
+    #             Skipping...
+    #             """
+    #         )
+    #         continue
 
     ###########################################################################
     # Get AlphaMissense scores for variants in the protein
     ###########################################################################
 
-        af_missense_file = os.path.join(
-            args.alpha_missense_dir, f"{p_name}_alpha_missense_variants.csv"
-        )
-        afm_pairwise_alignment_file = os.path.join(
-            args.pairwise_alignments_dir, f"{p_name}_afm_vs_modeled.fasta"
-        )
 
-        af_missense_ref_seq = fasta_dict.get(uniprot_id.split("-")[0], None)
+        # afm_pairwise_alignment_file = os.path.join(
+        #     args.pairwise_alignments_dir, f"{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta"
+        # )
+        # uniprot_base = uniprot_id.split("-")[0]
 
-        if af_missense_ref_seq is None:
-            warnings.warn(
-                f"""
-                Reference sequence not found for {p_name}. Got:
-                {af_missense_ref_seq=}
+        # af_missense_ref_seq = afm_fasta_dict.get(uniprot_base, None)
 
-                Skipping...
-                """
-            )
-            continue
+        # if af_missense_ref_seq is None:
+        #     warnings.warn(
+        #         f"""
+        #         Reference sequence not found for {p_name}. Got:
+        #         {af_missense_ref_seq=}
+
+        #         Skipping...
+        #         """
+        #     )
+        #     continue
 
         # won't align if sequences are identical
-        afm_psa_map = handle_pairwise_alignment(
-            p_name=p_name,
-            sseq=af_missense_ref_seq,
-            qseq=modeled_seq,
-            pairwise_alignment_file=afm_pairwise_alignment_file,
-            ignore_warnings=True
-        )
-
-        if os.path.exists(af_missense_file):
-            print(f"File {af_missense_file} already exists. Skipping...")
-            af_missense_df = pd.read_csv(af_missense_file)
-
-        else:
-            af_missense_csv = get_af_missense_data(
-                uniprot_id,
-                api_url=API_URLS["af_missense_csv"],
-                api_parameters={"uniprot_id": uniprot_id.split("-")[0]},
-                return_type="csv",
-                ignore_error=False
-            )
-            af_missense_df = pd.read_csv(StringIO(af_missense_csv))
-            af_missense_df.to_csv(af_missense_file, index=False)
-            print(f"Saved AlphaMissense variants to {af_missense_file}")
+        # afm_psa_map = handle_pairwise_alignment(
+        #     p_name=p_name,
+        #     sseq=af_missense_ref_seq,
+        #     qseq=modeled_seq,
+        #     pairwise_alignment_file=afm_pairwise_alignment_file,
+        #     ignore_warnings=True
+        # )

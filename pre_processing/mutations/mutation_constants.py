@@ -44,7 +44,6 @@ AFM_PATHOGENICITY = {
 # 0.34 to 0.564: uncertain
 # 0.564 to 1: likely pathogenic
 
-
 CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE = [
     "Pathogenic",
     "Likely pathogenic",
@@ -100,7 +99,8 @@ UNIPROT_PUBMED_TO_IGNORE = [
 API_URLS = {
     "uniprot_variant": "https://www.ebi.ac.uk/proteins/api/variation/uniprot_id",
     "af_missense_csv": "https://alphafold.ebi.ac.uk/files/AF-uniprot_id-F1-aa-substitutions.csv",
-    "af_missense_json": "https://alphafold.ebi.ac.uk/api/annotations/uniprot_id.json?type=MUTAGEN",
+    # "af_missense_json": "https://alphafold.ebi.ac.uk/api/annotations/uniprot_id.json?type=MUTAGEN",
+    "af_missense_res": "https://alphamissense.hegelab.org/hotspotapi?uid=uniprot_id&resi=res_num",
     "ncbi_esearch": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?",
     "ncbi_efetch": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?",
     "lovd_variant_json": "https://databases.lovd.nl/shared/api/rest.php/variants/gene_name?format=application/json",
@@ -176,3 +176,9 @@ ARVC_REF_SEQUENCE_IDS = {
     "DSC2": "NM_024422.6",
     "JUP": "NM_021991.4",
 }
+
+AF_MISSENSE_CSV_SUFFIX = "_alpha_missense_variants"
+AF_MISSENSE_PAIR_ALN_SUFFIX = "_afm_vs_modeled"
+
+AF_MISSENSE_AA_SUBSTITUTIONS_TSV = "/data/omkar/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
+# AF_MISSENSE_ISOFORMS_AA_SUBSTITUTIONS_TSV = "/data/omkar/Projects/IMP_Toolbox/AlphaMissense_isoforms_aa_substitutions.tsv.gz"
