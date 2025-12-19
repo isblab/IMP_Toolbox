@@ -203,3 +203,32 @@ def get_duplicate_indices(
             duplicate_indices[res] = (indices[0], indices[-1])
 
         return duplicate_indices
+
+def fasta_str_to_dict(fasta_str):
+    """ Convert a FASTA string to a dictionary of sequences.
+
+    Args:
+        fasta_str (str): FASTA string
+
+    Returns:
+        dict: Dictionary of sequences.
+
+    Example:
+    >>> fasta_str = '''>seq1
+    ... ABCD
+    ... >seq2
+    ... ABCD'''
+
+    >>> fasta_str_to_dict(fasta_str)
+    {'seq1': 'ABCD', 'seq2': 'ABCD'}
+    """
+
+    fasta_str = fasta_str.splitlines()
+    fasta_dict = {}
+    for i, line in enumerate(fasta_str):
+        if line.startswith(">"):
+            seq_name = line[1:].strip()
+            fasta_dict[seq_name] = ""
+        else:
+            fasta_dict[seq_name] += line.strip()
+    return fasta_dict

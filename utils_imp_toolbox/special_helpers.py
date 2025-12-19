@@ -1,4 +1,5 @@
 from collections import defaultdict
+import os
 from Bio.PDB import Select
 import Bio
 import Bio.PDB
@@ -11,7 +12,30 @@ from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key,
 )
+from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_fasta
+import importlib.util
+import sys
+import getpass
 
+_user = getpass.getuser()
+
+# Define the full path to your module file
+psa_path = f"/home/{_user}/anaconda3/lib/python3.12/site-packages/psa.py"
+module_name = 'pairwise_seq_aln'  # This name will be used to refer to the module
+
+# Create a module specification
+spec = importlib.util.spec_from_file_location(
+    module_name, psa_path, submodule_search_locations=[psa_path]
+)
+
+# Create a new module object based on the spec
+pairwise_seq_aln = importlib.util.module_from_spec(spec)
+
+# Add the module to sys.modules to make it available for future imports
+sys.modules[module_name] = pairwise_seq_aln
+
+# Execute the module's code in its own namespace
+spec.loader.exec_module(pairwise_seq_aln)
 
 def update_config(
     input_file: str,
@@ -622,3 +646,143 @@ class MatrixPatches:
         return row[colname_1].issubset(other_row[colname_1]) and row[
             colname_2
         ].issubset(other_row[colname_2])
+
+
+def pairwise_alignment_map(
+    pairwise_alignment_file:str,
+    include_gaps: bool=False,
+    include_aligned_seq: bool=False,
+) -> dict:
+    """ Given a pairwise alignment, return one-one map of aligned residues.
+
+    Args:
+        pairwise_alignment_file (str): path to the pairwise alignment file
+        include_gaps (bool, optional): Whether to include gaps in the numbering
+        include_aligned_seq (bool, optional): Whether to return the aligned sequences
+
+    Note:
+        `include_gaps` has the following effect:
+        - If `True`, gaps in either sequence will be counted in the numbering.
+        - e.g. Alignment:
+            Q: ABCDE
+            S: A-BCD
+            mapping will be: {1:1, 2:1, 3:2, 4:3, 5:4}
+        - If `False`, gaps will be ignored in the numbering.
+        - e.g. Alignment:
+            Q: ABCDE
+            S: A-BCD
+            mapping will be: {1:1, 3:2, 4:3, 5:4}
+
+    Returns:
+        dict: mapping of codon numbers to residue numbers
+    """
+
+    pairwise_alignment = read_fasta(pairwise_alignment_file)
+
+    if len(pairwise_alignment) != 2:
+        raise ValueError(
+            f"""
+            Expected 2 sequences in the pairwise alignment file,
+            found {len(pairwise_alignment)}.
+            """
+        )
+
+    pairwise_alignment_dict = {}
+    qseq_rescount, sseq_rescount = 1, 1
+    qseq, sseq = list(pairwise_alignment.values())
+
+    for aligned_res in zip(qseq, sseq):
+
+        if include_gaps:
+            pairwise_alignment_dict[qseq_rescount] = sseq_rescount
+
+        if aligned_res[1] != "-" and aligned_res[0] != "-":
+
+            if not include_gaps:
+                pairwise_alignment_dict[qseq_rescount] = sseq_rescount
+
+            qseq_rescount += 1
+            sseq_rescount += 1
+
+        elif aligned_res[1] != "-":
+            qseq_rescount += 1
+
+        elif aligned_res[0] != "-":
+            sseq_rescount += 1
+
+    if include_aligned_seq:
+        return pairwise_alignment_dict, qseq, sseq
+    else:
+        return pairwise_alignment_dict
+
+def handle_pairwise_alignment(
+    p_name: str,
+    sseq: str,
+    qseq: str,
+    pairwise_alignment_file: str,
+    alignment_program: str = "stretcher",
+    ignore_warnings: bool = False,
+    include_identical: bool = False,
+    include_gaps: bool = False,
+    include_aligned_seq: bool = False,
+):
+    """ Handle pairwise alignment between two sequences and return the mapping.
+
+    Args:
+        p_name (str): Protein name
+        sseq (str): Subject sequence
+        qseq (str): Query sequence
+        pairwise_alignments_dir (str): Directory to save pairwise alignments
+
+    Returns:
+        dict: Mapping of codon to residue number
+    """
+
+    # no need to align if sequences are identical
+    if sseq == qseq and not include_identical:
+        psa_map = {}
+
+    else:
+        os.makedirs(os.path.dirname(pairwise_alignment_file),exist_ok=True)
+
+        if not os.path.exists(pairwise_alignment_file):
+
+            pairwise_alignment = pairwise_seq_aln.align(
+                program=alignment_program,
+                moltype="prot",
+                qseq=qseq,
+                sseq=sseq,
+            )
+
+            with open(pairwise_alignment_file, "w") as f:
+                f.write(pairwise_alignment.fasta())
+            print(f"Pairwise alignment saved to {pairwise_alignment_file}")
+
+        psa_output = pairwise_alignment_map(
+            pairwise_alignment_file,
+            include_gaps=include_gaps,
+            include_aligned_seq=include_aligned_seq,
+        )
+
+        aligned_qseq = None
+        aligned_sseq = None
+
+        if include_aligned_seq:
+            psa_map, aligned_qseq, aligned_sseq = psa_output
+        else:
+            psa_map = psa_output
+
+        # warn if sequences not identical
+        if not ignore_warnings:
+            warnings.warn(
+                f"""
+                Sequences not identical for {p_name}. Cross-check the pairwise alignment.\n
+                Pairwise alignment for {p_name}:\n{pairwise_alignment.raw}\n
+                """
+            )
+            # print(f"Codon to residue map: {psa_map}")
+
+    if include_aligned_seq:
+        return psa_map, aligned_qseq, aligned_sseq
+    else:
+        return psa_map
