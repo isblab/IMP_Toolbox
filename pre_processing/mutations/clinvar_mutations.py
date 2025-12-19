@@ -1,13 +1,19 @@
 import os
+import xmltodict
 import yaml
 import pprint
 import warnings
 import argparse
 import pandas as pd
+from tqdm import tqdm
 from io import StringIO
 from datetime import datetime
+import xml.etree.ElementTree as ET
 from IMP_Toolbox.pre_processing.sequence.Sequence import FetchSequences
-# from cardiac_desmosome.utils.where_is_it import WhereIsIt
+from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
+    request_session,
+    request_result,
+)
 from IMP_Toolbox.utils_imp_toolbox.file_helpers import (
     read_fasta,
     read_json,
@@ -17,9 +23,6 @@ from IMP_Toolbox.utils_imp_toolbox.special_helpers import handle_pairwise_alignm
 from IMP_Toolbox.utils_imp_toolbox.obj_helpers import fasta_str_to_dict
 from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
     split_missense_mutation,
-    get_af_missense_data,
-    get_variant_ids_from_clinvar,
-    get_variant_details_from_clinvar,
     is_missense_mutation,
     get_ncbi_ref_seq,
 )
@@ -29,8 +32,116 @@ from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
     API_URLS,
 )
 from IMP_Toolbox.pre_processing.mutations.af_missense import (
-    af_missense_df_to_dict
+    af_missense_df_to_dict,
+    get_af_missense_data,
 )
+
+def get_variant_ids_from_clinvar(
+    gene_name:str,
+    api_url: str,
+    api_parameters: dict = {},
+    ignore_error: bool = False,
+    max_retries: int = 3,
+) -> list:
+    """ Fetch variant IDs from ClinVar for a given gene name.
+
+    Args:
+        gene_name (str): The gene name to search for.
+
+    Returns:
+        list: List of ClinVar variant IDs.
+    """
+
+    req_sess = request_session(max_retries=max_retries)
+    response = req_sess.get(api_url, params=api_parameters)
+    result = request_result(response, gene_name)
+
+    if result is None:
+        # try without returnmode
+        api_parameters.pop("retmode")
+        response = req_sess.get(api_url, params=api_parameters)
+
+        if response.status_code == 200:
+            result = response.text
+
+        elif ignore_error:
+            return []
+
+        else:
+            raise ValueError(
+                f"""Error fetching variant ids for {gene_name}
+                {response.status_code}: {response.text}
+                """
+            )
+
+    if isinstance(result, str):
+        # parse xml
+        root = ET.fromstring(result)
+        id_list = root.find("IdList")
+
+        if id_list is None:
+            return []
+
+        ids = [id_elem.text for id_elem in id_list.findall("Id")]
+
+        return ids
+
+    elif isinstance(result, dict):
+        return result.get("esearchresult", {}).get("idlist", [])
+
+    return []
+
+def get_variant_details_from_clinvar(
+    variant_ids:list,
+    api_url: str,
+    api_parameters: dict = {},
+    ignore_error: bool = False,
+    max_retries: int = 3,
+) -> dict:
+    """ Fetch variant details from ClinVar for a list of variant IDs.
+    Note: If you parallelize it, make sure to not exceed API's rate limits.
+    We get info in XML format from the API, which we convert and store as JSON.
+
+    Args:
+        variant_ids (list): List of ClinVar variant IDs.
+
+    Returns:
+        dict: Dictionary with variant IDs as keys and their details as values.
+    """
+
+    variant_id_batches = [
+        variant_ids[i:i + 100] for i in range(0, len(variant_ids), 100)
+    ]
+
+    variant_info_dict = {}
+
+    for idx, batch in enumerate(tqdm(variant_id_batches)):
+
+        api_parameters["id"] = ",".join(batch)
+
+        req_sess = request_session(max_retries=max_retries)
+        response = req_sess.get(api_url, params=api_parameters)
+
+        if response.status_code == 200:
+            result = response.text
+        else:
+            if ignore_error:
+                return {}
+            else:
+                raise ValueError(f"Error fetching variant details for batch {idx}")
+
+        root = ET.fromstring(result)
+        variation_info = root.findall("VariationArchive")
+        variant_ids = [
+            var_id_elem.get("VariationID") for var_id_elem in variation_info
+        ]
+
+        for idx, variation_id in enumerate(variant_ids):
+            variant_info_dict[variation_id] = xmltodict.parse(
+                ET.tostring(variation_info[idx])
+            )
+
+    return variant_info_dict
 
 def get_molecular_consequence_list(
     hgvs_list: dict,
@@ -297,6 +408,13 @@ if __name__ == "__main__":
         description="Fetch missense variants from ClinVar."
     )
     parser.add_argument(
+        "--config_file",
+        type=str,
+        default="/home/omkar/Projects/cardiac_desmosome/input/config.yaml",
+        # default=config_file,
+        help="Path to the configuration YAML file.",
+    )
+    parser.add_argument(
         "--include_VUS",
         action="store_true",
         default=False,
@@ -305,38 +423,42 @@ if __name__ == "__main__":
     parser.add_argument(
         "--clinvar_output_dir",
         type=str,
+        default="/home/omkar/Projects/cardiac_desmosome/data/literature_parsing/mutations/clinvar",
         # default=clinvar_output_dir,
         help="Directory to save ClinVar variant information.",
     )
     parser.add_argument(
         "--alpha_missense_dir",
         type=str,
+        default="/home/omkar/Projects/cardiac_desmosome/data/literature_parsing/mutations/alpha_missense",
         # default=alpha_missense_dir,
         help="Directory to save AlphaMissense variant information.",
     )
     parser.add_argument(
         "--pairwise_alignments_dir",
         type=str,
+        default="/home/omkar/Projects/cardiac_desmosome/data/sequence_alignments/pairwise_alignments",
         # default=pairwise_alignments_dir,
         help="Directory to save pairwise alignments.",
     )
-    parser.add_argument(
-        "--include_AF_missense",
-        action="store_true",
-        default=False,
-        help="Include AlphaMissense pathogenicity scores.",
-    )
+    # parser.add_argument(
+    #     "--include_AF_missense",
+    #     action="store_true",
+    #     default=False,
+    #     help="Include AlphaMissense pathogenicity scores.",
+    # )
     parser.add_argument(
         "--odp_sequences_fasta",
         type=str,
+        default="/home/omkar/Projects/cardiac_desmosome/data/sequences/odp_protein_sequences.fasta",
         # default=odp_sequences_fasta,
         help="Fasta file containing modeled protein sequences.",
     )
     args = parser.parse_args()
 
     config_yaml = yaml.load(open(args.config_file, "r"), Loader=yaml.FullLoader)
-    protein_uniprot_map = config_yaml["protein_uniprot_map"]
-    protein_gene_map = {k: k for k in protein_uniprot_map.keys()}
+    protein_uniprot_map = config_yaml["cardiac_odp_protein_uniprot_map"]
+    protein_gene_map = {k: k.upper() for k in protein_uniprot_map.keys()}
 
     if args.include_VUS:
         CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE.append("Uncertain significance")
@@ -381,59 +503,59 @@ if __name__ == "__main__":
         #######################################################################
         # Get AlphaMissense scores for variants in the protein
         #######################################################################
-        if args.include_AF_missense:
+        # if args.include_AF_missense:
 
-            af_missense_file = os.path.join(
-                args.alpha_missense_dir, f"{p_name}_alpha_missense_variants.csv"
-            )
-            afm_pairwise_alignment_file = os.path.join(
-                args.pairwise_alignments_dir, f"{p_name}_afm_vs_modeled.fasta"
-            )
+        #     af_missense_file = os.path.join(
+        #         args.alpha_missense_dir, f"{p_name}_alpha_missense_variants.csv"
+        #     )
+        #     afm_pairwise_alignment_file = os.path.join(
+        #         args.pairwise_alignments_dir, f"{p_name}_afm_vs_modeled.fasta"
+        #     )
 
-            af_missense_ref_seq = fasta_dict.get(uniprot_id.split("-")[0], None)
+        #     af_missense_ref_seq = fasta_dict.get(uniprot_id.split("-")[0], None)
 
-            if af_missense_ref_seq is None:
-                warnings.warn(
-                    f"""
-                    Reference sequence not found for {p_name}. Got:
-                    {af_missense_ref_seq=}
+        #     if af_missense_ref_seq is None:
+        #         warnings.warn(
+        #             f"""
+        #             Reference sequence not found for {p_name}. Got:
+        #             {af_missense_ref_seq=}
 
-                    Skipping...
-                    """
-                )
-                continue
+        #             Skipping...
+        #             """
+        #         )
+        #         continue
 
-            # won't align if sequences are identical
-            afm_psa_map = handle_pairwise_alignment(
-                p_name=p_name,
-                sseq=af_missense_ref_seq,
-                qseq=modeled_seq,
-                pairwise_alignment_file=afm_pairwise_alignment_file,
-                ignore_warnings=True
-            )
+        #     # won't align if sequences are identical
+        #     afm_psa_map = handle_pairwise_alignment(
+        #         p_name=p_name,
+        #         sseq=af_missense_ref_seq,
+        #         qseq=modeled_seq,
+        #         pairwise_alignment_file=afm_pairwise_alignment_file,
+        #         ignore_warnings=True
+        #     )
 
-            if os.path.exists(af_missense_file):
-                print(f"File {af_missense_file} already exists. Skipping...")
-                af_missense_df = pd.read_csv(af_missense_file)
+        #     if os.path.exists(af_missense_file):
+        #         print(f"File {af_missense_file} already exists. Skipping...")
+        #         af_missense_df = pd.read_csv(af_missense_file)
 
-            else:
-                af_missense_csv = get_af_missense_data(
-                    uniprot_id,
-                    api_url=API_URLS["af_missense_csv"],
-                    api_parameters={"uniprot_id": uniprot_id.split("-")[0]},
-                    return_type="csv",
-                    ignore_error=False
-                )
-                af_missense_df = pd.read_csv(StringIO(af_missense_csv))
-                af_missense_df.to_csv(af_missense_file, index=False)
-                print(f"Saved AlphaMissense variants to {af_missense_file}")
+        #     else:
+        #         af_missense_csv = get_af_missense_data(
+        #             uniprot_id,
+        #             api_url=API_URLS["af_missense_csv"],
+        #             api_parameters={"uniprot_id": uniprot_id.split("-")[0]},
+        #             return_type="csv",
+        #             ignore_error=False
+        #         )
+        #         af_missense_df = pd.read_csv(StringIO(af_missense_csv))
+        #         af_missense_df.to_csv(af_missense_file, index=False)
+        #         print(f"Saved AlphaMissense variants to {af_missense_file}")
 
-            af_missense_dict = af_missense_df_to_dict(
-                p_name,
-                af_missense_df,
-                af_missense_dict=af_missense_dict,
-                afm_psa_map=afm_psa_map,
-            )
+        #     af_missense_dict = af_missense_df_to_dict(
+        #         p_name,
+        #         af_missense_df,
+        #         af_missense_dict=af_missense_dict,
+        #         afm_psa_map=afm_psa_map,
+        #     )
 
         #######################################################################
         # Get gene specific variants from ClinVar
@@ -574,18 +696,18 @@ if __name__ == "__main__":
             afm_patho_score = ""
             afm_pathogenicity = ""
 
-            if (
-                args.include_AF_missense
-                and p_mutation in af_missense_dict.get(p_name, {})
-            ):
+            # if (
+            #     args.include_AF_missense
+            #     and p_mutation in af_missense_dict.get(p_name, {})
+            # ):
 
-                afm_patho_score = af_missense_dict[p_name][p_mutation][
-                    "patho_score"
-                ]
+            #     afm_patho_score = af_missense_dict[p_name][p_mutation][
+            #         "patho_score"
+            #     ]
 
-                afm_pathogenicity = af_missense_dict[p_name][p_mutation][
-                    "v_pathogenicity"
-                ]
+            #     afm_pathogenicity = af_missense_dict[p_name][p_mutation][
+            #         "v_pathogenicity"
+            #     ]
 
             ###################################################################
             # get disease or trait information
@@ -817,10 +939,10 @@ if __name__ == "__main__":
         "afm_pathogenicity": "AlphaMissense pathogenicity",
     })
 
-    if not args.include_AF_missense:
-        df = df.drop(columns=[
-            "AlphaMissense score", "AlphaMissense pathogenicity"
-        ])
+    # if not args.include_AF_missense:
+    #     df = df.drop(columns=[
+    #         "AlphaMissense score", "AlphaMissense pathogenicity"
+    #     ])
 
     print(df.head())
 
