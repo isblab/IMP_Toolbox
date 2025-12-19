@@ -133,22 +133,13 @@ def fetch_af_missense_data(
             str: UniProt base ID.
     """
 
-    remainder_bases = []
     os.makedirs(alpha_missense_dir, exist_ok=True)
 
-    for uniprot_base in uniprot_bases:
-
-        af_missense_file = os.path.join(
-            alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
-        )
-
-        if os.path.exists(af_missense_file):
-            print(f"File {af_missense_file} already exists. Skipping...")
-            af_missense_df = pd.read_csv(af_missense_file)
-        else:
-            remainder_bases.append(uniprot_base)
-
-    remainder_bases = uniprot_bases if overwrite else remainder_bases
+    remainder_bases = get_remainder_uniprot_bases(
+        alpha_missense_dir,
+        uniprot_bases,
+        overwrite
+    )
 
     if len(remainder_bases) == 0:
         print("All AlphaMissense data files already exist. Nothing to fetch.")
@@ -156,7 +147,16 @@ def fetch_af_missense_data(
 
     if mode == "online":
 
-        for uniprot_base in sorted(remainder_bases):
+        for uniprot_base in sorted(uniprot_bases):
+
+            if uniprot_base not in remainder_bases:
+                af_missense_file = os.path.join(
+                    alpha_missense_dir,
+                    f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+                )
+                af_missense_df = pd.read_csv(af_missense_file)
+                yield af_missense_df, uniprot_base
+                continue
 
             try:
                 af_missense_csv = get_af_missense_data(
@@ -178,16 +178,66 @@ def fetch_af_missense_data(
                 )
                 yield pd.DataFrame(), uniprot_base
 
-    if mode == "offline":
+    elif mode == "offline":
 
         af_missense_dfs = get_af_missense_data_offline(
             uniprot_ids=remainder_bases,
         )
 
-        for uniprot_base in remainder_bases:
+        # for uniprot_base in remainder_bases:
+        for uniprot_base in sorted(uniprot_bases):
+
+            if uniprot_base not in remainder_bases:
+                af_missense_file = os.path.join(
+                    alpha_missense_dir,
+                    f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+                )
+                af_missense_df = pd.read_csv(af_missense_file)
+                yield af_missense_df, uniprot_base
+                continue
+
             af_missense_df = af_missense_dfs.get(uniprot_base, pd.DataFrame())
 
             yield af_missense_df, uniprot_base
+
+def get_remainder_uniprot_bases(
+    alpha_missense_dir: str,
+    uniprot_bases: list,
+    overwrite: bool=False,
+):
+    """ Get the list of UniProt bases for which AlphaMissense data
+
+    Args:
+
+        alpha_missense_dir (str):
+            Directory to save AlphaMissense CSV files.
+
+        uniprot_bases (list):
+            List of UniProt base IDs (without isoform suffix).
+
+        overwrite (bool, optional):
+            Whether to overwrite existing files. Defaults to False.
+
+    Returns:
+        list:
+            List of UniProt bases for which AlphaMissense data needs to be fetched.
+    """
+
+    remainder_bases = []
+
+    for uniprot_base in uniprot_bases:
+        af_missense_file = os.path.join(
+            alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+        )
+
+        if os.path.exists(af_missense_file):
+            print(f"File {af_missense_file} already exists. Skipping...")
+        else:
+            remainder_bases.append(uniprot_base)
+
+    remainder_bases = uniprot_bases if overwrite else remainder_bases
+
+    return remainder_bases
 
 def af_missense_df_to_dict(
     p_name: str,
@@ -228,7 +278,7 @@ def af_missense_df_to_dict(
                               'res_num': 1,
                               'v_pathogenicity': 'Likely pathogenic',
                               'wt_aa': 'Met'}}}
-   """
+    """
 
     if p_name not in af_missense_dict:
         af_missense_dict[p_name] = {}
@@ -308,6 +358,12 @@ if __name__ == "__main__":
         default="offline",
         help="Mode to fetch AlphaMissense data: 'online' or 'offline'.",
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="Whether to overwrite existing AlphaMissense files.",
+    )
     # parser.add_argument(
     #     "--pairwise_alignments_dir",
     #     type=str,
@@ -330,7 +386,8 @@ if __name__ == "__main__":
     af_missense_df_gen = fetch_af_missense_data(
         args.alpha_missense_dir,
         uniprot_bases,
-        mode="offline"
+        mode="offline",
+        overwrite=args.overwrite,
     )
 
     for af_missense_df, uniprot_base in af_missense_df_gen:
@@ -342,6 +399,11 @@ if __name__ == "__main__":
         af_missense_file = os.path.join(
             args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
         )
+
+        if os.path.exists(af_missense_file) and not args.overwrite:
+            print(f"File {af_missense_file} already exists. Skipping save...")
+            continue
+
         af_missense_df.to_csv(af_missense_file, index=False)
 
         print(f"Saved AlphaMissense variants to {af_missense_file}")
