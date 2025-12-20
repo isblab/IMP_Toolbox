@@ -843,6 +843,7 @@ class VariantInfo:
         modeled_seq: str,
         ref_seq_file: str,
         pairwise_alignment_file: str,
+        ignore_warnings: bool = True,
     ):
         """ Update the protein mutation based on the modeled sequence.
 
@@ -860,6 +861,9 @@ class VariantInfo:
 
             pairwise_alignment_file (str):
                 Path to the pairwise alignment file.
+
+            ignore_warnings (bool, optional):
+                Whether to ignore warnings. Defaults to True.
 
         Returns:
 
@@ -880,14 +884,37 @@ class VariantInfo:
             ignore_warnings=True
         )
 
-        wt_aa, res_num, mut_aa = split_missense_mutation(
+        split_mut = split_missense_mutation(
             p_mutation=self.p_mutation,
             return_type="all"
         )
 
+        if split_mut is None:
+            self.p_mutation = None
+            return None
+
+        wt_aa, res_num, mut_aa = split_mut
         res_num = int(res_num)
-        res_num = clinvar_psa_map.get(res_num, res_num)
-        self.p_mutation = f"{wt_aa}{res_num}{mut_aa}"
+
+        if len(clinvar_psa_map) == 0:
+            res_num_mapped = res_num
+        else:
+            try:
+                res_num_mapped = clinvar_psa_map[res_num]
+            except KeyError:
+                warnings.warn(
+                    f"""
+                    Residue number {res_num} not found in
+                    pairwise alignment map for protein {p_name}.
+                    Skipping...
+                    """
+                ) if ignore_warnings is False else None
+                res_num_mapped = None
+
+        self.p_mutation = (
+            None if res_num_mapped is None
+            else f"{wt_aa}{res_num_mapped}{mut_aa}"
+        )
 
         return self.p_mutation
 
@@ -1163,11 +1190,8 @@ if __name__ == "__main__":
                 p_name=p_name,
                 g_name=g_name,
                 variant_id=variant_id,
-                variant_info=variant_info
+                variant_info=variant_info,
             )
-
-            if vi.is_invalid_variant():
-                continue
 
             REF_SEQ_JSON = os.path.join(
                 args.clinvar_output_dir, f"{g_name}_{vi.ncbi_ref_seq_id}_nuccore.json"
@@ -1176,8 +1200,12 @@ if __name__ == "__main__":
             vi.update_p_mutation(
                 modeled_seq=modeled_seq,
                 ref_seq_file=REF_SEQ_JSON,
-                pairwise_alignment_file=CLINVAR_PAIR_ALN_FASTA
+                pairwise_alignment_file=CLINVAR_PAIR_ALN_FASTA,
+                ignore_warnings=True,
             )
+
+            if vi.is_invalid_variant():
+                continue
 
             vi.make_variant_dict()
             vi.add_to_variant_dict("uniprot_id", uniprot_id)

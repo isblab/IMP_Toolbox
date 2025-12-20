@@ -185,25 +185,50 @@ def is_missense_mutation(
 def split_missense_mutation(
     p_mutation: str,
     return_type: str = "all",
+    ignore_warnings: bool = True,
 ) -> tuple | str | int | None:
-    """ Extract the residue number from a mutation string.
-    Example: Arg150Trp -> 150
+    """ Split a missense mutation string into its components.
+
+    Assuming the mutation string is in one of the recognized formats,
+    this function extracts the wild-type amino acid, residue number,
+    and mutant amino acid.
 
     Args:
-        p_mutation (str): mutation string (e.g. Arg150Trp)
+
+        p_mutation (str):
+            mutation string (e.g. Arg150Trp)
+
+        return_type (str, optional):
+            Type of information to return:
+            - "all": return (wt_aa, res_num, mut_aa)
+            - "wt_aa": return wild-type amino acid
+            - "res_num": return residue number
+            - "mut_aa": return mutant amino acid
+            Defaults to "all".
+
+        ignore_warnings (bool, optional):
+            Whether to ignore warnings.
 
     Returns:
-        int: residue number
+
+        tuple | str | int | None:
+            Depending on `return_type`, returns:
+            - (wt_aa, res_num, mut_aa) if `return_type` is "all"
+            - wild-type amino acid if `return_type` is "wt_aa"
+            - residue number (int) if `return_type` is "res_num"
+            - mutant amino acid if `return_type` is "mut_aa"
+            - None if the mutation string could not be parsed
     """
 
     pattern = None
-    for key, value in MISSENSE_REGEX.items():
+    for _key, value in MISSENSE_REGEX.items():
         if value["condition"](p_mutation):
             pattern = value["regex"]
             break
 
     if pattern is None:
-        warnings.warn(f"No regex pattern found for mutation: {p_mutation}")
+        if ignore_warnings is False:
+            warnings.warn(f"No regex pattern found for mutation: {p_mutation}")
         return None
 
     match = re.match(pattern, p_mutation)
@@ -223,7 +248,8 @@ def split_missense_mutation(
 
         else:
             raise ValueError(f"Invalid return type: {return_type}")
-    else:
+
+    elif ignore_warnings is False:
         warnings.warn(f"Could not parse mutation: {p_mutation}")
 
     return None
