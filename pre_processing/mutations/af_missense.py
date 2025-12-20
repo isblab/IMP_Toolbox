@@ -361,6 +361,25 @@ def get_fasta_dict_for_af_missense(protein_uniprot_map: dict):
 
     return fasta_dict
 
+def fetch_fasta_dict_for_af_missense(
+    savepath: str,
+    protein_uniprot_map: dict,
+    overwrite: bool = False,
+):
+    if os.path.exists(savepath) and not overwrite:
+        print(f"FASTA file {savepath} already exists. Loading...")
+        fasta_dict = read_fasta(savepath)
+        return fasta_dict
+
+    fasta_dict = get_fasta_dict_for_af_missense(protein_uniprot_map)
+
+    with open(savepath, "w") as f:
+        for uid, seq in fasta_dict.items():
+            f.write(f">{uid}\n{seq}\n")
+
+    print(f"Saved AlphaMissense FASTA sequences to {savepath}")
+    return fasta_dict
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
