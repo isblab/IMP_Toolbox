@@ -650,28 +650,16 @@ class MatrixPatches:
 
 def pairwise_alignment_map(
     pairwise_alignment_file:str,
-    include_gaps: bool=False,
     include_aligned_seq: bool=False,
 ) -> dict:
     """ Given a pairwise alignment, return one-one map of aligned residues.
 
     Args:
-        pairwise_alignment_file (str): path to the pairwise alignment file
-        include_gaps (bool, optional): Whether to include gaps in the numbering
-        include_aligned_seq (bool, optional): Whether to return the aligned sequences
+        pairwise_alignment_file (str):
+            Path to the pairwise alignment file
 
-    Note:
-        `include_gaps` has the following effect:
-        - If `True`, gaps in either sequence will be counted in the numbering.
-        - e.g. Alignment:
-            Q: ABCDE
-            S: A-BCD
-            mapping will be: {1:1, 2:1, 3:2, 4:3, 5:4}
-        - If `False`, gaps will be ignored in the numbering.
-        - e.g. Alignment:
-            Q: ABCDE
-            S: A-BCD
-            mapping will be: {1:1, 3:2, 4:3, 5:4}
+        include_aligned_seq (bool, optional):
+            Whether to return the aligned sequences
 
     Returns:
         dict: mapping of codon numbers to residue numbers
@@ -688,27 +676,30 @@ def pairwise_alignment_map(
         )
 
     pairwise_alignment_dict = {}
-    qseq_rescount, sseq_rescount = 1, 1
+    q_count, s_count = 0, 0
     qseq, sseq = list(pairwise_alignment.values())
 
-    for aligned_res in zip(qseq, sseq):
+    increment_dict = {
+        (True, True): lambda q, s: (q + 1, s + 1),
+        (True, False): lambda q, s: (q + 1, s),
+        (False, True): lambda q, s: (q, s + 1),
+        (False, False): lambda q, s: (q, s),
+    }
 
-        if include_gaps:
-            pairwise_alignment_dict[qseq_rescount] = sseq_rescount
+    init_case = {
+        True: lambda d: d + 1,
+        False: lambda d: d,
+    }
 
-        if aligned_res[1] != "-" and aligned_res[0] != "-":
+    for idx in range(len(qseq)):
 
-            if not include_gaps:
-                pairwise_alignment_dict[qseq_rescount] = sseq_rescount
+        inc_case = (sseq[idx] != "-", qseq[idx] != "-")
+        q_count, s_count = increment_dict[inc_case](q_count, s_count)
 
-            qseq_rescount += 1
-            sseq_rescount += 1
-
-        elif aligned_res[1] != "-":
-            qseq_rescount += 1
-
-        elif aligned_res[0] != "-":
-            sseq_rescount += 1
+        if sseq[idx] != "-" and qseq[idx] != "-":
+            pairwise_alignment_dict[init_case[q_count==0](q_count)] = (
+                init_case[s_count==0](s_count)
+            )
 
     if include_aligned_seq:
         return pairwise_alignment_dict, qseq, sseq
@@ -723,7 +714,6 @@ def handle_pairwise_alignment(
     alignment_program: str = "stretcher",
     ignore_warnings: bool = False,
     include_identical: bool = False,
-    include_gaps: bool = False,
     include_aligned_seq: bool = False,
 ):
     """ Handle pairwise alignment between two sequences and return the mapping.
@@ -760,7 +750,6 @@ def handle_pairwise_alignment(
 
         psa_output = pairwise_alignment_map(
             pairwise_alignment_file,
-            include_gaps=include_gaps,
             include_aligned_seq=include_aligned_seq,
         )
 
