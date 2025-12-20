@@ -244,6 +244,7 @@ def af_missense_df_to_dict(
     af_missense_df: pd.DataFrame,
     af_missense_dict: dict = {},
     afm_psa_map: dict = {},
+    ignore_warnings: bool = False,
 ) -> dict:
     """ Convert AlphaMissense dataframe to a dictionary.
 
@@ -295,7 +296,7 @@ def af_missense_df_to_dict(
             p_variant, return_type="all"
         )
 
-        if any(aa not in AMINO_ACID_MAP for aa in [wt_aa, mut_aa]):
+        if any(aa not in AMINO_ACID_MAP for aa in [wt_aa, mut_aa]) and ignore_warnings is False:
             warnings.warn(
                 f"""
                 Invalid amino acid in {p_variant} for protein {p_name}.
@@ -309,7 +310,21 @@ def af_missense_df_to_dict(
         mut_aa = AMINO_ACID_MAP.get(mut_aa, mut_aa)
         res_num_int = int(res_num)
 
-        res_num_mapped = afm_psa_map.get(res_num_int, res_num_int)
+        if len(afm_psa_map) == 0:
+            res_num_mapped = res_num_int
+        else:
+            try:
+                res_num_mapped = afm_psa_map[res_num_int]
+            except KeyError:
+                warnings.warn(
+                    f"""
+                    Residue number {res_num_int} not found in
+                    pairwise alignment map for protein {p_name}.
+                    Skipping...
+                    """
+                ) if ignore_warnings is False else None
+                continue
+
         p_variant_key = f"{wt_aa}{res_num_mapped}{mut_aa}"
 
         af_missense_dict[p_name][p_variant_key] = {
@@ -322,7 +337,18 @@ def af_missense_df_to_dict(
 
     return af_missense_dict
 
-def get_fasta_dict_for_af_missense(protein_uniprot_map):
+def get_fasta_dict_for_af_missense(protein_uniprot_map: dict):
+    """ Fetch FASTA sequences for AlphaMissense reference sequences.
+
+    Args:
+
+        protein_uniprot_map (dict):
+            Mapping of protein names to UniProt IDs.
+
+    Returns:
+        dict:
+            Dictionary of FASTA sequences for AlphaMissense reference sequences.
+    """
 
     # For AF-missense, the reference sequence is the Uniprot sequence
     # for non-isoform-specific uniprot ids
