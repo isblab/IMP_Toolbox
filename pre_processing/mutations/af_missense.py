@@ -24,7 +24,7 @@ from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
     AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
 )
 
-def get_af_missense_data(
+def get_af_missense_data_online(
     uniprot_id: str,
     api_url: str,
     api_parameters: dict = {},
@@ -165,7 +165,7 @@ def fetch_af_missense_data(
                 continue
 
             try:
-                af_missense_csv = get_af_missense_data(
+                af_missense_csv = get_af_missense_data_online(
                     uniprot_base,
                     api_url=API_URLS["af_missense_csv"],
                     api_parameters={"uniprot_id": uniprot_base},
@@ -235,6 +235,9 @@ def get_remainder_uniprot_bases(
 
     remainder_bases = []
 
+    if overwrite:
+        return uniprot_bases
+
     for uniprot_base in uniprot_bases:
         af_missense_file = os.path.join(
             alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
@@ -244,8 +247,6 @@ def get_remainder_uniprot_bases(
             print(f"File {af_missense_file} already exists. Skipping...")
         else:
             remainder_bases.append(uniprot_base)
-
-    remainder_bases = uniprot_bases if overwrite else remainder_bases
 
     return remainder_bases
 
@@ -384,6 +385,44 @@ def fetch_fasta_dict_for_af_missense(
     print(f"Saved AlphaMissense FASTA sequences to {savepath}")
     return fasta_dict
 
+def export_af_missense_data(
+    alpha_missense_dir: str,
+    af_missense_df_gen: iter,
+    overwrite: bool = False,
+):
+    """ Export AlphaMissense dataframes to CSV files.
+
+    Args:
+
+        alpha_missense_dir (str):
+            Directory to save AlphaMissense CSV files.
+
+        af_missense_df_gen (iter):
+            Generator yielding tuples of AlphaMissense dataframe and
+            UniProt base ID.
+
+        overwrite (bool, optional):
+            Whether to overwrite existing files. Defaults to False.
+    """
+
+    for af_missense_df, uniprot_base in af_missense_df_gen:
+
+        if af_missense_df.empty:
+            print(f"No AlphaMissense data found for {uniprot_base}. Skipping...")
+            continue
+
+        af_missense_file = os.path.join(
+            alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+        )
+
+        if os.path.exists(af_missense_file) and not overwrite:
+            print(f"File {af_missense_file} already exists. Skipping save...")
+            continue
+
+        af_missense_df.to_csv(af_missense_file, index=False)
+
+        print(f"Saved AlphaMissense variants to {af_missense_file}")
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
@@ -447,23 +486,11 @@ if __name__ == "__main__":
         af_missense_tsv=args.af_missense_tsv,
     )
 
-    for af_missense_df, uniprot_base in af_missense_df_gen:
-
-        if af_missense_df.empty:
-            print(f"No AlphaMissense data found for {uniprot_base}. Skipping...")
-            continue
-
-        af_missense_file = os.path.join(
-            args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
-        )
-
-        if os.path.exists(af_missense_file) and not args.overwrite:
-            print(f"File {af_missense_file} already exists. Skipping save...")
-            continue
-
-        af_missense_df.to_csv(af_missense_file, index=False)
-
-        print(f"Saved AlphaMissense variants to {af_missense_file}")
+    export_af_missense_data(
+        alpha_missense_dir=args.alpha_missense_dir,
+        af_missense_df_gen=af_missense_df_gen,
+        overwrite=args.overwrite,
+    )
 
     # afm_fasta_dict = get_fasta_dict_for_af_missense(protein_uniprot_map)
     # odp_sequences = read_fasta(args.odp_sequences_fasta)

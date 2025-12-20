@@ -32,6 +32,7 @@ from IMP_Toolbox.pre_processing.mutations.af_missense import (
     af_missense_df_to_dict,
     fetch_fasta_dict_for_af_missense,
     fetch_af_missense_data,
+    export_af_missense_data,
 )
 from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
     AF_MISSENSE_CSV_SUFFIX,
@@ -1078,23 +1079,11 @@ if __name__ == "__main__":
             af_missense_tsv=args.af_missense_tsv,
         )
 
-        for af_missense_df, uniprot_base in af_missense_df_gen:
-
-            if af_missense_df.empty:
-                warnings.warn(f"No AlphaMissense data found for {uniprot_base}.")
-                continue
-
-            AF_MISSENSE_CSV = os.path.join(
-                args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
-            )
-
-            if os.path.exists(AF_MISSENSE_CSV) and not args.overwrite:
-                warnings.warn(f"File {AF_MISSENSE_CSV} already exists.")
-                continue
-
-            af_missense_df.to_csv(AF_MISSENSE_CSV, index=False)
-
-            print(f"Saved AlphaMissense variants to {AF_MISSENSE_CSV}")
+        export_af_missense_data(
+            args.alpha_missense_dir,
+            af_missense_df_gen,
+            overwrite=False,
+        )
 
     for p_name, uniprot_id in protein_uniprot_map.items():
 
@@ -1161,7 +1150,7 @@ if __name__ == "__main__":
                 ignore_warnings=True,
             )
 
-        print(f"Fetching ClinVar variants for {g_name}...")
+        print(f"--Fetching ClinVar variants")
         #######################################################################
         # Fetch variant ids from ClinVar
         #######################################################################
@@ -1193,7 +1182,11 @@ if __name__ == "__main__":
             overwrite=False,
         )
 
+        if len(clinvar_variants) == 0:
+            print(f"No variant details found for {g_name}")
+            continue
 
+        print(f"--Processing missense variants")
         #######################################################################
         # Collect relevant information about missense variants
         #######################################################################
