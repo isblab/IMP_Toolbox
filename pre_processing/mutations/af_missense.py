@@ -73,6 +73,7 @@ def get_af_missense_data(
 
 def get_af_missense_data_offline(
     uniprot_ids: list,
+    tsv_path: str,
 ):
     try:
         import duckdb
@@ -83,16 +84,15 @@ def get_af_missense_data_offline(
             "'pip install duckdb' or 'conda install -c conda-forge duckdb'."
         )
 
-    assert os.path.exists(AF_MISSENSE_AA_SUBSTITUTIONS_TSV), (
-        f"AlphaMissense aa substitutions TSV file not found at "
-        f"{AF_MISSENSE_AA_SUBSTITUTIONS_TSV}."
+    assert os.path.exists(tsv_path), (
+        f"AlphaMissense aa substitutions TSV file not found at {tsv_path}."
     )
 
     uniprot_ids = list(set(uniprot_ids))
     uids_df = pd.DataFrame({"uniprot_id": uniprot_ids})
     query = f"""
     SELECT t.*
-    FROM '{AF_MISSENSE_AA_SUBSTITUTIONS_TSV}' t
+    FROM '{tsv_path}' t
     JOIN uids_df u USING (uniprot_id)
     """
 
@@ -110,6 +110,7 @@ def fetch_af_missense_data(
     uniprot_bases: list,
     mode: str = "online",
     overwrite: bool = False,
+    **kwargs,
 ):
     """ Fetch AlphaMissense data for a list of UniProt IDs.
 
@@ -126,6 +127,11 @@ def fetch_af_missense_data(
 
         overwrite (bool, optional):
             Whether to overwrite existing files. Defaults to False.
+
+    Kwargs:
+
+        af_missense_tsv (str, optional):
+            Path to AlphaMissense aa substitutions TSV file for offline mode.
 
     Yields:
         tuple:
@@ -182,6 +188,10 @@ def fetch_af_missense_data(
 
         af_missense_dfs = get_af_missense_data_offline(
             uniprot_ids=remainder_bases,
+            tsv_path=kwargs.get(
+                "af_missense_tsv",
+                AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
+            ),
         )
 
         # for uniprot_base in remainder_bases:
@@ -403,6 +413,13 @@ if __name__ == "__main__":
         default=False,
         help="Whether to overwrite existing AlphaMissense files.",
     )
+    parser.add_argument(
+        "--af_missense_tsv",
+        type=str,
+        required=False,
+        default=AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
+        help="Path to AlphaMissense aa substitutions TSV file for offline mode.",
+    )
     # parser.add_argument(
     #     "--pairwise_alignments_dir",
     #     type=str,
@@ -427,6 +444,7 @@ if __name__ == "__main__":
         uniprot_bases,
         mode="offline",
         overwrite=args.overwrite,
+        af_missense_tsv=args.af_missense_tsv,
     )
 
     for af_missense_df, uniprot_base in af_missense_df_gen:

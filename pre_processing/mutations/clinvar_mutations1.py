@@ -36,6 +36,7 @@ from IMP_Toolbox.pre_processing.mutations.af_missense import (
 from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
     AF_MISSENSE_CSV_SUFFIX,
     AF_MISSENSE_PAIR_ALN_SUFFIX,
+    AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
     CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE,
     CLINVAR_DF_COLUMNS,
     CLINVAR_TEMPLATE_QUERY_DETAIL,
@@ -244,17 +245,6 @@ def fetch_clinvar_variant_data(
     write_json(save_path, variant_data)
 
     return variant_data
-
-def warn_sequence_not_found(
-    p_name,
-    uniprot_id,
-):
-    warnings.warn(
-        f"""
-        Sequence not found for {p_name} ({uniprot_id}).
-        Skipping...
-        """
-    )
 
 class VariantInfo:
 
@@ -1043,6 +1033,13 @@ if __name__ == "__main__":
         help="Mode to fetch AlphaMissense data.",
     )
     parser.add_argument(
+        "--af_missense_tsv",
+        type=str,
+        required=False,
+        default=AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
+        help="Path to AlphaMissense aa substitutions TSV file for offline mode.",
+    )
+    parser.add_argument(
         "--odp_sequences_fasta",
         type=str,
         default="/home/omkar/Projects/cardiac_desmosome/data/sequences/odp_protein_sequences.fasta",
@@ -1068,8 +1065,9 @@ if __name__ == "__main__":
     )
     uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
 
-    af_missense_dict = {}
-
+    #######################################################################
+    # Fetch AlphaMissense data
+    #######################################################################
     if args.include_AF_missense:
 
         af_missense_df_gen = fetch_af_missense_data(
@@ -1077,6 +1075,7 @@ if __name__ == "__main__":
             uniprot_bases,
             mode=args.af_missense_mode,
             overwrite=False,
+            af_missense_tsv=args.af_missense_tsv,
         )
 
         for af_missense_df, uniprot_base in af_missense_df_gen:
@@ -1102,13 +1101,14 @@ if __name__ == "__main__":
         print(f"Processing {p_name}...")
 
         uniprot_base = uniprot_id.split("-")[0]
+        g_name = protein_gene_map[p_name]
+
         AF_MISSENSE_CSV = os.path.join(
             args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
         )
         AF_MISSENSE_PAIR_ALN_FASTA = os.path.join(
             args.pairwise_alignments_dir, f"{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta"
         )
-        g_name = protein_gene_map[p_name]
         CLINVAR_VARIANTS_JSON = os.path.join(
             args.clinvar_output_dir, f"{g_name}_clinvar_variants1.json"
         )
@@ -1122,7 +1122,7 @@ if __name__ == "__main__":
         af_missense_dict = {}
         modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)
         if modeled_seq is None:
-            warn_sequence_not_found(p_name, uniprot_id)
+            warnings.warn(f"Sequence not found for {p_name} ({uniprot_id}).")
             continue
 
         #######################################################################
@@ -1132,7 +1132,7 @@ if __name__ == "__main__":
 
             af_missense_ref_seq = fasta_dict.get(uniprot_base, None)
             if af_missense_ref_seq is None:
-                warn_sequence_not_found(p_name, uniprot_base)
+                warnings.warn(f"Sequence not found for {p_name} ({uniprot_base}).")
                 continue
 
             # won't align if sequences are identical
@@ -1161,11 +1161,10 @@ if __name__ == "__main__":
                 ignore_warnings=True,
             )
 
-        #######################################################################
-        # Get gene specific variants from ClinVar
-        #######################################################################
         print(f"Fetching ClinVar variants for {g_name}...")
-
+        #######################################################################
+        # Fetch variant ids from ClinVar
+        #######################################################################
         api_parameters = CLINVAR_TEMPLATE_QUERY_ID.copy()
         api_parameters["term"] = Template(api_parameters["term"]).substitute(
             gene_name=g_name
@@ -1183,6 +1182,9 @@ if __name__ == "__main__":
             print(f"No variants found for {g_name}")
             continue
 
+        #######################################################################
+        # Fetch variant details from ClinVar
+        #######################################################################
         clinvar_variants = fetch_clinvar_variant_data(
             save_path=CLINVAR_VARIANTS_JSON,
             input_data=variant_ids,
@@ -1191,8 +1193,11 @@ if __name__ == "__main__":
             overwrite=False,
         )
 
-        ncbi_ref_seq_ids = set()
 
+        #######################################################################
+        # Collect relevant information about missense variants
+        #######################################################################
+        ncbi_ref_seq_ids = set()
         for variant_id, variant_info in clinvar_variants.items():
 
             vi = VariantInfo(
