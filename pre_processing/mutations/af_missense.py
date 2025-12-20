@@ -7,7 +7,7 @@ from io import StringIO
 from pprint import pprint
 from IMP_Toolbox.pre_processing.sequence.Sequence import FetchSequences
 from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_fasta
-from IMP_Toolbox.utils_imp_toolbox.special_helpers import handle_pairwise_alignment
+from IMP_Toolbox.utils_imp_toolbox.special_helpers import get_mapped_residue
 from IMP_Toolbox.utils_imp_toolbox.obj_helpers import fasta_str_to_dict
 from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
     split_missense_mutation,
@@ -310,20 +310,14 @@ def af_missense_df_to_dict(
         mut_aa = AMINO_ACID_MAP.get(mut_aa, mut_aa)
         res_num_int = int(res_num)
 
-        if len(afm_psa_map) == 0:
-            res_num_mapped = res_num_int
-        else:
-            try:
-                res_num_mapped = afm_psa_map[res_num_int]
-            except KeyError:
-                warnings.warn(
-                    f"""
-                    Residue number {res_num_int} not found in
-                    pairwise alignment map for protein {p_name}.
-                    Skipping...
-                    """
-                ) if ignore_warnings is False else None
-                continue
+        res_num_mapped, warn_msg = get_mapped_residue(
+            psa_map=afm_psa_map,
+            codon_number=res_num_int,
+        )
+
+        if ignore_warnings is False and len(warn_msg) > 0:
+            warnings.warn(f"""{warn_msg} (Protein: {p_name})""")
+            continue
 
         p_variant_key = f"{wt_aa}{res_num_mapped}{mut_aa}"
 

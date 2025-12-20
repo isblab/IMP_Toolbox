@@ -20,6 +20,7 @@ from IMP_Toolbox.utils_imp_toolbox.file_helpers import (
     write_json,
 )
 from IMP_Toolbox.utils_imp_toolbox.special_helpers import (
+    get_mapped_residue,
     handle_pairwise_alignment,
 )
 from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
@@ -895,6 +896,14 @@ class VariantInfo:
 
         wt_aa, res_num, mut_aa = split_mut
         res_num = int(res_num)
+
+        res_num_mapped, warn_msg = get_mapped_residue(
+            psa_map=clinvar_psa_map,
+            codon_number=res_num,
+        )
+
+        if ignore_warnings is False and len(warn_msg) > 0:
+            warnings.warn(f"""{warn_msg} (Protein: {p_name})""")
 
         if len(clinvar_psa_map) == 0:
             res_num_mapped = res_num

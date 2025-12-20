@@ -774,3 +774,47 @@ def handle_pairwise_alignment(
         return psa_map, aligned_qseq, aligned_sseq
     else:
         return psa_map
+
+def get_mapped_residue(
+    psa_map: dict,
+    codon_number: int,
+    p_name: str = "",
+) -> tuple[int | None, str]:
+    """ Given a pairwise alignment map and a codon number, return the
+    mapped residue number.
+
+    Args:
+
+        psa_map (dict):
+            Pairwise alignment map of codon number to residue number
+
+        codon_number (int):
+            Codon number to map
+
+        p_name (str, optional):
+            Protein name for warning messages
+
+    Returns:
+
+        tuple[int | None, str]:
+            Mapped residue number and warning message (if any)
+    """
+
+    warn_msg = ""
+
+    if len(psa_map) == 0:
+        res_num_mapped = codon_number
+    else:
+        try:
+            res_num_mapped = psa_map[codon_number]
+        except KeyError:
+            warn_msg += (
+                f"""
+                Residue number {codon_number} not found in
+                pairwise alignment map for protein {p_name}.
+                Skipping...
+                """
+            )
+            res_num_mapped = None
+
+    return res_num_mapped, warn_msg
