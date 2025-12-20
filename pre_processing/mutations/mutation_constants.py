@@ -180,5 +180,38 @@ ARVC_REF_SEQUENCE_IDS = {
 AF_MISSENSE_CSV_SUFFIX = "_alpha_missense_variants"
 AF_MISSENSE_PAIR_ALN_SUFFIX = "_afm_vs_modeled"
 
+# from https://console.cloud.google.com/storage/browser/dm_alphamissense
 AF_MISSENSE_AA_SUBSTITUTIONS_TSV = "/data/omkar/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
 # AF_MISSENSE_ISOFORMS_AA_SUBSTITUTIONS_TSV = "/data/omkar/Projects/IMP_Toolbox/AlphaMissense_isoforms_aa_substitutions.tsv.gz"
+
+CLINVAR_TEMPLATE_QUERY_ID = {
+    "db": "clinvar",
+    "term": "$gene_name[gene]",
+    "retmax": 10000,
+    "retmode": "json",
+}
+
+CLINVAR_TEMPLATE_QUERY_DETAIL = {
+    "db": "clinvar",
+    "rettype": "vcv",
+    "is_variationid": "true",
+    "from_esearch": "true"
+}
+
+CLINVAR_DF_COLUMNS = {
+    "gene": "Gene",
+    "uniprot_id": "Uniprot ID",
+    "ncbi_ref_seq_id": "NCBI RefSeq ID",
+    "p_mutation": "Mutation",
+    "trait_or_effect": "Disease association",
+    "clinical_significance": "ClinVar clinical significance",
+    "all_assertion_comments": "All submission comments",
+    "all_significances": "All clinical significances",
+    "variant_id": "ClinVar Variant ID",
+    "molecular_consequence": "Molecular consequence",
+}
+
+AF_MISSENSE_COLUMNS = {
+    "afm_patho_score": "AlphaMissense score",
+    "afm_pathogenicity": "AlphaMissense pathogenicity",
+}

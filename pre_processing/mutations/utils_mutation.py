@@ -1,8 +1,6 @@
 import warnings
 import re
-import xmltodict
 import os
-from tqdm import tqdm
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
@@ -19,53 +17,6 @@ from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
     API_URLS,
     AMINO_ACID_MAP,
 )
-
-def get_af_missense_data(
-    uniprot_id: str,
-    api_url: str,
-    api_parameters: dict = {},
-    return_type: str = "csv",
-    ignore_error: bool = False,
-    max_retries: int = 3,
-):
-    """ Fetch alpha missense variants for a given Uniprot ID from the
-    AlphaMissense database.
-
-    Args:
-        uniprot_id (str): Valid Uniprot ID to fetch variants for.
-        ignore_error (bool, optional): Defaults to False.
-        max_retries (int, optional): Defaults to 3.
-
-    Returns:
-        list: List of alpha missense variants for the given Uniprot ID if found
-    """
-
-    for key, value in api_parameters.items():
-        api_url = api_url.replace(key, value)
-
-    req_sess = request_session(max_retries=max_retries)
-    response = req_sess.get(api_url)
-
-    if response.status_code == 200:
-
-        if return_type == "json":
-            return response.json()
-
-        elif return_type == "csv":
-            return response.text
-
-        else:
-            raise ValueError(f"Invalid return type: {return_type}")
-
-    elif ignore_error:
-        return None
-
-    else:
-        raise ValueError(
-            f"""Error fetching AlphaMissense data for {uniprot_id}
-            {response.status_code}: {response.text}
-            """
-        )
 
 def get_uniprot_variants(
     uniprot_id: str,
@@ -183,115 +134,8 @@ def get_lovd_variants_for_gene(
             """
         )
 
-def get_variant_ids_from_clinvar(
-    gene_name:str,
-    api_url: str,
-    api_parameters: dict = {},
-    ignore_error: bool = False,
-    max_retries: int = 3,
-) -> list:
-    """ Fetch variant IDs from ClinVar for a given gene name.
-
-    Args:
-        gene_name (str): The gene name to search for.
-
-    Returns:
-        list: List of ClinVar variant IDs.
-    """
-
-    req_sess = request_session(max_retries=max_retries)
-    response = req_sess.get(api_url, params=api_parameters)
-    result = request_result(response, gene_name)
-
-    if result is None:
-        # try without returnmode
-        api_parameters.pop("retmode")
-        response = req_sess.get(api_url, params=api_parameters)
-
-        if response.status_code == 200:
-            result = response.text
-
-        elif ignore_error:
-            return []
-
-        else:
-            raise ValueError(
-                f"""Error fetching variant ids for {gene_name}
-                {response.status_code}: {response.text}
-                """
-            )
-
-    if isinstance(result, str):
-        # parse xml
-        root = ET.fromstring(result)
-        id_list = root.find("IdList")
-
-        if id_list is None:
-            return []
-
-        ids = [id_elem.text for id_elem in id_list.findall("Id")]
-
-        return ids
-
-    elif isinstance(result, dict):
-        return result.get("esearchresult", {}).get("idlist", [])
-
-    return []
-
-def get_variant_details_from_clinvar(
-    variant_ids:list,
-    api_url: str,
-    api_parameters: dict = {},
-    ignore_error: bool = False,
-    max_retries: int = 3,
-) -> dict:
-    """ Fetch variant details from ClinVar for a list of variant IDs.
-    Note: If you parallelize it, make sure to not exceed API's rate limits.
-    We get info in XML format from the API, which we convert and store as JSON.
-
-    Args:
-        variant_ids (list): List of ClinVar variant IDs.
-
-    Returns:
-        dict: Dictionary with variant IDs as keys and their details as values.
-    """
-
-    variant_id_batches = [
-        variant_ids[i:i + 100] for i in range(0, len(variant_ids), 100)
-    ]
-
-    variant_info_dict = {}
-
-    for idx, batch in enumerate(tqdm(variant_id_batches)):
-
-        api_parameters["id"] = ",".join(batch)
-
-        req_sess = request_session(max_retries=max_retries)
-        response = req_sess.get(api_url, params=api_parameters)
-
-        if response.status_code == 200:
-            result = response.text
-        else:
-            if ignore_error:
-                return {}
-            else:
-                raise ValueError(f"Error fetching variant details for batch {idx}")
-
-        root = ET.fromstring(result)
-        variation_info = root.findall("VariationArchive")
-        variant_ids = [
-            var_id_elem.get("VariationID") for var_id_elem in variation_info
-        ]
-
-        for idx, variation_id in enumerate(variant_ids):
-            variant_info_dict[variation_id] = xmltodict.parse(
-                ET.tostring(variation_info[idx])
-            )
-
-    return variant_info_dict
-
 def is_missense_mutation(
-    p_mutation: str,
+    p_mutation: str | None,
     allow_truncation: bool = False,
 ) -> bool:
     """ Check if a given protein mutation string represents a missense mutation.
@@ -302,6 +146,9 @@ def is_missense_mutation(
     Returns:
         bool: True if the mutation is a missense mutation, False otherwise.
     """
+
+    if p_mutation is None:
+        return False
 
     pattern = None
     for key, value in MISSENSE_REGEX.items():
@@ -319,7 +166,21 @@ def is_missense_mutation(
         if match.group(3) in TRUNCATION_NOTATIONS:
             return False
 
-    return match is not None and len(match.groups()) == 3
+    #NOTE: the following will miss missense mutations where
+    # more than one residue is mutated
+    # e.g. p.Gly1094_His1095delinsValAsn in DSG2
+    return_val = match is not None and len(match.groups()) == 3
+    if return_val is False:
+        warnings.warn(
+            f"""
+            Protein mutation not found or not missense for mutation:
+            {p_mutation=}
+            Molecular consequence might be "missense", but more than
+            one residue might be mutated. Skipping...
+            """
+        )
+
+    return return_val
 
 def split_missense_mutation(
     p_mutation: str,
