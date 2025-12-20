@@ -647,7 +647,6 @@ class MatrixPatches:
             colname_2
         ].issubset(other_row[colname_2])
 
-
 def pairwise_alignment_map(
     pairwise_alignment_file:str,
     include_aligned_seq: bool=False,
