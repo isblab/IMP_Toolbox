@@ -37,6 +37,9 @@ AFM_PATHOGENICITY = {
     "LBen": "Likely benign",
     "Amb": "Uncertain",
     "LPath": "Likely pathogenic",
+    "benign": "Likely benign",
+    "ambiguous": "Uncertain",
+    "pathogenic": "Likely pathogenic",
 }
 # https://www.ebi.ac.uk/training/online/courses/alphafold/classifying-the-effects-of-missense-variants-using-alphamissense/understanding-pathogenicity-scores-from-alphamissense/
 #
