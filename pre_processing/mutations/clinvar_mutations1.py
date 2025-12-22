@@ -489,12 +489,12 @@ class VariantInfo:
         ncbi_g_name = None
         ncbi_ref_seq = self.variant_name.split(":")
 
-        if g_name in ncbi_ref_seq[0]:
+        if self.g_name in ncbi_ref_seq[0]:
             ncbi_g_name = ncbi_ref_seq[0].split("(")[1].replace(")", "")
 
         elif ignore_warnings is False:
             warnings.warn(
-                f"{g_name} not found in variant name {self.variant_name}"
+                f"{self.g_name} not found in variant name {self.variant_name}"
             )
 
         return ncbi_g_name
@@ -868,7 +868,7 @@ class VariantInfo:
         if self.p_mutation is None:
             return None
 
-        p_sequence = get_ncbi_ref_seq(vi.ncbi_ref_seq_id, ref_seq_file)
+        p_sequence = get_ncbi_ref_seq(self.ncbi_ref_seq_id, ref_seq_file)
 
         clinvar_psa_map = handle_pairwise_alignment(
             p_name=self.p_name,
@@ -1110,7 +1110,6 @@ if __name__ == "__main__":
             args.pairwise_alignments_dir, f"{p_name}_clinvar_vs_modeled.fasta"
         )
 
-        af_missense_dict = {}
         modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)
         if modeled_seq is None:
             warnings.warn(f"Sequence not found for {p_name} ({uniprot_id}).")
@@ -1147,7 +1146,6 @@ if __name__ == "__main__":
             af_missense_dict = af_missense_df_to_dict(
                 p_name,
                 af_missense_df,
-                af_missense_dict=af_missense_dict,
                 afm_psa_map=afm_psa_map, # may not be appropriate to use in some cases
                 ignore_warnings=True,
             )
@@ -1218,20 +1216,21 @@ if __name__ == "__main__":
 
             vi.make_variant_dict()
             vi.add_to_variant_dict("uniprot_id", uniprot_id)
-            afm_patho_score = get_af_missense_attribute(
-                af_missense_dict=af_missense_dict,
-                attribute="patho_score",
-                p_name=p_name,
-                p_mutation=vi.p_mutation,
-            )
-            afm_pathogenicity = get_af_missense_attribute(
-                af_missense_dict=af_missense_dict,
-                attribute="v_pathogenicity",
-                p_name=p_name,
-                p_mutation=vi.p_mutation,
-            )
-            vi.add_to_variant_dict("afm_patho_score", afm_patho_score)
-            vi.add_to_variant_dict("afm_pathogenicity", afm_pathogenicity)
+            if args.include_AF_missense:
+                afm_patho_score = get_af_missense_attribute(
+                    af_missense_dict=af_missense_dict,
+                    attribute="patho_score",
+                    p_name=p_name,
+                    p_mutation=vi.p_mutation,
+                )
+                afm_pathogenicity = get_af_missense_attribute(
+                    af_missense_dict=af_missense_dict,
+                    attribute="v_pathogenicity",
+                    p_name=p_name,
+                    p_mutation=vi.p_mutation,
+                )
+                vi.add_to_variant_dict("afm_patho_score", afm_patho_score)
+                vi.add_to_variant_dict("afm_pathogenicity", afm_pathogenicity)
 
             df_rows.append(vi.variant_dict)
             ncbi_ref_seq_ids.add(vi.ncbi_ref_seq_id)
