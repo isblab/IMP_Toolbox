@@ -205,7 +205,7 @@ def get_mutation_annotated_df(
         mutated_res_1[res1] = [
             mut for idx, mut in enumerate(mutations1)
             if str(res1) == split_missense_mutation(mut)[1]
-            and af_missense1_patho[idx] == "Likely pathogenic"
+            # and af_missense1_patho[idx] == "Likely pathogenic"
             and clinvar1_patho[idx] in ["Likely pathogenic", "Pathogenic", "Conflicting classifications of pathogenicity", "Pathogenic/Likely pathogenic"]
         ]
         afm_score_res_1[res1] = [
@@ -217,7 +217,7 @@ def get_mutation_annotated_df(
         mutated_res_2[res2] = [
             mut for idx, mut in enumerate(mutations2)
             if str(res2) == split_missense_mutation(mut)[1]
-            and af_missense2_patho[idx] == "Likely pathogenic"
+            # and af_missense2_patho[idx] == "Likely pathogenic"
             and clinvar2_patho[idx] in ["Likely pathogenic", "Pathogenic", "Conflicting classifications of pathogenicity", "Pathogenic/Likely pathogenic"]
         ]
         afm_score_res_2[res2] = [
