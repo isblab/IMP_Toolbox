@@ -6,6 +6,7 @@ from string import Template
 from itertools import product
 from IMP_Toolbox.utils_imp_toolbox.file_helpers import write_json
 from IMP_Toolbox.analysis.cocomap.cocomap_constants import (
+    REP_ATOMS,
     TEMPLATE_CONFIG,
     DOCKER_BASE_COMMAND,
     ATOM_COL_NAMES,
@@ -503,6 +504,14 @@ def get_atom_plddt(
         rep_atom = rep_atom_dict.get(
             res_obj.get_resname(),
             StructureParser.get_rep_atom(residue=res_obj)
+        )
+
+        metric_atom1 = metric_dict[type(rep_atom)](rep_atom)
+
+    elif atom in REP_ATOMS:
+        rep_atom = rep_atom_dict.get(
+            res_obj.get_resname(),
+            REP_ATOMS.get(atom, StructureParser.get_rep_atom(residue=res_obj))
         )
 
         metric_atom1 = metric_dict[type(rep_atom)](rep_atom)

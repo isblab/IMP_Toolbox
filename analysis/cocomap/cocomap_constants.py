@@ -70,3 +70,26 @@ VALID_INTERACTIONS = {
     "C-H_pi": "CH-π interaction",
     "pi-pi": "π-π interaction",
 }
+
+REP_ATOMS = {
+    "GLY": "CA",
+    "ALA": "CB",
+    "VAL": "CB",
+    "LEU": "CB",
+    "ILE": "CB",
+    "THR": "CB",
+    "SER": "CB",
+    "MET": "CB",
+    "CYS": "CB",
+    "PRO": "CB",
+    "PHE": "CB",
+    "TYR": "CB",
+    "TRP": "CB",
+    "HIS": "CB",
+    "LYS": "CB",
+    "ARG": "CB",
+    "ASP": "CB",
+    "GLU": "CB",
+    "ASN": "CB",
+    "GLN": "CB",
+}
