@@ -1,4 +1,5 @@
 import os
+from typing import Any
 import yaml
 import warnings
 import argparse
@@ -249,6 +250,55 @@ def get_remainder_uniprot_bases(
             remainder_bases.append(uniprot_base)
 
     return remainder_bases
+
+def get_af_missense_attribute(
+    af_missense_dict: dict,
+    attribute: str,
+    p_name: str,
+    p_mutation: str,
+) -> Any:
+    """ Get a specific attribute for a given protein mutation from
+    the AlphaMissense variants dictionary.
+
+    Args:
+
+        af_missense_dict (dict):
+            AlphaMissense variants dictionary
+
+        attribute (str):
+            Attribute to retrieve (e.g., "patho_score", "v_pathogenicity")
+
+        p_name (str):
+            Protein name
+
+        p_mutation (str):
+            Protein mutation in the format "Arg123Cys"
+
+    Returns:
+        Any:
+            Value of the requested attribute for the given protein mutation,
+            or None if not found.
+    """
+
+    if p_name not in af_missense_dict:
+        warnings.warn(f"Protein {p_name} not found in AlphaMissense data.")
+        return None
+
+    if p_mutation not in af_missense_dict[p_name]:
+        warnings.warn(
+            f"Mutation {p_mutation} not found for protein {p_name} "
+            f"in AlphaMissense data."
+        )
+        return None
+
+    if attribute not in af_missense_dict[p_name][p_mutation]:
+        warnings.warn(
+            f"Attribute {attribute} not found for "
+            f"protein {p_name} mutation {p_mutation}."
+        )
+        return None
+
+    return af_missense_dict[p_name][p_mutation][attribute]
 
 def af_missense_df_to_dict(
     p_name: str,

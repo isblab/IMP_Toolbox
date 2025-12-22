@@ -33,8 +33,10 @@ from IMP_Toolbox.pre_processing.mutations.af_missense import (
     fetch_fasta_dict_for_af_missense,
     fetch_af_missense_data,
     export_af_missense_data,
+    get_af_missense_attribute,
 )
 from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
+    AF_MISSENSE_COLUMNS,
     AF_MISSENSE_CSV_SUFFIX,
     AF_MISSENSE_PAIR_ALN_SUFFIX,
     AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
@@ -1216,6 +1218,20 @@ if __name__ == "__main__":
 
             vi.make_variant_dict()
             vi.add_to_variant_dict("uniprot_id", uniprot_id)
+            afm_patho_score = get_af_missense_attribute(
+                af_missense_dict=af_missense_dict,
+                attribute="patho_score",
+                p_name=p_name,
+                p_mutation=vi.p_mutation,
+            )
+            afm_pathogenicity = get_af_missense_attribute(
+                af_missense_dict=af_missense_dict,
+                attribute="v_pathogenicity",
+                p_name=p_name,
+                p_mutation=vi.p_mutation,
+            )
+            vi.add_to_variant_dict("afm_patho_score", afm_patho_score)
+            vi.add_to_variant_dict("afm_pathogenicity", afm_pathogenicity)
 
             df_rows.append(vi.variant_dict)
             ncbi_ref_seq_ids.add(vi.ncbi_ref_seq_id)
@@ -1229,8 +1245,12 @@ if __name__ == "__main__":
                 f"Multiple RefSeq IDs found for {g_name}: {ncbi_ref_seq_ids}."
             )
 
+    cols_to_add = CLINVAR_DF_COLUMNS
+    if args.include_AF_missense:
+        cols_to_add.update(AF_MISSENSE_COLUMNS)
+
     df = pd.DataFrame(df_rows)
-    df = df.rename(columns=CLINVAR_DF_COLUMNS)
+    df = df.rename(columns=cols_to_add)
     # print(df.head())
 
     out_name = "clinvar_missense_variants"
