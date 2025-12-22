@@ -12,6 +12,9 @@ from IMP_Toolbox.analysis.cocomap.cocomap_constants import (
     ATOM_COL_NAMES,
     VALID_INTERACTIONS,
 )
+from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
+    split_missense_mutation,
+)
 
 def run_cocomap_docker(
     processed_struct_path: str,
@@ -156,6 +159,93 @@ def postprocess_cocomap_results(
         ]
         df_exploded = df_exploded.drop_duplicates()
         df_exploded.to_csv(final_csv_path, index=False)
+
+def get_mutation_annotated_df(
+    cocomap_df: pd.DataFrame,
+    mutation1_df: pd.DataFrame,
+    mutation2_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """ Add mutation annotations to COCOMAP dataframe.
+
+    mutations1_df, mutations2_df are dataframes containing mutation information
+    in the output format of clinvar_mutations1.py
+
+    NOTE: This is temporary, might be changed later.
+
+    Args:
+        cocomap_df (pd.DataFrame): _description_
+        mutation1_df (pd.DataFrame): _description_
+        mutation2_df (pd.DataFrame): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+
+    df_res_1 = list(cocomap_df["Res. Number 1"].unique())
+    df_res_2 = list(cocomap_df["Res. Number 2"].unique())
+
+    mutations1 = mutation1_df["Mutation"].tolist()
+    mutations2 = mutation2_df["Mutation"].tolist()
+
+    af_missense1_score = mutation1_df["AlphaMissense score"].tolist()
+    af_missense2_score = mutation2_df["AlphaMissense score"].tolist()
+
+    af_missense1_patho = mutation1_df["AlphaMissense pathogenicity"].tolist()
+    af_missense2_patho = mutation2_df["AlphaMissense pathogenicity"].tolist()
+
+    clinvar1_patho = mutation1_df["ClinVar clinical significance"].tolist()
+    clinvar2_patho = mutation2_df["ClinVar clinical significance"].tolist()
+
+    mutated_res_1 = {}
+    mutated_res_2 = {}
+    afm_score_res_1 = {}
+    afm_score_res_2 = {}
+
+    for res1, res2 in zip(df_res_1, df_res_2):
+        mutated_res_1[res1] = [
+            mut for idx, mut in enumerate(mutations1)
+            if str(res1) == split_missense_mutation(mut)[1]
+            and af_missense1_patho[idx] == "Likely pathogenic"
+            and clinvar1_patho[idx] in ["Likely pathogenic", "Pathogenic", "Conflicting classifications of pathogenicity", "Pathogenic/Likely pathogenic"]
+        ]
+        afm_score_res_1[res1] = [
+            af_missense1_score[idx] for idx, mut in enumerate(mutations1)
+            if str(res1) == split_missense_mutation(mut)[1]
+            and af_missense1_patho[idx] == "Likely pathogenic"
+        ]
+
+        mutated_res_2[res2] = [
+            mut for idx, mut in enumerate(mutations2)
+            if str(res2) == split_missense_mutation(mut)[1]
+            and af_missense2_patho[idx] == "Likely pathogenic"
+            and clinvar2_patho[idx] in ["Likely pathogenic", "Pathogenic", "Conflicting classifications of pathogenicity", "Pathogenic/Likely pathogenic"]
+        ]
+        afm_score_res_2[res2] = [
+            af_missense2_score[idx] for idx, mut in enumerate(mutations2)
+            if str(res2) == split_missense_mutation(mut)[1]
+            and af_missense2_patho[idx] == "Likely pathogenic"
+        ]
+
+    cocomap_df["Mutated 1"] = cocomap_df["Res. Number 1"].map(mutated_res_1)
+    cocomap_df["Mutated 2"] = cocomap_df["Res. Number 2"].map(mutated_res_2)
+    cocomap_df["AF Missense 1 Score"] = cocomap_df["Res. Number 1"].map(afm_score_res_1)
+    cocomap_df["AF Missense 2 Score"] = cocomap_df["Res. Number 2"].map(afm_score_res_2)
+
+    # convert lists to strings for better readability
+    cocomap_df["Mutated 1"] = cocomap_df["Mutated 1"].apply(
+        lambda x: ", ".join(x) if isinstance(x, list) and len(x) > 0 else ""
+    )
+    cocomap_df["Mutated 2"] = cocomap_df["Mutated 2"].apply(
+        lambda x: ", ".join(x) if isinstance(x, list) and len(x) > 0 else ""
+    )
+    cocomap_df["AF Missense 1 Score"] = cocomap_df["AF Missense 1 Score"].apply(
+        lambda x: ", ".join(map(str, x)) if isinstance(x, list) and len(x) > 0 else ""
+    )
+    cocomap_df["AF Missense 2 Score"] = cocomap_df["AF Missense 2 Score"].apply(
+        lambda x: ", ".join(map(str, x)) if isinstance(x, list) and len(x) > 0 else ""
+    )
+
+    return cocomap_df
 
 def add_af_metrics(
     result_metadata: dict,
