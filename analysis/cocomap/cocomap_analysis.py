@@ -255,8 +255,9 @@ def add_af_metrics(
     average_token_pae: bool = False,
     average_token_plddt: bool = False,
     metric_level: str = "per_token",
+    mark_clashes: bool = False,
 ):
-    """ Add AlphaFold metrics (PAE, pLDDT) to COCOMAP results.
+    """ Add and save COCOMAP results with AlphaFold metrics (PAE, pLDDT) columns.
 
     Args:
 
@@ -283,6 +284,12 @@ def add_af_metrics(
 
         metric_level (str, optional):
             Level at which to compute metrics: 'per_token' or 'representative_token'.
+
+        mark_clashes (bool, optional):
+            If True, mark interactions that are clashes as defined by COCOMAPS2.
+            COCOMAPS2 annotates interaction types with "*" if the distance between
+            the interacting atoms is less than the sum of their Van der Waals radii.
+            BUG: Currently, not matching to the final_file.csv clashes
 
     """
 
@@ -343,7 +350,6 @@ def add_af_metrics(
                 continue
 
             print(f"Processing {csv_f}.")
-            interaction_type = VALID_INTERACTIONS[csv_identifier]
 
             csv_path = os.path.join(cocomap_output_dir, csv_f)
             df = pd.read_csv(csv_path, index_col=0, encoding='utf-8')
@@ -354,10 +360,14 @@ def add_af_metrics(
             df_res_names_1 = list(df["Res. Name 1"])
             df_res_names_2 = list(df["Res. Name 2"])
 
-            df_interaction_types_w_clash = mark_clashes_in_interaction_types(
-                df=df,
-                interaction_type=interaction_type,
-            )
+            interaction_type = VALID_INTERACTIONS[csv_identifier]
+            df_interaction_types = [interaction_type]*len(df)
+
+            if mark_clashes:
+                df_interaction_types = mark_clashes_in_interaction_types(
+                    df=df,
+                    interaction_type=interaction_type,
+                )
 
             df_atom_1, df_atom_2 = get_interacting_atoms(df, csv_identifier)
 
@@ -407,7 +417,7 @@ def add_af_metrics(
                 "Res. Name 2": df_res_names_2,
                 "Res. Number 2": df_res_2,
                 chains_set_2_prot: df_chains_2,
-                "Type of Interactions": df_interaction_types_w_clash,
+                "Type of Interactions": df_interaction_types,
                 "AF PAE": pae_values,
                 "Atom 1 pLDDT": atom1_plddts,
                 "Atom 2 pLDDT": atom2_plddts,
