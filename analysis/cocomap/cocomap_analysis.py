@@ -166,8 +166,6 @@ def get_mutation_annotated_df(
     cocomap_df: pd.DataFrame,
     mutation1_df: pd.DataFrame,
     mutation2_df: pd.DataFrame,
-    # af_missense1_df: pd.DataFrame,
-    # af_missense2_df: pd.DataFrame,
     af_missense_dict1: dict,
     af_missense_dict2: dict,
     p_name1: str,
@@ -178,7 +176,7 @@ def get_mutation_annotated_df(
     mutations1_df, mutations2_df are dataframes containing mutation information
     in the output format of clinvar_mutations1.py
 
-    NOTE: This is temporary, might be changed later.
+    NOTE: This is temporary, CHANGE!.
 
     Args:
         cocomap_df (pd.DataFrame): _description_
@@ -195,21 +193,6 @@ def get_mutation_annotated_df(
     mutations1 = mutation1_df["Mutation"].tolist()
     mutations2 = mutation2_df["Mutation"].tolist()
 
-    # af_missense1_score = mutation1_df["AlphaMissense score"].tolist()
-    # af_missense2_score = mutation2_df["AlphaMissense score"].tolist()
-
-    # af_missense1_patho = mutation1_df["AlphaMissense pathogenicity"].tolist()
-    # af_missense2_patho = mutation2_df["AlphaMissense pathogenicity"].tolist()
-
-    # afm_mutations1 = af_missense1_df["protein_variant"].tolist()
-    # afm_mutations2 = af_missense2_df["protein_variant"].tolist()
-
-    # af_missense1_score = af_missense1_df["am_pathogenicity"].tolist()
-    # af_missense2_score = af_missense2_df["am_pathogenicity"].tolist()
-
-    # af_missense1_patho = af_missense1_df["am_class"].tolist()
-    # af_missense2_patho = af_missense2_df["am_class"].tolist()
-
     clinvar1_patho = mutation1_df["ClinVar clinical significance"].tolist()
     clinvar2_patho = mutation2_df["ClinVar clinical significance"].tolist()
 
@@ -219,10 +202,6 @@ def get_mutation_annotated_df(
     afm_score_res_2 = {}
     afm_patho_mutations_1 = {}
     afm_patho_mutations_2 = {}
-
-    # print(af_missense_dict1[p_name1])
-    # print(af_missense_dict2[p_name2])
-    # exit()
 
     for res1 in df_res_1:
         mutated_res_1[res1] = [
@@ -236,40 +215,6 @@ def get_mutation_annotated_df(
             for idx, mut in enumerate(af_missense_dict1[p_name1])
             if str(res1) == split_missense_mutation(mut)[1]
         ]
-        # afm_score_res_1[res1] = [
-        #     af_missense1_score[idx] for idx, mut in enumerate(afm_mutations1)
-        #     if str(res1) == split_missense_mutation(mut)[1]
-            # and af_missense1_patho[idx] == "Likely pathogenic"
-        # ]
-        # sorted_afm_patho_mutations_1 = sorted(
-        #     [
-        #         mut for idx, mut in enumerate(afm_mutations1)
-        #         if str(res1) == split_missense_mutation(mut)[1]
-        #         and af_missense1_patho[idx] == "pathogenic"
-        #     ],
-        #     key=lambda x: float(
-        #         af_missense1_score[afm_mutations1.index(x)]
-        #     )
-        # )
-        # afm_patho_mutations_1_ = [
-        #     split_missense_mutation(mut)[2] for idx, mut in enumerate(afm_mutations1)
-        #     if str(res1) == split_missense_mutation(mut)[1]
-        #     and af_missense1_patho[idx] == "pathogenic"
-        # ]
-        # _afm_patho_mutations_1_scores = [
-        #     af_missense1_score[idx] for idx, mut in enumerate(afm_mutations1)
-        #     if str(res1) == split_missense_mutation(mut)[1]
-        #     and af_missense1_patho[idx] == "pathogenic"
-        # ]
-        # sorted_afm_patho_mutations_1 = [
-        #     mut for _, mut in sorted(
-        #         zip(
-        #             _afm_patho_mutations_1_scores,
-        #             afm_patho_mutations_1_
-        #         ),
-        #         key=lambda x: float(x[0])
-        #     )
-        # ]
         afm_patho_mutations_1_ = [
             AMINO_ACID_MAP[af_missense_dict1[p_name1][mut]["mut_aa"]]
             for idx, mut in enumerate(af_missense_dict1[p_name1])
@@ -290,40 +235,6 @@ def get_mutation_annotated_df(
             for idx, mut in enumerate(af_missense_dict2[p_name2])
             if str(res2) == split_missense_mutation(mut)[1]
         ]
-        # afm_score_res_2[res2] = [
-        #     af_missense2_score[idx] for idx, mut in enumerate(afm_mutations2)
-        #     if str(res2) == split_missense_mutation(mut)[1]
-            # and af_missense2_patho[idx] == "Likely pathogenic"
-        # ]
-        # sorted_afm_patho_mutations_2 = sorted(
-        #     [
-        #         mut for idx, mut in enumerate(afm_mutations2)
-        #         if str(res2) == split_missense_mutation(mut)[1]
-        #         and af_missense2_patho[idx] == "pathogenic"
-        #     ],
-        #     key=lambda x: float(
-        #         af_missense2_score[afm_mutations2.index(x)]
-        #     )
-        # )
-        # afm_patho_mutations_2_ = [
-        #     split_missense_mutation(mut)[2] for idx, mut in enumerate(afm_mutations2)
-        #     if str(res2) == split_missense_mutation(mut)[1]
-        #     and af_missense2_patho[idx] == "pathogenic"
-        # ]
-        # _afm_patho_mutations_2_scores = [
-        #     af_missense2_score[idx] for idx, mut in enumerate(afm_mutations2)
-        #     if str(res2) == split_missense_mutation(mut)[1]
-        #     and af_missense2_patho[idx] == "pathogenic"
-        # ]
-        # sorted_afm_patho_mutations_2 = [
-        #     mut for _, mut in sorted(
-        #         zip(
-        #             _afm_patho_mutations_2_scores,
-        #             afm_patho_mutations_2_
-        #         ),
-        #         key=lambda x: float(x[0])
-        #     )
-        # ]
         afm_patho_mutations_2_ = [
             AMINO_ACID_MAP[af_missense_dict2[p_name2][mut]["mut_aa"]]
             for idx, mut in enumerate(af_missense_dict2[p_name2])
@@ -356,45 +267,12 @@ def get_mutation_annotated_df(
     cocomap_df["Mutated 1"] = cocomap_df["Res. Number 1"].map(mutated_res_1_new)
     cocomap_df["Mutated 2"] = cocomap_df["Res. Number 2"].map(mutated_res_2_new)
 
-    # cocomap_df["AF Missense 1 Score"] = cocomap_df["Res. Number 1"].map(afm_score_res_1)
-    # cocomap_df["AF Missense 2 Score"] = cocomap_df["Res. Number 2"].map(afm_score_res_2)
-
     cocomap_df["AF Missense 1 Score"] = cocomap_df["Res. Number 1"].map(
         lambda x: np.mean(afm_score_res_1[x])
     )
     cocomap_df["AF Missense 2 Score"] = cocomap_df["Res. Number 2"].map(
         lambda x: np.mean(afm_score_res_2[x])
     )
-
-    # convert lists to strings for better readability
-    # cocomap_df["Mutated 1"] = cocomap_df["Mutated 1"].apply(
-    #     lambda x: ", ".join(x) if isinstance(x, list) and len(x) > 0 else ""
-    # )
-    # cocomap_df["Mutated 2"] = cocomap_df["Mutated 2"].apply(
-    #     lambda x: ", ".join(x) if isinstance(x, list) and len(x) > 0 else ""
-    # )
-
-    # add afm_patho_mutations to Mutated columns
-    # cocomap_df["Mutated 1"] = cocomap_df.apply(
-    #     lambda row: (
-    #         row["Mutated 1"] + afm_patho_mutations_1[row["Res. Number 1"]]
-    #     ),
-    #     axis=1
-    # )
-    # cocomap_df["Mutated 2"] = cocomap_df.apply(
-    #     lambda row: (
-    #         row["Mutated 2"] + afm_patho_mutations_2[row["Res. Number 2"]]
-    #     ),
-    #     axis=1
-    # )
-    # cocomap_df["AF Missense 1 Score"] = cocomap_df["AF Missense 1 Score"].apply(
-    #     # lambda x: ", ".join(map(str, x)) if isinstance(x, list) and len(x) > 0 else ""
-    #     lambda x: np.mean(x) if isinstance(x, list) and len(x) > 0 else ""
-    # )
-    # cocomap_df["AF Missense 2 Score"] = cocomap_df["AF Missense 2 Score"].apply(
-    #     # lambda x: ", ".join(map(str, x)) if isinstance(x, list) and len(x) > 0 else ""
-    #     lambda x: np.mean(x) if isinstance(x, list) and len(x) > 0 else ""
-    # )
 
     return cocomap_df
 
@@ -843,8 +721,12 @@ def get_interacting_atoms(
     if len(atom_col_names) == 2:
         atom1_col_name = atom_col_names[0]
         atom2_col_name = atom_col_names[1]
-        df_atom_1 = list(df[atom1_col_name])
-        df_atom_2 = list(df[atom2_col_name])
+        try:
+            df_atom_1 = list(df[atom1_col_name])
+            df_atom_2 = list(df[atom2_col_name])
+        except KeyError: # fall back to residue level if atom columns not found
+            df_atom_1 = list(df["Res. Name 1"])
+            df_atom_2 = list(df["Res. Name 2"])
 
     elif len(atom_col_names) == 3: # for pi interactions
         atom_name_col = atom_col_names[0]
