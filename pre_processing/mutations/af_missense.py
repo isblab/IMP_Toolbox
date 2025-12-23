@@ -380,6 +380,9 @@ def af_missense_df_to_dict(
             warnings.warn(f"""{warn_msg} (Protein: {p_name})""")
             continue
 
+        if res_num_mapped is None:
+            continue
+
         p_variant_key = f"{wt_aa}{res_num_mapped}{mut_aa}"
 
         af_missense_dict[p_name][p_variant_key] = {
