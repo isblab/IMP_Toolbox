@@ -15,6 +15,20 @@ conda install --file requirements.txt
 
 ## Installation
 
+- Use the following command in terminal. (`bash install_imp.sh </path/to/imp-install/> <num-cores> <mode>`)
+```bash
+bash install_imp.sh /path/$USER/IMP_OMG 16 tarball 2.23.0
+
+# or if using conda
+bash install_imp_conda.sh imp_omg /path/$USER/IMP_OMG 16 tarball 2.23.0
+```
+
+- `mode` can be "github" or "tarball".
+
+- If using "github" mode, either the tag (tag ~ IMP release version) or branch name can be used for `imp_version`.
+
+- If custom module is being used, you will prompted to provide it's path. Currently only supports installing one custom module.
+
 ## Pre-processing
 
 Note: the classes for pre-processing and AFpipeline are in `preprocessing` and `af_pipeline`. You need to import and use them for your own systems. See `examples` for example scripts. 
