@@ -15,7 +15,7 @@ conda install --file requirements.txt
 
 ## Installation
 
-- Use the following command in terminal. (`bash install_imp.sh </path/to/imp-install/> <num-cores> <mode>`)
+- Use the following command in terminal. (`bash install_imp.sh </path/to/imp-install/> <num-cores> <mode> <imp_version>`)
 ```bash
 bash install_imp.sh /path/$USER/IMP_OMG 16 tarball 2.23.0
 
