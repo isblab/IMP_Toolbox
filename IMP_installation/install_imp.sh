@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# user input
+
 install_path=${1:?"Please specify the path of the directory where you would like to install IMP."}
 ncores=${2:?"Please specify the number of cores you would like to use for the build."}
 install_mode=${3:?"Please specify the installation source: 'github' or 'tarball'."}
@@ -10,6 +12,8 @@ fi
 imp_version=${4:?"Please provide the IMP version to install (e.g., 2.23.0). or branch name if installing from github."}
 
 cwd_=$(pwd) ;
+
+# install required system packages
 
 cd $install_path ;
 if [[ -d "./imp-clean" ]]; then
@@ -76,9 +80,9 @@ elif [ $install_mode == "github" ]; then
         echo "Cloning IMP from github repository.";
 
         {
-            git clone --branch $imp_version git@github.com:salilab/imp.git ;
+            git clone --recurse-submodules --branch $imp_version git@github.com:salilab/imp.git ;
         } || {
-            git clone --branch $imp_version https://github.com/salilab/imp.git ;
+            git clone --recurse-submodules --branch $imp_version https://github.com/salilab/imp.git ;
         }
         if [ $? -ne 0 ]; then
             echo "Error cloning the IMP repository. Please check your internet connection or the repository URL."
@@ -90,7 +94,7 @@ elif [ $install_mode == "github" ]; then
 
     cd imp ;
     ./setup_git.py ;
-
+    git submodule update --init --recursive ;
     imp_src_path=$install_path/imp-clean/imp ;
 
 else 
@@ -98,6 +102,8 @@ else
     exit 1 ;
 
 fi
+
+# custom module installation
 
 read -p "Do you want to install your own module and recompile IMP (y/n)?" choice
 
@@ -136,6 +142,8 @@ if [ $custom_module_install == "yes" ]; then
     cp -r $custom_module_path $imp_src_path/modules
 fi
 
+# Recompiling IMP
+
 cd $install_path/imp-clean ;
 
 if [[ -d "./build" ]]; then
@@ -144,9 +152,6 @@ if [[ -d "./build" ]]; then
 fi
 mkdir build ;
 cd build ;
-
-# set cgal directory based on fedora version
-# ref: https://integrativemodeling.org/2.22.0/download/IMP.spec
 
 if grep -q "Fedora" /etc/os-release; then
 

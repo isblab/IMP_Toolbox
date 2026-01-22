@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# user input
+
 conda_env_name=${1:?"Please specify the name of the conda environment."}
 install_path=${2:?"Please specify the path of the directory where you would like to install IMP."}
 ncores=${3:?"Please specify the number of cores you would like to use for the build."}
@@ -11,6 +13,8 @@ fi
 imp_version=${5:?"Please provide the IMP version to install (e.g., 2.23.0). or branch name if installing from github."}
 
 cwd_=$(pwd) ;
+
+# conda environment setup
 
 read -p """
 This script will install IMP from the source code.
@@ -72,6 +76,8 @@ fi
 
 echo $CONDA_DEFAULT_ENV
 
+# install required system packages
+
 cd $install_path ;
 if [[ -d "./imp-clean" ]]; then
     echo "The imp-clean directory already exists.";
@@ -89,6 +95,8 @@ echo 'module load mpi/openmpi-x86_64' >> ~/.bash_profile ;
 source ~/.bash_profile ;
 
 cd $install_path/imp-clean/ ;
+
+# IMP source code download
 
 if [ $install_mode == "tarball" ]; then
     echo "Downloading IMP $imp_version tarball";
@@ -135,9 +143,9 @@ elif [ $install_mode == "github" ]; then
         echo "Cloning IMP from github repository.";
 
         {
-            git clone --branch $imp_version git@github.com:salilab/imp.git ;
+            git clone --recurse-submodules --branch $imp_version git@github.com:salilab/imp.git ;
         } || {
-            git clone --branch $imp_version https://github.com/salilab/imp.git ;
+            git clone --recurse-submodules --branch $imp_version https://github.com/salilab/imp.git ;
         }
         if [ $? -ne 0 ]; then
             echo "Error cloning the IMP repository. Please check your internet connection or the repository URL."
@@ -148,6 +156,7 @@ elif [ $install_mode == "github" ]; then
     fi
 
     cd imp ;
+    git submodule update --init --recursive ;
     ./setup_git.py ;
 
     imp_src_path=$install_path/imp-clean/imp ;
@@ -157,6 +166,8 @@ else
     exit 1 ;
 
 fi
+
+# custom module installation
 
 read -p "Do you want to install your own module and recompile IMP (y/n)?" choice
 
@@ -194,6 +205,8 @@ if [ $custom_module_install == "yes" ]; then
 
     cp -r $custom_module_path $imp_src_path/modules
 fi
+
+# Recompiling IMP
 
 cd $install_path/imp-clean ;
 
