@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     fetchit = FetchSequences(uniprot_ids)
 
-    fasta = fetchit.uniprot_to_sequences()
+    fasta = fetchit.query_uniprot_api_for_sequences()
     fasta = fetchit.only_uniprot_id_as_name(fasta)
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)

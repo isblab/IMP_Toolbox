@@ -23,7 +23,7 @@ def request_session(max_retries: int=3) -> requests.sessions.Session:
 
 def request_result(
     get_request: requests.models.Response,
-    uniprot_id: str,
+    uniprot_id: str | None=None,
     ignore_error: bool=False
 ) -> dict | bytes | None:
     """Get the result of a `get_request`

@@ -1,4 +1,4 @@
-from utils import request_session
+from IMP_Toolbox.utils_imp_toolbox.api_helpers import request_session
 
 class FetchSequences:
     """Fetch sequences for given uniprot ids and save them in fasta format

@@ -1,7 +1,14 @@
-from utils import request_session, request_result, read_json, write_json
-import pandas as pd
 import os
+import pandas as pd
 from tqdm import tqdm
+from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
+    request_session,
+    request_result
+)
+from IMP_Toolbox.utils_imp_toolbox.file_helpers import (
+    read_json,
+    write_json
+)
 
 class BestStructures:
     """Fetch best structures for given proteins
@@ -52,6 +59,10 @@ class BestStructures:
                 print(f"No best structure found for {uniprot_id}")
 
             best_chains = best_structure[uniprot_id]
+            best_chains = [
+                chain for chain in best_chains
+                if chain["resolution"] is not None
+            ]
             best_chains = sorted(best_chains, key=lambda x: x['resolution'])
 
             for _, chain in enumerate(best_chains):
