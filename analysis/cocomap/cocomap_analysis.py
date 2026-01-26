@@ -16,7 +16,9 @@ from IMP_Toolbox.analysis.cocomap.cocomap_constants import (
 from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
     split_missense_mutation,
 )
-from pre_processing.mutations.mutation_constants import AMINO_ACID_MAP
+from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
+    AMINO_ACID_MAP,
+)
 
 def run_cocomap_docker(
     processed_struct_path: str,
@@ -288,6 +290,8 @@ def add_af_metrics(
 ):
     """ Add and save COCOMAP results with AlphaFold metrics (PAE, pLDDT) columns.
 
+    #TODO: Throw error if csv files not found in cocomap_output_dir
+    
     Args:
 
         result_metadata (dict):

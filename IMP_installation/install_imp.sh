@@ -164,5 +164,7 @@ else
 
 fi
 
+conda activate $conda_env_name
+
 cmake $imp_src_path -DCMAKE_CXX_COMPILER=mpic++ -DCMAKE_C_COMPILER=mpicc -DCMAKE_BUILD_TYPE=Release -DIMP_MAX_CHECKS=NONE -DIMP_MAX_LOG=SILENT -G=Ninja -DCGAL_DIR=$cgal_dir ;
 ninja -j $ncores 1> recompile.log 2> recompile.err;
