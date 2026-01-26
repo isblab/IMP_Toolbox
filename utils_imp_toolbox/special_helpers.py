@@ -1,41 +1,19 @@
 from collections import defaultdict
 import os
-from Bio.PDB import Select
+import psa
+import warnings
 import Bio
 import Bio.PDB
 import Bio.PDB.Structure
-import warnings
-import pandas as pd
-from ruamel.yaml import YAML
 import numpy as np
+import pandas as pd
+from Bio.PDB import Select
+from ruamel.yaml import YAML
 from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key,
 )
 from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_fasta
-import importlib.util
-import sys
-import getpass
-
-_user = getpass.getuser()
-
-# Define the full path to your module file
-psa_path = f"/home/{_user}/anaconda3/lib/python3.12/site-packages/psa.py"
-module_name = 'pairwise_seq_aln'  # This name will be used to refer to the module
-
-# Create a module specification
-spec = importlib.util.spec_from_file_location(
-    module_name, psa_path, submodule_search_locations=[psa_path]
-)
-
-# Create a new module object based on the spec
-pairwise_seq_aln = importlib.util.module_from_spec(spec)
-
-# Add the module to sys.modules to make it available for future imports
-sys.modules[module_name] = pairwise_seq_aln
-
-# Execute the module's code in its own namespace
-spec.loader.exec_module(pairwise_seq_aln)
 
 def update_config(
     input_file: str,
@@ -736,7 +714,7 @@ def handle_pairwise_alignment(
 
         if not os.path.exists(pairwise_alignment_file):
 
-            pairwise_alignment = pairwise_seq_aln.align(
+            pairwise_alignment = psa.align(
                 program=alignment_program,
                 moltype="prot",
                 qseq=qseq,

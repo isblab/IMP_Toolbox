@@ -1,5 +1,6 @@
 import os
 from string import Template
+from typing import Any
 import xmltodict
 import yaml
 import pprint
@@ -7,10 +8,8 @@ import warnings
 import argparse
 import pandas as pd
 from tqdm import tqdm
-from io import StringIO
 from datetime import datetime
 import xml.etree.ElementTree as ET
-from IMP_Toolbox.pre_processing.sequence.Sequence import FetchSequences
 from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
     request_session,
     request_result,
@@ -20,34 +19,38 @@ from IMP_Toolbox.utils_imp_toolbox.file_helpers import (
     read_json,
     write_json,
 )
-from IMP_Toolbox.utils_imp_toolbox.special_helpers import handle_pairwise_alignment
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import fasta_str_to_dict
+from IMP_Toolbox.utils_imp_toolbox.special_helpers import (
+    get_mapped_residue,
+    handle_pairwise_alignment,
+)
 from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
     split_missense_mutation,
     is_missense_mutation,
     get_ncbi_ref_seq,
 )
+from IMP_Toolbox.pre_processing.mutations.af_missense import (
+    af_missense_df_to_dict,
+    fetch_fasta_dict_for_af_missense,
+    fetch_af_missense_data,
+    export_af_missense_data,
+    get_af_missense_attribute,
+)
 from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
+    AF_MISSENSE_COLUMNS,
     AF_MISSENSE_CSV_SUFFIX,
     AF_MISSENSE_PAIR_ALN_SUFFIX,
+    AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
     CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE,
+    CLINVAR_DF_COLUMNS,
     CLINVAR_TEMPLATE_QUERY_DETAIL,
     CLINVAR_TEMPLATE_QUERY_ID,
     DATE_FORMAT,
     API_URLS,
 )
-from IMP_Toolbox.pre_processing.mutations.af_missense import (
-    af_missense_df_to_dict,
-    fetch_fasta_dict_for_af_missense,
-    get_af_missense_data,
-    get_fasta_dict_for_af_missense,
-    fetch_af_missense_data,
-)
 
 def get_variant_ids_from_clinvar(
     gene_name:str,
-    api_url: str,
-    api_parameters: dict = {},
+    api_parameters: dict,
     ignore_error: bool = False,
     max_retries: int = 3,
 ) -> list:
@@ -56,36 +59,50 @@ def get_variant_ids_from_clinvar(
     TODO: Error handling is messed up here, fix it.
 
     Args:
-        gene_name (str): The gene name to search for.
+
+        gene_name (str):
+            The gene name to search for.
+
+        api_parameters (dict):
+            API parameters for the request.
+
+        ignore_error (bool, optional):
+            Whether to ignore errors. Defaults to False.
+
+        max_retries (int, optional):
+            Maximum number of retries for the request. Defaults to 3.
 
     Returns:
-        list: List of ClinVar variant IDs.
+
+        list:
+            List of ClinVar variant IDs.
     """
 
     req_sess = request_session(max_retries=max_retries)
-    response = req_sess.get(api_url, params=api_parameters)
+    response = req_sess.get(API_URLS["ncbi_esearch"], params=api_parameters)
     result = request_result(response, gene_name)
 
     if result is None:
         # try without returnmode
         api_parameters.pop("retmode")
-        response = req_sess.get(api_url, params=api_parameters)
+        response = req_sess.get(API_URLS["ncbi_esearch"], params=api_parameters)
 
         if response.status_code == 200:
             result = response.text
 
         elif ignore_error:
+            # print(response.url)
             return []
 
         else:
+            # print(response.url)
             raise ValueError(
                 f"""Error fetching variant ids for {gene_name}
                 {response.status_code}: {response.text}
                 """
             )
 
-    print(response.url)
-
+    # print(response.url)
     if isinstance(result, str):
         # parse xml
         root = ET.fromstring(result)
@@ -103,35 +120,8 @@ def get_variant_ids_from_clinvar(
 
     return []
 
-def fetch_variant_ids_from_clinvar(
-    save_path: str,
-    gene_name:str,
-    api_url: str,
-    api_parameters: dict = {},
-    ignore_error: bool = False,
-    max_retries: int = 3,
-    overwrite: bool = False,
-) -> list:
-
-    if os.path.exists(save_path) and not overwrite:
-        variant_ids = read_json(save_path)
-        return variant_ids
-
-    variant_ids = get_variant_ids_from_clinvar(
-        gene_name,
-        api_url,
-        api_parameters,
-        ignore_error,
-        max_retries,
-    )
-
-    write_json(save_path, variant_ids)
-
-    return variant_ids
-
 def get_variant_details_from_clinvar(
     variant_ids:list,
-    api_url: str,
     api_parameters: dict = {},
     ignore_error: bool = False,
     max_retries: int = 3,
@@ -141,10 +131,23 @@ def get_variant_details_from_clinvar(
     We get info in XML format from the API, which we convert and store as JSON.
 
     Args:
-        variant_ids (list): List of ClinVar variant IDs.
+
+        variant_ids (list):
+            List of ClinVar variant IDs.
+
+        api_parameters (dict):
+            API parameters for the request.
+
+        ignore_error (bool, optional):
+            Whether to ignore errors. Defaults to False.
+
+        max_retries (int, optional):
+            Maximum number of retries for the request. Defaults to 3.
 
     Returns:
-        dict: Dictionary with variant IDs as keys and their details as values.
+
+        dict:
+            Dictionary with variant IDs as keys and their details as values.
     """
 
     variant_id_batches = [
@@ -158,7 +161,7 @@ def get_variant_details_from_clinvar(
         api_parameters["id"] = ",".join(batch)
 
         req_sess = request_session(max_retries=max_retries)
-        response = req_sess.get(api_url, params=api_parameters)
+        response = req_sess.get(API_URLS["ncbi_efetch"], params=api_parameters)
 
         if response.status_code == 200:
             result = response.text
@@ -166,7 +169,7 @@ def get_variant_details_from_clinvar(
             if ignore_error:
                 return {}
             else:
-                raise ValueError(f"Error fetching variant details for batch {idx}")
+                raise ValueError(f"Error fetching variant details for {batch}")
 
         root = ET.fromstring(result)
         variation_info = root.findall("VariationArchive")
@@ -181,291 +184,86 @@ def get_variant_details_from_clinvar(
 
     return variant_info_dict
 
-def fetch_variant_details_from_clinvar(
+def fetch_clinvar_variant_data(
     save_path: str,
-    variant_ids:list,
-    api_url: str,
+    input_data: str | list,
     api_parameters: dict = {},
     ignore_error: bool = False,
     max_retries: int = 3,
     overwrite: bool = False,
-) -> dict:
+) -> dict | list:
+    """ Fetch ClinVar variant data for given gene name or variant IDs.
+
+    Uses `get_variant_ids_from_clinvar` or `get_variant_details_from_clinvar`.
+
+    Args:
+
+        save_path (str):
+            Path to save the fetched variant data.
+
+        input_data (str | list):
+            Gene name (str) or list of variant IDs (list).
+
+        api_parameters (dict, optional):
+            API parameters for the request. Defaults to {}.
+
+        ignore_error (bool, optional):
+            Whether to ignore errors. Defaults to False.
+
+        max_retries (int, optional):
+            Maximum number of retries for the request. Defaults to 3.
+
+        overwrite (bool, optional):
+            Whether to overwrite existing data at save_path. Defaults to False.
+
+    Returns:
+        dict | list:
+            Fetched variant data.
+    """
+
+    data_type_dict = {str: "ids", list: "details"}
+
+    try:
+        data_type = data_type_dict[type(input_data)]
+
+    except KeyError:
+        raise ValueError(
+            f"Invalid input data type: {type(input_data)}. "
+            "Expected str (gene name) or list (variant ids)."
+        )
 
     if os.path.exists(save_path) and overwrite is False:
-        print(f"Variant details file {save_path} already exists. Loading...")
-        variant_info_dict = read_json(save_path)
-        return variant_info_dict
+        variant_data = read_json(save_path)
+        return variant_data
 
-    variant_info_dict = get_variant_details_from_clinvar(
-        variant_ids,
-        api_url,
-        api_parameters,
-        ignore_error,
-        max_retries,
+    get_func = eval(f"get_variant_{data_type}_from_clinvar")
+
+    variant_data = get_func(
+        input_data,
+        api_parameters=api_parameters,
+        ignore_error=ignore_error,
+        max_retries=max_retries,
     )
 
-    write_json(save_path, variant_info_dict)
+    write_json(save_path, variant_data)
 
-    return variant_info_dict
-
-def get_molecular_consequence_list(
-    hgvs_list: dict,
-    ncbi_ref_seq_id: str,
-    missense_only: bool = True,
-) -> list:
-    """ Get the molecular consequence list from the HGVS list for a given
-    RefSeq ID.
-
-    Args:
-        hgvs_list (dict):
-            The HGVS list from the ClinVar variant information.
-        ncbi_ref_seq_id (str):
-            The RefSeq ID to match against.
-        missense_only (bool, optional):
-            Whether to filter for missense variants only. Defaults to True.
-
-    Returns:
-        list:
-            List of molecular consequences.
-    """
-
-    def check_mc_type(mc: str) -> bool:
-        if missense_only:
-            return mc.get("@Type", "") == "missense variant"
-        return True
-
-    molecular_consequence_list = []
-
-    if isinstance(hgvs_list.get("HGVS", []), dict):
-        hgvs_list["HGVS"] = [hgvs_list["HGVS"]]
-
-    for hgvs_entry in hgvs_list.get("HGVS", []):
-
-        # we only want consequence at protein level
-        if hgvs_entry.get("@Type", "") != "coding":
-            continue
-
-        # depending on the sequence, molecular consequence can differ
-        # we only want those that match the RefSeq ID in the title
-        # check if the sequence identifier matches
-        nucleotide_express = hgvs_entry.get("NucleotideExpression", {})
-        seq_accession = nucleotide_express.get("@sequenceAccession", "")
-
-        # can potentially cause issues if the aa sequence changed in
-        # newer versions of same base RefSeq ID
-        # "@sequenceAccessionVersion" provides the full ID, but it can be
-        # different from the one in the title
-        if seq_accession != ncbi_ref_seq_id.split(".")[0]:
-            continue
-
-        mol_consequence = hgvs_entry.get("MolecularConsequence", {})
-
-        if isinstance(mol_consequence, list):
-            for mc in mol_consequence:
-                if check_mc_type(mc):
-                    molecular_consequence_list.extend([
-                        mc.get("@Type", "") for mc in mol_consequence
-                    ])
-                    break
-
-        elif isinstance(mol_consequence, dict):
-            if check_mc_type(mol_consequence):
-                molecular_consequence_list.append(
-                    mol_consequence.get("@Type", "")
-                )
-
-    return list(set(molecular_consequence_list))
-
-def extract_preferred_trait_names(
-    trait_dict: dict,
-    preferred_trait_names: list
-) -> list:
-    """ Extract preferred trait names from a trait dictionary.
-
-    Args:
-        trait_dict (dict): Trait dictionary from ClinVar variant information.
-        preferred_trait_names (list): List to append preferred trait names to.
-
-    Returns:
-        list: Updated list of preferred trait names.
-    """
-
-    trait_names = trait_dict.get("Name", [])
-
-    if not isinstance(trait_names, list):
-        trait_names = [trait_names]
-
-    for trait_name in trait_names:
-
-        if not isinstance(trait_name, dict):
-            continue
-
-        if trait_name.get("ElementValue", {}).get("@Type", "") == "Preferred":
-            preferred_trait_names.append(
-                trait_name.get("ElementValue", {}).get("#text", "")
-            )
-
-    return preferred_trait_names
-
-def get_variant_associated_traits(germline_classification: dict) -> list:
-    """ Get the associated traits for a given germline classification.
-
-    Args:
-        germline_classification (dict):
-            Germline classification from ClinVar variant information.
-
-    Returns:
-        list:
-            List of associated traits.
-    """
-
-    traits = []
-    trait_set = germline_classification.get("ConditionList", {}).get(
-        "TraitSet", []
-    )
-
-    if isinstance(trait_set, dict):
-        trait_set = [trait_set]
-
-    for trait in trait_set:
-        # trait should be a disease and should contribute to agg. classification
-        if (
-            trait.get("@Type", "") != "Disease"
-            or trait.get(
-                "@ContributesToAggregateClassification", "false"
-            ) == "false"
-        ):
-            continue
-
-        preferred_trait_names = []
-        trait_ = trait.get("Trait", {})
-
-        if isinstance(trait_, dict):
-            preferred_trait_names = extract_preferred_trait_names(
-                trait_, preferred_trait_names
-            )
-
-        elif isinstance(trait_, list):
-            for _trait_ in trait_:
-                preferred_trait_names = extract_preferred_trait_names(
-                    _trait_, preferred_trait_names
-                )
-
-        traits.extend(preferred_trait_names)
-
-    return list(set(traits))
-
-def get_all_clinical_assertions(
-    classified_record: dict,
-    sort_by_date: bool=True,
-    date_format:str=DATE_FORMAT,
-) -> list:
-    """ Get all clinical assertions from a classified record.
-
-    Clinical assertion represents a single submission to ClinVar corresponding
-    to the variant. Multiple submissions can be present for a single variant.
-    We only look at those that contribute to the agg. clinical significance.
-
-    if sort_by_date is True, the assertions are sorted by the date they were
-    last evaluated. If the evaluation date is not available, the date last
-    updated is used instead.
-
-    Args:
-        classified_record (dict):
-            Classified record from ClinVar variant information.
-        sort_by_date (bool, optional):
-            Whether to sort the assertions by date. Defaults to True.
-        date_format (str, optional):
-            Date format for parsing dates. Defaults to DATE_FORMAT.
-
-    Returns:
-        list: List of clinical assertions.
-    """
-
-    clinical_assertions = []
-
-    clinical_assertion_list = classified_record.get(
-        "ClinicalAssertionList", {}
-    ).get("ClinicalAssertion", [])
-
-    if isinstance(clinical_assertion_list, dict):
-        clinical_assertion_list = [clinical_assertion_list]
-
-    for clinical_assertion in clinical_assertion_list:
-        # we look at only those that contribute
-        contributes_to_agg_class = clinical_assertion.get(
-            "@ContributesToAggregateClassification", "false"
-        )
-        if contributes_to_agg_class == "false":
-            continue
-
-        last_updated_date = clinical_assertion.get(
-            "@DateLastUpdated", ""
-        )
-        assertion_classification = clinical_assertion.get(
-            "Classification", {}
-        )
-        asserted_germline_class = assertion_classification.get(
-            "GermlineClassification", ""
-        )
-
-        assertion_comment = assertion_classification.get("Comment", "")
-
-        if isinstance(assertion_comment, dict):
-            assertion_comment = assertion_comment.get("#text", "")
-
-        last_evaluated_date = assertion_classification.get(
-            "@DateLastEvaluated", ""
-        )
-
-        last_updated_date = datetime.strptime(
-            last_updated_date, date_format
-        )
-
-        try:
-            last_evaluated_date = datetime.strptime(
-                last_evaluated_date, date_format
-            )
-        except ValueError:
-            last_evaluated_date = last_updated_date
-
-        clinical_assertions.append({
-            "last_updated_date": last_updated_date,
-            "asserted_germline_class": asserted_germline_class,
-            "assertion_comment": assertion_comment,
-            "last_evaluated_date": last_evaluated_date,
-        })
-
-    if sort_by_date:
-        clinical_assertions = sorted(
-            clinical_assertions,
-            key=lambda x: x["last_evaluated_date"],
-            reverse=True
-        )
-
-    return clinical_assertions
-
-def warn_sequence_not_found(
-    p_name,
-    uniprot_id,
-):
-    warnings.warn(
-        f"""
-        Sequence not found for {p_name} ({uniprot_id}).
-        Skipping...
-        """
-    )
+    return variant_data
 
 class VariantInfo:
 
+    setter_dict: dict = {dict: lambda x: [x], list: lambda x: x}
+
     def __init__(
         self,
+        p_name: str,
+        g_name: str,
         variant_id: str,
         variant_info: dict,
     ):
+        self.p_name = p_name
+        self.g_name = g_name
         self.variant_id = variant_id
-        self.variant_info = variant_info
-        self.set_variant_archive()
+        self.variant_archive = variant_info.get("VariationArchive", {})
         self.set_variant_name()
         self.set_variant_type()
         self.set_classified_record()
@@ -473,69 +271,116 @@ class VariantInfo:
         self.set_germline_classification()
         self.set_agg_significance()
         self.set_trait_set()
+        self.set_clinical_assertion_list()
 
-    def set_variant_archive(self):
-        self.variant_archive = self.variant_info.get("VariationArchive", {})
+        self.ncbi_ref_seq_id = self.get_ncbi_ref_seq_id()
+        self.molecular_consequence_list = self.get_molecular_consequence_list()
+        self.mutation_descs = self.get_mutation_descs()
+        self.p_mutation = self.get_p_mutation()
+        self.ncbi_g_name = self.get_ncbi_g_name()
+        self.traits = self.get_variant_associated_traits()
+        self.clinical_assertions = self.get_all_clinical_assertions(
+            sort_by_date=True,
+            date_format=DATE_FORMAT,
+        )
+        self.all_significances = self.get_all_significances()
+        self.all_assertion_comments = self.get_all_assertion_comments()
 
     def set_variant_name(self):
+        """ Set the variant name from the variant archive.
+        The varient name of our relevance is in the format:
+        NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)
+        RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
+        """
         self.variant_name = self.variant_archive.get("@VariationName", "")
 
     def set_variant_type(self):
+        """ Set the variant type from the variant archive.
+        The variant type of our relevance is "single nucleotide variant"
+        """
         self.variant_type = self.variant_archive.get("@VariationType", "")
 
     def set_classified_record(self) -> dict:
+        """ Set the classified record from the variant archive.
+        This has the germline classification information.
+        """
         self.classified_record = self.variant_archive.get("ClassifiedRecord", {})
 
     def set_hgvs_list(self) -> dict:
+        """ Set the HGVS list from the classified record.
+        The HGVS list contains the molecular consequence information.
+        """
         self.hgvs_list = self.classified_record.get("SimpleAllele", {}).get("HGVSlist", {})
 
     def set_germline_classification(self) -> dict:
+        """ Set the germline classification from the classified record.
+        This has the aggregate clinical significance information.
+        """
         self.germline_classification = self.classified_record.get(
             "Classifications", {}
         ).get("GermlineClassification", {})
 
     def set_agg_significance(self) -> str:
-        ###################################################################
-        # get aggregate significance
-        # - pathogenic or likely pathogenic only
-        # - depending on user input, include VUS
-        ###################################################################
+        """ Set the aggregate clinical significance.
+        This is the overall clinical significance for the variant provided by
+        ClinVar based on all contributing submissions.
+        Of our relevance are "Pathogenic" and "Likely pathogenic" and
+        potentially "VUS" depending on user input.
+        """
         self.agg_significance = self.germline_classification.get(
             "Description", ""
         )
 
-    @staticmethod
-    def get_ncbi_ref_seq_id(variant_name):
-        # essentially points to which isoform the variant is described for
-        # assumes format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
-        # i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
-        ncbi_ref_seq_id = variant_name.split(":")[0].split("(")[0]
+    def get_ncbi_ref_seq_id(self, ignore_warnings: bool = True) -> str | None:
+        """ Get the NCBI RefSeq ID from the variant name.
+        Essentially points to which isoform the variant is described for.
+        assumes format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
+        i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
+
+        Args:
+
+            ignore_warnings (bool, optional):
+                Whether to ignore warnings. Defaults to True.
+
+        Returns:
+
+            str | None:
+                The NCBI RefSeq ID.
+        """
+
+        ncbi_ref_seq_id = None
+        ncbi_ref_seq = self.variant_name.split(":")
+
+        if self.g_name in ncbi_ref_seq[0]:
+            ncbi_ref_seq_id = ncbi_ref_seq[0].replace(f"({self.g_name})", "")
+
+        elif ignore_warnings is False:
+            warnings.warn(
+                f"{self.g_name} not found in variant name {self.variant_name}"
+            )
+
         return ncbi_ref_seq_id
 
     def get_molecular_consequence_list(
         self,
-        ncbi_ref_seq_id: str,
         missense_only: bool = True,
     ) -> list:
         """ Get the molecular consequence list from the HGVS list for a given
         RefSeq ID.
 
+        At least one molecular consequence should be "missense variant".
+
         Args:
-            hgvs_list (dict):
-                The HGVS list from the ClinVar variant information.
-            ncbi_ref_seq_id (str):
-                The RefSeq ID to match against.
+
             missense_only (bool, optional):
                 Whether to filter for missense variants only. Defaults to True.
 
         Returns:
+
             list:
                 List of molecular consequences.
         """
-        ###################################################################
-        # get molecular consequence
-        # - missense only
-        ###################################################################
+
         def check_mc_type(mc: str) -> bool:
             if missense_only:
                 return mc.get("@Type", "") == "missense variant"
@@ -558,11 +403,15 @@ class VariantInfo:
             nucleotide_express = hgvs_entry.get("NucleotideExpression", {})
             seq_accession = nucleotide_express.get("@sequenceAccession", "")
 
-            # can potentially cause issues if the aa sequence changed in
-            # newer versions of same base RefSeq ID
+            # BUG: potential bug
+            # can cause issues if the aa sequence changed in the newer
+            # versions of same base RefSeq ID
             # "@sequenceAccessionVersion" provides the full ID, but it can be
             # different from the one in the title
-            if seq_accession != ncbi_ref_seq_id.split(".")[0]:
+            if (
+                self.ncbi_ref_seq_id is None
+                or seq_accession != self.ncbi_ref_seq_id.split(".")[0]
+            ):
                 continue
 
             mol_consequence = hgvs_entry.get("MolecularConsequence", {})
@@ -583,26 +432,89 @@ class VariantInfo:
 
         return list(set(molecular_consequence_list))
 
-    @staticmethod
-    def get_mutation_descs(variant_name: str) -> list:
-        mutation_descs = variant_name.split(":")[1].split(" ")
+    def get_mutation_descs(self, ignore_warnings: bool = True) -> list:
+        """ Get the mutation descriptors from the variant name.
+
+        Assuming the format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
+        the mutation descriptors are in the part after the colon,
+        i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
+        then, DNAChange and ProteinChange are the mutation descriptors.
+
+        Args:
+
+            ignore_warnings (bool, optional):
+                Whether to ignore warnings. Defaults to True.
+
+        Returns:
+
+            list:
+                List of mutation descriptors.
+        """
+
+        mutation_descs = []
+        ncbi_ref_seq = self.variant_name.split(":")
+
+        if len(ncbi_ref_seq) > 2:
+            print(f"Unexpected variant name format: {self.variant_name}")
+
+        if self.g_name in ncbi_ref_seq[0] and len(ncbi_ref_seq) == 2:
+            mutation_descs = ncbi_ref_seq[1].split(" ")
+
+        elif ignore_warnings is False:
+            warnings.warn(
+                f"{self.g_name} not found in variant name {self.variant_name}"
+            )
+
         return mutation_descs
 
-    @staticmethod
-    def get_ncbi_g_name(variant_name: str) -> str:
-        ncbi_g_name = variant_name.split(":")[0].split("(")[1].replace(")", "")
+    def get_ncbi_g_name(self, ignore_warnings: bool = True) -> str:
+        """ Get the NCBI gene name from the variant name.
+
+        Assuming the format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
+        the gene name is in the part before the colon,
+        i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
+        then, the gene name is GeneName.
+
+        Args:
+
+            ignore_warnings (bool, optional):
+                Whether to ignore warnings. Defaults to True.
+
+        Returns:
+
+            str:
+                The NCBI gene name.
+        """
+
+        ncbi_g_name = None
+        ncbi_ref_seq = self.variant_name.split(":")
+
+        if self.g_name in ncbi_ref_seq[0]:
+            ncbi_g_name = ncbi_ref_seq[0].split("(")[1].replace(")", "")
+
+        elif ignore_warnings is False:
+            warnings.warn(
+                f"{self.g_name} not found in variant name {self.variant_name}"
+            )
+
         return ncbi_g_name
 
-    @staticmethod
-    def get_p_mutation(variant_name: str) -> str:
-        ###################################################################
-        # get protein mutation
-        ###################################################################
-        # assumes format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
-        # i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
-        mutation_descs = VariantInfo.get_mutation_descs(variant_name)
+    def get_p_mutation(self) -> str:
+        """ Get the protein mutation from the mutation descriptors.
+
+        Assumes format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
+        i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
+        The protein mutation is Arg46Leu in this case.
+
+        Returns:
+
+            str:
+                The protein mutation.
+        """
+
         p_mutation = None
-        for desc in mutation_descs:
+
+        for desc in self.mutation_descs:
             desc = desc.replace("(", "").replace(")", "")
             if desc.startswith("p."):
                 p_mutation = desc.replace("p.", "")
@@ -610,13 +522,112 @@ class VariantInfo:
         return p_mutation
 
     def set_trait_set(self):
+        """ Set the trait set from the germline classification."""
+
         trait_set = self.germline_classification.get("ConditionList", {}).get(
             "TraitSet", []
         )
-        if isinstance(trait_set, dict):
-            self.trait_set = [self.trait_set]
-        elif isinstance(trait_set, list):
-            self.trait_set = trait_set
+
+        setter_type = type(trait_set)
+        assert setter_type in VariantInfo.setter_dict, (
+            f"Unexpected trait set format: {setter_type}"
+            f"for trait_set: {trait_set}"
+            f"in variant ID: {self.variant_id}"
+        )
+
+        self.trait_set = VariantInfo.setter_dict[setter_type](trait_set)
+
+    @staticmethod
+    def is_contributing_disease_trait(trait_dict: dict) -> bool:
+        """ Check if a trait is a disease and contributes to agg. classification.
+
+        Args:
+
+            trait_dict (dict):
+                Trait dictionary from ClinVar variant information.
+
+        Returns:
+
+            bool:
+                True if the trait is a disease and contributes to agg.
+        """
+
+        _t_type = trait_dict.get("@Type", "")
+        _t_contributes = trait_dict.get(
+            "@ContributesToAggregateClassification", "false"
+        )
+
+        return (_t_type == "Disease" and _t_contributes == "true")
+
+    @staticmethod
+    def is_preferred_trait_name(trait_name: dict) -> bool:
+        """ Check if a trait name is preferred.
+
+        Args:
+
+            trait_name (dict):
+                Trait name dictionary from ClinVar variant information.
+
+        Returns:
+
+            bool:
+                True if the trait name is preferred, False otherwise.
+        """
+
+        return (
+            trait_name.get("ElementValue", {}).get("@Type", "")
+            == "Preferred"
+        )
+
+    @staticmethod
+    def extract_preferred_trait_names(trait_dict: dict) -> list:
+        """ Extract preferred trait names from a trait dictionary.
+
+        Args:
+
+            trait_dict (dict):
+                Trait dictionary from ClinVar variant information.
+
+        Returns:
+
+            list:
+                List of preferred trait names.
+        """
+
+        preferred_trait_names = []
+        trait_ = trait_dict.get("Trait", {})
+
+        trait_type = type(trait_)
+        assert trait_type in VariantInfo.setter_dict, (
+            f"Unexpected trait format: {trait_type}"
+            f"for trait: {trait_}"
+            f"in variant ID: {trait_dict}"
+        )
+
+        trait_ = VariantInfo.setter_dict[trait_type](trait_)
+
+        for _trait_ in trait_:
+
+            trait_names = _trait_.get("Name", [])
+            trait_name_type = type(trait_names)
+            assert trait_name_type in VariantInfo.setter_dict, (
+                f"Unexpected trait name format: {trait_name_type}"
+                f"for trait_names: {trait_names}"
+                f"in variant ID: {trait_dict}"
+            )
+            trait_names = VariantInfo.setter_dict[trait_name_type](trait_names)
+
+            for trait_name in trait_names:
+
+                if not isinstance(trait_name, dict):
+                    continue
+
+                if VariantInfo.is_preferred_trait_name(trait_name):
+                    preferred_trait_names.append(
+                        trait_name.get("ElementValue", {}).get("#text", "")
+                    )
+
+        return preferred_trait_names
 
     def get_variant_associated_traits(self) -> list:
         """ Get the associated traits for a given germline classification.
@@ -631,50 +642,42 @@ class VariantInfo:
         """
 
         traits = []
-        # trait_set = self.germline_classification.get("ConditionList", {}).get(
-        #     "TraitSet", []
-        # )
 
-        # if isinstance(self.trait_set, dict):
-        #     self.trait_set = [self.trait_set]
-
-        for trait in self.trait_set:
-            # trait should be a disease and should contribute to agg. classification
-            if (
-                trait.get("@Type", "") != "Disease"
-                or trait.get(
-                    "@ContributesToAggregateClassification", "false"
-                ) == "false"
-            ):
+        for trait_dict in self.trait_set:
+            # trait should be a disease and contribute to agg. classification
+            if VariantInfo.is_contributing_disease_trait(trait_dict) is False:
                 continue
 
-            preferred_trait_names = []
-            trait_ = trait.get("Trait", {})
-
-            if isinstance(trait_, dict):
-                preferred_trait_names = extract_preferred_trait_names(
-                    trait_, preferred_trait_names
-                )
-
-            elif isinstance(trait_, list):
-                for _trait_ in trait_:
-                    preferred_trait_names = extract_preferred_trait_names(
-                        _trait_, preferred_trait_names
-                    )
+            preferred_trait_names = VariantInfo.extract_preferred_trait_names(
+                trait_dict=trait_dict
+            )
 
             traits.extend(preferred_trait_names)
+
+        if len(set(traits)) == 0:
+            traits = ["not provided"]
 
         return list(set(traits))
 
     def set_clinical_assertion_list(self):
-        clinical_assertion_list = self.classified_record.get(
+        """ Set the clinical assertion list from the classified record."""
+
+        assertions = self.classified_record.get(
             "ClinicalAssertionList", {}
         ).get("ClinicalAssertion", [])
 
-        if isinstance(clinical_assertion_list, dict):
-            self.clinical_assertion_list = [clinical_assertion_list]
-        elif isinstance(clinical_assertion_list, list):
-            self.clinical_assertion_list = clinical_assertion_list
+
+        assertions_type = type(assertions)
+
+        assert assertions_type in VariantInfo.setter_dict, (
+            f"Unexpected clinical assertion format: {assertions_type}"
+            f"for clinical_assertion_list: {assertions}"
+            f"in variant ID: {self.variant_id}"
+        )
+
+        self.clinical_assertion_list = (
+            VariantInfo.setter_dict[assertions_type](assertions)
+        )
 
     def get_all_clinical_assertions(
         self,
@@ -687,30 +690,28 @@ class VariantInfo:
         to the variant. Multiple submissions can be present for a single variant.
         We only look at those that contribute to the agg. clinical significance.
 
-        if sort_by_date is True, the assertions are sorted by the date they were
-        last evaluated. If the evaluation date is not available, the date last
-        updated is used instead.
+        if `sort_by_date` is True, the assertions are sorted by the date they
+        were last evaluated. If the evaluation date is not available, the date
+        last updated is used instead.
+
+        Look through all the assertions that contributed to aggregate clinical
+        significance
 
         Args:
-            classified_record (dict):
-                Classified record from ClinVar variant information.
+
             sort_by_date (bool, optional):
                 Whether to sort the assertions by date. Defaults to True.
+
             date_format (str, optional):
                 Date format for parsing dates. Defaults to DATE_FORMAT.
 
         Returns:
-            list: List of clinical assertions.
+
+            list:
+                List of clinical assertions.
         """
 
         clinical_assertions = []
-
-        # clinical_assertion_list = classified_record.get(
-        #     "ClinicalAssertionList", {}
-        # ).get("ClinicalAssertion", [])
-
-        # if isinstance(clinical_assertion_list, dict):
-        #     clinical_assertion_list = [clinical_assertion_list]
 
         for clinical_assertion in self.clinical_assertion_list:
             # we look at only those that contribute
@@ -720,41 +721,27 @@ class VariantInfo:
             if contributes_to_agg_class == "false":
                 continue
 
-            last_updated_date = clinical_assertion.get(
-                "@DateLastUpdated", ""
-            )
-            assertion_classification = clinical_assertion.get(
-                "Classification", {}
-            )
-            asserted_germline_class = assertion_classification.get(
-                "GermlineClassification", ""
-            )
+            last_updated = clinical_assertion.get("@DateLastUpdated", "")
+            assertion_class = clinical_assertion.get("Classification", {})
 
-            assertion_comment = assertion_classification.get("Comment", "")
+            germline_class = assertion_class.get("GermlineClassification", "")
+            last_evaluated = assertion_class.get("@DateLastEvaluated", "")
+            assertion_comment = assertion_class.get("Comment", "")
 
             if isinstance(assertion_comment, dict):
                 assertion_comment = assertion_comment.get("#text", "")
 
-            last_evaluated_date = assertion_classification.get(
-                "@DateLastEvaluated", ""
-            )
-
-            last_updated_date = datetime.strptime(
-                last_updated_date, date_format
-            )
-
+            last_updated = datetime.strptime(last_updated, date_format)
             try:
-                last_evaluated_date = datetime.strptime(
-                    last_evaluated_date, date_format
-                )
+                last_evaluated = datetime.strptime(last_evaluated, date_format)
             except ValueError:
-                last_evaluated_date = last_updated_date
+                last_evaluated = last_updated
 
             clinical_assertions.append({
-                "last_updated_date": last_updated_date,
-                "asserted_germline_class": asserted_germline_class,
+                "last_updated_date": last_updated,
+                "asserted_germline_class": germline_class,
                 "assertion_comment": assertion_comment,
-                "last_evaluated_date": last_evaluated_date,
+                "last_evaluated_date": last_evaluated,
             })
 
         if sort_by_date:
@@ -765,6 +752,236 @@ class VariantInfo:
             )
 
         return clinical_assertions
+
+    def get_all_significances(self) -> list:
+        """ Get all clinical significances from the clinical assertions.
+
+        Returns:
+
+            list:
+                List of clinical significances from all studies.
+        """
+
+        all_significances = [""]
+
+        if len(self.clinical_assertions) > 0:
+
+            all_significances = [
+                self.clinical_assertions[i]["asserted_germline_class"]
+                for i in range(len(self.clinical_assertions))
+            ]
+
+        return all_significances
+
+    def get_all_assertion_comments(self) -> list:
+        """ Get all assertion comments from the clinical assertions.
+
+        Returns:
+
+            list:
+                List of assertion comments provided for all studies.
+        """
+
+        all_comments = [""]
+
+        if len(self.clinical_assertions) > 0:
+
+            all_comments = [
+                self.clinical_assertions[i]["assertion_comment"]
+                for i in range(len(self.clinical_assertions))
+            ]
+            assert len(all_comments) == len(self.all_significances), (
+                "Length of assertion comments and significances do not match."
+            )
+            all_comments = [
+                f"{sign} :- {comment}"
+                for sign, comment in zip(self.all_significances, all_comments)
+            ]
+
+        return all_comments
+
+    def is_invalid_variant(self) -> bool:
+        """ Check if the variant is invalid based on certain conditions.
+
+        The conditions checked are:
+        - Aggregate clinical significance is not in allowed list.
+        - NCBI RefSeq ID is None.
+        - Molecular consequence is not valid (i.e. not a missense variant).
+        - Provided gene name doesn't match NCBI gene name (weird but true, DSC2)
+        - Mutation is not a single missense mutation.
+        - If agg. significance is "Conflicting classifications of pathogenicity",
+            the most recent significance is not in allowed list.
+
+        Returns:
+
+            bool:
+                True if the variant is invalid, False otherwise.
+        """
+
+        condition_val = (
+            self.agg_significance not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE
+            or self.ncbi_ref_seq_id is None
+            or len(self.molecular_consequence_list) == 0
+            or self.g_name != self.ncbi_g_name
+            or is_missense_mutation(self.p_mutation) is False
+            or (self.agg_significance
+                == "Conflicting classifications of pathogenicity"
+                and self.all_significances[0]
+                    not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE)
+        )
+
+        return condition_val
+
+    def update_p_mutation(
+        self,
+        modeled_seq: str,
+        ref_seq_file: str,
+        pairwise_alignment_file: str,
+        ignore_warnings: bool = True,
+    ):
+        """ Update the protein mutation based on the modeled sequence.
+
+        The ClinVar protein mutation is based on the NCBI reference sequence.
+        The modeled sequence might differ due to different isoforms, this
+        function updates the residue number in the protein mutation accordingly.
+
+        Args:
+
+            modeled_seq (str):
+                Sequence of the modeled protein.
+
+            ref_seq_file (str):
+                Path to the NCBI reference sequence JSON file.
+
+            pairwise_alignment_file (str):
+                Path to the pairwise alignment file.
+
+            ignore_warnings (bool, optional):
+                Whether to ignore warnings. Defaults to True.
+
+        Returns:
+
+            str | None:
+                Updated protein mutation or None if p_mutation is None.
+        """
+
+        if self.p_mutation is None:
+            return None
+
+        p_sequence = get_ncbi_ref_seq(self.ncbi_ref_seq_id, ref_seq_file)
+
+        clinvar_psa_map = handle_pairwise_alignment(
+            p_name=self.p_name,
+            sseq=p_sequence,
+            qseq=modeled_seq,
+            pairwise_alignment_file=pairwise_alignment_file,
+            ignore_warnings=True
+        )
+
+        split_mut = split_missense_mutation(
+            p_mutation=self.p_mutation,
+            return_type="all"
+        )
+
+        if split_mut is None:
+            self.p_mutation = None
+            return None
+
+        wt_aa, res_num, mut_aa = split_mut
+        res_num = int(res_num)
+
+        res_num_mapped, warn_msg = get_mapped_residue(
+            psa_map=clinvar_psa_map,
+            codon_number=res_num,
+        )
+
+        if ignore_warnings is False and len(warn_msg) > 0:
+            warnings.warn(f"""{warn_msg} (Protein: {p_name})""")
+
+        if len(clinvar_psa_map) == 0:
+            res_num_mapped = res_num
+        else:
+            try:
+                res_num_mapped = clinvar_psa_map[res_num]
+            except KeyError:
+                warnings.warn(
+                    f"""
+                    Residue number {res_num} not found in
+                    pairwise alignment map for protein {p_name}.
+                    Skipping...
+                    """
+                ) if ignore_warnings is False else None
+                res_num_mapped = None
+
+        self.p_mutation = (
+            None if res_num_mapped is None
+            else f"{wt_aa}{res_num_mapped}{mut_aa}"
+        )
+
+        return self.p_mutation
+
+    def make_variant_dict(self):
+        """ Create a dictionary representation of the variant information."""
+
+        self.variant_dict = {
+            "variant_id": self.variant_id,
+            "protein": self.p_name,
+            "gene": self.g_name,
+            "ncbi_ref_seq_id": self.ncbi_ref_seq_id,
+            "p_mutation": self.p_mutation,
+            "molecular_consequence": "\n".join(self.molecular_consequence_list),
+            "trait_or_effect": "\n".join(self.traits),
+            "clinical_significance": self.agg_significance,
+            "all_significances": "\n\n".join(self.all_significances),
+            "all_assertion_comments": "\n\n".join(self.all_assertion_comments),
+            "variant_type": self.variant_type,
+            # "afm_patho_score": afm_patho_score,
+            # "afm_pathogenicity": afm_pathogenicity,
+        }
+
+    def add_to_variant_dict(
+        self,
+        key: str,
+        value: Any,
+        overwrite: bool = True
+    ):
+        """ Add a key-value pair to the variant dictionary.
+
+        Args:
+
+            key (str):
+                The key to add to the variant dictionary.
+
+            value (Any):
+                The value to add to the variant dictionary.
+
+            overwrite (bool, optional):
+                Whether to overwrite the existing key in the variant dictionary.
+                Defaults to True.
+        """
+
+        warn_msg = ""
+
+        if not hasattr(self, "variant_dict"):
+            warn_msg += "variant_dict not found, creating new one. "
+            self.make_variant_dict()
+
+        warn_msg_dict = {
+            True: "Overwriting existing key in variant_dict. ",
+            False: "Not overwriting existing key in variant_dict. ",
+        }
+
+        if key in self.variant_dict:
+            warn_msg += f"Key {key} already exists in variant_dict. "
+            warn_msg += warn_msg_dict[overwrite]
+            if overwrite is False:
+                warnings.warn(warn_msg)
+                return
+
+        if warn_msg != "":
+            warnings.warn(warn_msg)
+
+        self.variant_dict[key] = value
 
 if __name__ == "__main__":
 
@@ -819,6 +1036,13 @@ if __name__ == "__main__":
         help="Mode to fetch AlphaMissense data.",
     )
     parser.add_argument(
+        "--af_missense_tsv",
+        type=str,
+        required=False,
+        default=AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
+        help="Path to AlphaMissense aa substitutions TSV file for offline mode.",
+    )
+    parser.add_argument(
         "--odp_sequences_fasta",
         type=str,
         default="/home/omkar/Projects/cardiac_desmosome/data/sequences/odp_protein_sequences.fasta",
@@ -826,7 +1050,6 @@ if __name__ == "__main__":
         help="Fasta file containing modeled protein sequences.",
     )
     args = parser.parse_args()
-    print("Doing something")
 
     config_yaml = yaml.load(open(args.config_file, "r"), Loader=yaml.FullLoader)
     protein_uniprot_map = config_yaml["cardiac_odp_protein_uniprot_map"]
@@ -845,33 +1068,51 @@ if __name__ == "__main__":
     )
     uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
 
-    af_missense_dict = {}
-
+    #######################################################################
+    # Fetch AlphaMissense data
+    #######################################################################
     if args.include_AF_missense:
-        _user = os.getlogin()
-        af_missense_script_path = f"/home/{_user}/Projects/IMP_Toolbox/pre_processing/mutations/af_missense.py"
-        af_missense_command = f"""
-        python {af_missense_script_path} \\
-            --config_file {os.path.abspath(args.config_file)} \\
-            --alpha_missense_dir {os.path.abspath(args.alpha_missense_dir)} \\
-            --mode {args.af_missense_mode} \\
-        """
-        os.system(af_missense_command)
 
-    from collections import defaultdict
-    pubmed_ids = defaultdict(set)
+        af_missense_df_gen = fetch_af_missense_data(
+            args.alpha_missense_dir,
+            uniprot_bases,
+            mode=args.af_missense_mode,
+            overwrite=False,
+            af_missense_tsv=args.af_missense_tsv,
+        )
+
+        export_af_missense_data(
+            args.alpha_missense_dir,
+            af_missense_df_gen,
+            overwrite=False,
+        )
 
     for p_name, uniprot_id in protein_uniprot_map.items():
 
-        uniprot_base = uniprot_id.split("-")[0]
-
         print(f"Processing {p_name}...")
+
+        uniprot_base = uniprot_id.split("-")[0]
         g_name = protein_gene_map[p_name]
 
-        af_missense_dict = {}
+        AF_MISSENSE_CSV = os.path.join(
+            args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+        )
+        AF_MISSENSE_PAIR_ALN_FASTA = os.path.join(
+            args.pairwise_alignments_dir, f"{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta"
+        )
+        CLINVAR_VARIANTS_JSON = os.path.join(
+            args.clinvar_output_dir, f"{g_name}_clinvar_variants1.json"
+        )
+        CLINVAR_VARIANT_IDS_JSON = os.path.join(
+            args.clinvar_output_dir, f"{g_name}_clinvar_variant_ids.json"
+        )
+        CLINVAR_PAIR_ALN_FASTA = os.path.join(
+            args.pairwise_alignments_dir, f"{p_name}_clinvar_vs_modeled.fasta"
+        )
+
         modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)
         if modeled_seq is None:
-            warn_sequence_not_found(p_name, uniprot_id)
+            warnings.warn(f"Sequence not found for {p_name} ({uniprot_id}).")
             continue
 
         #######################################################################
@@ -879,17 +1120,9 @@ if __name__ == "__main__":
         #######################################################################
         if args.include_AF_missense:
 
-            af_missense_file = os.path.join(
-                args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
-            )
-            afm_pairwise_alignment_file = os.path.join(
-                args.pairwise_alignments_dir, f"{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta"
-            )
-
             af_missense_ref_seq = fasta_dict.get(uniprot_base, None)
-
             if af_missense_ref_seq is None:
-                warn_sequence_not_found(p_name, uniprot_base)
+                warnings.warn(f"Sequence not found for {p_name} ({uniprot_base}).")
                 continue
 
             # won't align if sequences are identical
@@ -897,62 +1130,40 @@ if __name__ == "__main__":
                 p_name=p_name,
                 sseq=af_missense_ref_seq,
                 qseq=modeled_seq,
-                pairwise_alignment_file=afm_pairwise_alignment_file,
+                pairwise_alignment_file=AF_MISSENSE_PAIR_ALN_FASTA,
                 ignore_warnings=True
             )
-            # write_json(
-            #     os.path.join(
-            #         args.pairwise_alignments_dir,
-            #         f"{p_name}_afm_pairwise_alignment_map.json"
-            #     ),
-            #     afm_psa_map
-            # )
 
-            if not os.path.exists(af_missense_file):
+            if not os.path.exists(AF_MISSENSE_CSV):
                 warnings.warn(
-                    f"AlphaMissense data file not found for {p_name}. Got: {af_missense_file}"
+                    f"""AlphaMissense data file not found for {p_name}:
+                    {AF_MISSENSE_CSV}"""
                 )
                 continue
 
-            af_missense_df = pd.read_csv(af_missense_file)
+            af_missense_df = pd.read_csv(AF_MISSENSE_CSV)
 
             af_missense_dict = af_missense_df_to_dict(
                 p_name,
                 af_missense_df,
-                af_missense_dict=af_missense_dict,
-                afm_psa_map=afm_psa_map, # may not be appropriate in all cases
+                afm_psa_map=afm_psa_map, # may not be appropriate to use in some cases
+                ignore_warnings=True,
             )
-            # write_json(
-            #     os.path.join(
-            #         args.alpha_missense_dir,
-            #         f"{uniprot_base}_af_missense_dict.json"
-            #     ),
-            #     af_missense_dict
-            # )
 
+        print(f"--Fetching ClinVar variants")
         #######################################################################
-        # Get gene specific variants from ClinVar
+        # Fetch variant ids from ClinVar
         #######################################################################
-        clinvar_variants_file = os.path.join(
-            args.clinvar_output_dir, f"{g_name}_clinvar_variants1.json"
-        )
-
-        print(f"Fetching ClinVar variants for {g_name}...")
-
         api_parameters = CLINVAR_TEMPLATE_QUERY_ID.copy()
         api_parameters["term"] = Template(api_parameters["term"]).substitute(
             gene_name=g_name
         )
 
-        variant_ids = fetch_variant_ids_from_clinvar(
-            save_path=os.path.join(
-                args.clinvar_output_dir, f"{g_name}_clinvar_variant_ids.json"
-            ),
-            gene_name=g_name,
-            api_url=API_URLS["ncbi_esearch"],
+        variant_ids = fetch_clinvar_variant_data(
+            save_path=CLINVAR_VARIANT_IDS_JSON,
+            input_data=g_name,
             api_parameters=api_parameters,
             ignore_error=False,
-            max_retries=3,
             overwrite=False,
         )
 
@@ -960,329 +1171,69 @@ if __name__ == "__main__":
             print(f"No variants found for {g_name}")
             continue
 
-        clinvar_variants = fetch_variant_details_from_clinvar(
-            save_path=clinvar_variants_file,
-            variant_ids=variant_ids,
-            api_url=API_URLS["ncbi_efetch"],
+        #######################################################################
+        # Fetch variant details from ClinVar
+        #######################################################################
+        clinvar_variants = fetch_clinvar_variant_data(
+            save_path=CLINVAR_VARIANTS_JSON,
+            input_data=variant_ids,
             api_parameters=CLINVAR_TEMPLATE_QUERY_DETAIL,
             ignore_error=False,
-            max_retries=3,
             overwrite=False,
         )
 
+        if len(clinvar_variants) == 0:
+            print(f"No variant details found for {g_name}")
+            continue
+
+        print(f"--Processing missense variants")
+        #######################################################################
+        # Collect relevant information about missense variants
+        #######################################################################
         ncbi_ref_seq_ids = set()
-
         for variant_id, variant_info in clinvar_variants.items():
 
-            vi = VariantInfo(variant_id, variant_info)
-
-            if vi.agg_significance not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE:
-                continue
-
-            ncbi_ref_seq_id = VariantInfo.get_ncbi_ref_seq_id(vi.variant_name)
-
-            molecular_consequence_list = vi.get_molecular_consequence_list(
-                ncbi_ref_seq_id, missense_only=True
-            )
-            # If there are no missense variants, skip
-            if len(molecular_consequence_list) == 0:
-                continue
-
-            mutation_descs = VariantInfo.get_mutation_descs(vi.variant_name)
-            ncbi_g_name = VariantInfo.get_ncbi_g_name(vi.variant_name)
-
-            # there is one incorrect entry in DSC2 variants
-            if g_name != ncbi_g_name:
-                warnings.warn(
-                    f"Gene mismatch for {variant_id}: {g_name} vs {ncbi_g_name}"
-                )
-                continue
-
-            p_mutation = VariantInfo.get_p_mutation(vi.variant_name)
-            #NOTE: the following will miss missense mutations where
-            # more than one residue is mutated
-            # e.g. p.Gly1094_His1095delinsValAsn in DSG2
-            if (
-                p_mutation is None
-                or not is_missense_mutation(
-                    p_mutation, allow_truncation=False
-                )
-            ):
-                warnings.warn(
-                    f"""
-                    Protein mutation not found or not missense for {variant_id}
-                    {p_mutation=}
-                    Molecular consequence might be "missense", but more than
-                    one residue might be mutated.
-                    Skipping...
-                    """
-                )
-                continue
-
-            traits = vi.get_variant_associated_traits()
-
-            if len(traits) == 0:
-                traits = ["not provided"]
-
-            # Look through all the assertions that contributed to aggregate
-            # clinical significance
-            clinical_assertions = vi.get_all_clinical_assertions(
-                sort_by_date=True, date_format=DATE_FORMAT
-            )
-
-            last_significance = [""] # these are actually all assertions
-            last_assertion_comment = [""]
-
-            if len(clinical_assertions) > 0:
-
-                last_significance = [
-                    clinical_assertions[i]["asserted_germline_class"]
-                    for i in range(len(clinical_assertions))
-                ]
-                last_assertion_comment = [
-                    clinical_assertions[i]["assertion_comment"]
-                    for i in range(len(clinical_assertions))
-                ]
-
-            last_assertion_comment_zip = [
-                f"{s} :- {c}" for s, c in zip(last_significance, last_assertion_comment)
-            ]
-
-            # if agg. significance is conflicting, last assertion should be in allowed
-            if (
-                agg_significance == "Conflicting classifications of pathogenicity"
-                and last_significance[0] not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE
-            ):
-                continue
-
-
-        for variant_id, variant_info in clinvar_variants.items():
-
-            variant_archive = variant_info.get("VariationArchive", {})
-            variant_name = variant_archive.get("@VariationName", "")
-            variant_type = variant_archive.get("@VariationType", "")
-            classified_record = variant_archive.get("ClassifiedRecord", {})
-
-            ###################################################################
-            # get aggregate significance
-            # - pathogenic or likely pathogenic only
-            # - depending on user input, include VUS
-            ###################################################################
-
-            germline_classification = classified_record.get(
-                "Classifications", {}
-            ).get("GermlineClassification", {})
-
-            agg_significance = germline_classification.get(
-                "Description", ""
-            )
-            if agg_significance not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE:
-                continue
-
-            ###################################################################
-            # get molecular consequence
-            # - missense only
-            ###################################################################
-            hgvs_list = classified_record.get(
-                "SimpleAllele", {}
-            ).get("HGVSlist", {})
-
-            # essentially points to which isoform the variant is described for
-            # assumes format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
-            # i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
-            ncbi_ref_seq_id = variant_name.split(":")[0].split("(")[0]
-
-            molecular_consequence_list = get_molecular_consequence_list(
-                hgvs_list, ncbi_ref_seq_id, missense_only=True
-            )
-
-            # If there are no missense variants, skip
-            if len(molecular_consequence_list) == 0:
-                continue
-
-            ###################################################################
-            # get protein mutation
-            ###################################################################
-            # assumes format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
-            # i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
-            mutation_descs = variant_name.split(":")[1].split(" ")
-            ncbi_g_name = variant_name.split(":")[0].split("(")[1].replace(")", "")
-
-            # there is one incorrect entry in DSC2 variants
-            if g_name != ncbi_g_name:
-                warnings.warn(
-                    f"Gene mismatch for {variant_id}: {g_name} vs {ncbi_g_name}"
-                )
-                continue
-
-            # get mutation
-            p_mutation = None
-            for desc in mutation_descs:
-
-                desc = desc.replace("(", "").replace(")", "")
-
-                if desc.startswith("p."):
-                    p_mutation = desc.replace("p.", "")
-
-            #NOTE: the following will miss missense mutations where
-            # more than one residue is mutated
-            # e.g. p.Gly1094_His1095delinsValAsn in DSG2
-            if (
-                p_mutation is None
-                or not is_missense_mutation(
-                    p_mutation, allow_truncation=False
-                )
-            ):
-                warnings.warn(
-                    f"""
-                    Protein mutation not found or not missense for {variant_id}
-                    {p_mutation=}
-                    Molecular consequence might be "missense", but more than
-                    one residue might be mutated.
-                    Skipping...
-                    """
-                )
-                continue
-
-            afm_patho_score = ""
-            afm_pathogenicity = ""
-
-            if (
-                args.include_AF_missense
-                and p_mutation in af_missense_dict.get(p_name, {})
-            ):
-
-                afm_patho_score = af_missense_dict[p_name][p_mutation][
-                    "patho_score"
-                ]
-
-                afm_pathogenicity = af_missense_dict[p_name][p_mutation][
-                    "v_pathogenicity"
-                ]
-
-            ###################################################################
-            # get disease or trait information
-            ###################################################################
-            traits = get_variant_associated_traits(germline_classification)
-
-            if len(traits) == 0:
-                traits = ["not provided"]
-
-            # Look through all the assertions that contributed to aggregate
-            # clinical significance
-            clinical_assertions = get_all_clinical_assertions(
-                classified_record, sort_by_date=True, date_format=DATE_FORMAT
-            )
-
-            # last_significance = ""
-            # last_assertion_comment = ""
-
-            # if len(clinical_assertions) > 0:
-
-            #     last_significance = clinical_assertions[0][
-            #         "asserted_germline_class"
-            #     ]
-            #     last_assertion_comment = clinical_assertions[0][
-            #         "assertion_comment"
-            #     ]
-
-            # # if agg. significance is conflicting, last assertion should be in allowed
-            # if (
-            #     agg_significance == "Conflicting classifications of pathogenicity"
-            #     and last_significance not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE
-            # ):
-            #     continue
-
-            last_significance = [""]
-            last_assertion_comment = [""]
-
-            if len(clinical_assertions) > 0:
-
-                last_significance = [clinical_assertions[i]["asserted_germline_class"] for i in range(len(clinical_assertions))]
-                last_assertion_comment = [clinical_assertions[i]["assertion_comment"] for i in range(len(clinical_assertions))]
-
-            import re
-            for comment in last_assertion_comment:
-                # search all text in brackets
-                pmids = re.findall(r"\(.*?\)", comment)
-                if pmids is None:
-                    continue
-                # pritn all group matches
-                for pmid_str in pmids:
-                    if "21177847" in pmid_str:
-                        print(pmids)
-
-                if all(["PMID" not in pmid_str for pmid_str in pmids]):
-                    continue
-                if pmids:
-                    # pmid_list = pmids.group(0).replace("(PMID: ","").replace(")","").split(",")
-                    pmid_list = [
-                        pmid_str.replace("PMID:", "").replace(")", "").replace("(", "").replace("; Invitae", "").split(",")
-                        for pmid_str in pmids if "PMID" in pmid_str
-                    ]
-                    pmid_list = [pmid for sublist in pmid_list for pmid in sublist]
-                    pubmed_ids[g_name].update([pmid.strip() for pmid in pmid_list])
-
-            last_assertion_comment_zip = [
-                f"{s} :- {c}" for s, c in zip(last_significance, last_assertion_comment)
-            ]
-
-            # if agg. significance is conflicting, last assertion should be in allowed
-            if (
-                agg_significance == "Conflicting classifications of pathogenicity"
-                and last_significance[0] not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE
-            ):
-                continue
-
-            ###################################################################
-            # Adjust residue number based on alignment with modeled sequence
-            ###################################################################
-            ref_seq_file = os.path.join(
-                args.clinvar_output_dir, f"{g_name}_{ncbi_ref_seq_id}_nuccore.json"
-            )
-
-            clinvar_pairwise_alignment_file = os.path.join(
-                args.pairwise_alignments_dir,
-                f"{p_name}_clinvar_vs_modeled.fasta"
-            )
-
-            p_sequence = get_ncbi_ref_seq(ncbi_ref_seq_id, ref_seq_file)
-
-            clinvar_psa_map = handle_pairwise_alignment(
+            vi = VariantInfo(
                 p_name=p_name,
-                sseq=p_sequence,
-                qseq=modeled_seq,
-                pairwise_alignment_file=clinvar_pairwise_alignment_file,
-                ignore_warnings=True
+                g_name=g_name,
+                variant_id=variant_id,
+                variant_info=variant_info,
             )
 
-            wt_aa, res_num, mut_aa = split_missense_mutation(
-                p_mutation, return_type="all"
+            REF_SEQ_JSON = os.path.join(
+                args.clinvar_output_dir, f"{g_name}_{vi.ncbi_ref_seq_id}_nuccore.json"
             )
 
-            res_num = int(res_num)
-            res_num = clinvar_psa_map.get(res_num, res_num)
-            p_mutation = f"{wt_aa}{res_num}{mut_aa}"
+            vi.update_p_mutation(
+                modeled_seq=modeled_seq,
+                ref_seq_file=REF_SEQ_JSON,
+                pairwise_alignment_file=CLINVAR_PAIR_ALN_FASTA,
+                ignore_warnings=True,
+            )
 
-            row_dict = {
-                "variant_id": variant_id,
-                "protein": p_name,
-                "gene": g_name,
-                "uniprot_id": uniprot_id,
-                "ncbi_ref_seq_id": ncbi_ref_seq_id,
-                "p_mutation": p_mutation,
-                "molecular_consequence": "\n".join(molecular_consequence_list),
-                "trait_or_effect": "\n".join(traits),
-                "clinical_significance": agg_significance,
-                "last_significance": "\n\n".join(last_significance),
-                "last_assertion_comment": "\n\n".join(last_assertion_comment_zip),
-                "variant_type": variant_type,
-                "afm_patho_score": afm_patho_score,
-                "afm_pathogenicity": afm_pathogenicity,
-            }
+            if vi.is_invalid_variant():
+                continue
 
-            df_rows.append(row_dict)
-            ncbi_ref_seq_ids.add(ncbi_ref_seq_id)
+            vi.make_variant_dict()
+            vi.add_to_variant_dict("uniprot_id", uniprot_id)
+            if args.include_AF_missense:
+                afm_patho_score = get_af_missense_attribute(
+                    af_missense_dict=af_missense_dict,
+                    attribute="patho_score",
+                    p_name=p_name,
+                    p_mutation=vi.p_mutation,
+                )
+                afm_pathogenicity = get_af_missense_attribute(
+                    af_missense_dict=af_missense_dict,
+                    attribute="v_pathogenicity",
+                    p_name=p_name,
+                    p_mutation=vi.p_mutation,
+                )
+                vi.add_to_variant_dict("afm_patho_score", afm_patho_score)
+                vi.add_to_variant_dict("afm_pathogenicity", afm_pathogenicity)
+
+            df_rows.append(vi.variant_dict)
+            ncbi_ref_seq_ids.add(vi.ncbi_ref_seq_id)
 
         if len(ncbi_ref_seq_ids) == 0:
             print(f"No missense variants found for {g_name}")
@@ -1293,126 +1244,21 @@ if __name__ == "__main__":
                 f"Multiple RefSeq IDs found for {g_name}: {ncbi_ref_seq_ids}."
             )
 
-    # ###########################################################################
-    # # Monkey patching
-    # ###########################################################################
+    cols_to_add = CLINVAR_DF_COLUMNS
+    if args.include_AF_missense:
+        cols_to_add.update(AF_MISSENSE_COLUMNS)
 
-    # df = pd.DataFrame(df_rows)
-
-    # del df["molecular_consequence"]
-    # del df["protein"]
-    # # del df["last_significance"]
-    # del df["variant_type"]
-
-    # for idx, row in df.iterrows():
-    #     trait_or_effects = row["trait_or_effect"].split("\n")
-    #     trait_or_effects = [
-    #         t for t in trait_or_effects if t not in [
-    #             "not provided",
-    #             "",
-    #             "Cardiovascular phenotype",
-    #             "not specified",
-    #         ]
-    #     ]
-
-    #     if any(
-    #         "Arrhythmogenic right ventricular dysplasia" in t
-    #         for t in trait_or_effects
-    #     ):
-
-    #         if "Cardiomyopathy" in trait_or_effects:
-    #             trait_or_effects.remove("Cardiomyopathy")
-
-    #         if "Arrhythmogenic right ventricular cardiomyopathy" in trait_or_effects:
-    #             trait_or_effects.remove(
-    #                 "Arrhythmogenic right ventricular cardiomyopathy"
-    #             )
-
-    #         trait_or_effects = [
-    #             t.replace(
-    #                 "Arrhythmogenic right ventricular dysplasia",
-    #                 "ARVD"
-    #             ) for t in trait_or_effects
-    #         ]
-
-    #     if len(trait_or_effects) == 0:
-    #         # look in comments for ARVC or similar terms
-    #         comment = row["last_assertion_comment"].lower()
-    #         terms_to_look_for = [
-    #             "arvc",
-    #             "arvd",
-    #             "arrhythmia",
-    #             "cardiomyopathy",
-    #         ]
-
-    #         if any(term in comment for term in terms_to_look_for):
-    #             trait_or_effects = [
-    #                 term.upper() for term in terms_to_look_for
-    #                 if term in comment
-    #             ]
-
-    #         else:
-    #             trait_or_effects = [""]
-
-    #     df.at[idx, "trait_or_effect"] = "\n".join(trait_or_effects)
-
-    #     if row["clinical_significance"] == "Conflicting classifications of pathogenicity":
-    #         df.at[idx, "clinical_significance"] = (
-    #             row["last_significance"]
-    #         )
-
-    # # sort by mutated residue number for each protein
-    # df["residue_number"] = df["p_mutation"].apply(
-    #     split_missense_mutation, return_type="res_num"
-    # )
-    # df = df.sort_values(by=["gene", "residue_number", "p_mutation"])
-    # df = df.drop_duplicates(
-    #     subset=["gene", "p_mutation"]
-    # ).reset_index(drop=True)
-
-    # df = df.drop(columns=["residue_number"])
-
-    # del df["last_significance"]
-
-    # # rename columns
-    # df = df.rename(columns={
-    #     "gene": "Gene",
-    #     "uniprot_id": "Uniprot ID",
-    #     "ncbi_ref_seq_id": "NCBI RefSeq ID",
-    #     "p_mutation": "Mutation",
-    #     "trait_or_effect": "Disease association",
-    #     "clinical_significance": "ClinVar clinical significance",
-    #     "last_assertion_comment": "All submission comments",
-    #     # "last_significance": "Most recent clinical significance",
-    #     "variant_id": "ClinVar Variant ID",
-    #     # "molecular_consequence": "Molecular consequence",
-    #     "afm_patho_score": "AlphaMissense score",
-    #     "afm_pathogenicity": "AlphaMissense pathogenicity",
-    # })
-
-    # # if not args.include_AF_missense:
-    # #     df = df.drop(columns=[
-    # #         "AlphaMissense score", "AlphaMissense pathogenicity"
-    # #     ])
-
+    df = pd.DataFrame(df_rows)
+    df = df.rename(columns=cols_to_add)
     # print(df.head())
 
-    # out_name = "clinvar_missense_variants"
-    # if args.include_VUS:
-    #     out_name += "_with_VUS"
+    out_name = "clinvar_missense_variants"
+    if args.include_VUS:
+        out_name += "_with_VUS"
 
-    # df_file = os.path.join(
-    #     args.clinvar_output_dir, f"{out_name}.xlsx"
-    # )
-    # df.to_excel(df_file, index=False)
+    df_file = os.path.join(
+        args.clinvar_output_dir, f"{out_name}.xlsx"
+    )
+    df.to_excel(df_file, index=False)
 
-    # print(f"ClinVar missense variants saved to {df_file}")
-
-    # pubmed_ids = {
-    #     g: [int(pmid) for pmid in pubmed_ids[g] if pmid.isdigit()]
-    #     for g in pubmed_ids.keys()
-    # }
-    # for g_name, pmids in pubmed_ids.items():
-    #     print(g_name)
-    #     for pmid in pmids:
-    #         print(pmid)
+    print(f"ClinVar missense variants saved to {df_file}")

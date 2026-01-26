@@ -184,7 +184,8 @@ AF_MISSENSE_CSV_SUFFIX = "_alpha_missense_variants"
 AF_MISSENSE_PAIR_ALN_SUFFIX = "_afm_vs_modeled"
 
 # from https://console.cloud.google.com/storage/browser/dm_alphamissense
-AF_MISSENSE_AA_SUBSTITUTIONS_TSV = "/data/omkar/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
+import os
+AF_MISSENSE_AA_SUBSTITUTIONS_TSV = f"/data/{os.getlogin()}/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
 # AF_MISSENSE_ISOFORMS_AA_SUBSTITUTIONS_TSV = "/data/omkar/Projects/IMP_Toolbox/AlphaMissense_isoforms_aa_substitutions.tsv.gz"
 
 CLINVAR_TEMPLATE_QUERY_ID = {

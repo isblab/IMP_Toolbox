@@ -429,6 +429,7 @@ def fetch_fasta_dict_for_af_missense(
         fasta_dict = read_fasta(savepath)
         return fasta_dict
 
+    os.makedirs(os.path.dirname(savepath), exist_ok=True)
     fasta_dict = get_fasta_dict_for_af_missense(protein_uniprot_map)
 
     with open(savepath, "w") as f:

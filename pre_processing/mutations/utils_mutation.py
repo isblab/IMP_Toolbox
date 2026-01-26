@@ -185,7 +185,7 @@ def is_missense_mutation(
 def split_missense_mutation(
     p_mutation: str,
     return_type: str = "all",
-    ignore_warnings: bool = True,
+    ignore_warnings: bool = False,
 ) -> tuple | str | int | None:
     """ Split a missense mutation string into its components.
 
