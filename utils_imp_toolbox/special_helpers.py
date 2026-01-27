@@ -796,3 +796,142 @@ def get_mapped_residue(
             res_num_mapped = None
 
     return res_num_mapped, warn_msg
+
+def get_seq_identity(
+    qseq: str, 
+    sseq: str, 
+    start: int, 
+    end: int, 
+    as_percentage: bool=True
+):
+    """ Calculate sequence identity between two aligned sequences in a given range.
+
+    Args:
+        qseq (str): Query sequence (aligned)
+        sseq (str): Subject sequence (aligned)
+        start (int): Start position (1-based)
+        end (int): End position (1-based)
+
+    Returns:
+        float: Sequence identity percentage
+    """
+
+    seq_count = 0
+    start_idx = end_idx = None
+    for i, a in enumerate(qseq):
+        if a != '-':
+            seq_count += 1
+        if seq_count == start and start_idx is None:
+            start_idx = i
+        if seq_count == end:
+            end_idx = i
+            break
+
+    if start_idx is None or end_idx is None:
+        return 0.0
+
+    aligned_qseq = qseq[start_idx:end_idx+1]
+    aligned_sseq = sseq[start_idx:end_idx+1]
+
+    aligned_qseq = qseq[start-1:end]
+    aligned_sseq = sseq[start-1:end]
+
+    matches = sum(
+        1 for a, b in zip(aligned_qseq, aligned_sseq)
+        if (a == b and a != '-' and b != '-')
+    )
+    length = len(aligned_qseq)
+
+    if length == 0:
+        return 0.0
+
+    if as_percentage:
+        identity = (matches / length) * 100
+    else:
+        identity = matches
+
+    return identity
+
+def get_gap(
+    qseq: str, 
+    sseq: str, 
+    start: int, 
+    end: int, 
+    as_percentage: bool=True
+):
+    """ Calculate gap percentage between two aligned sequences in a given range.
+
+    Args:
+        qseq (str): Query sequence (aligned)
+        sseq (str): Subject sequence (aligned)
+        start (int): Start position (1-based)
+        end (int): End position (1-based)
+
+    Returns:
+        float: Gap percentage
+    """
+
+    seq_count = 0
+    start_idx = end_idx = None
+    for i, a in enumerate(qseq):
+        if a != '-':
+            seq_count += 1
+        if seq_count == start and start_idx is None:
+            start_idx = i
+        if seq_count == end:
+            end_idx = i
+            break
+
+    if start_idx is None or end_idx is None:
+        return 100.0
+
+    aligned_qseq = qseq[start_idx:end_idx+1]
+    aligned_sseq = sseq[start_idx:end_idx+1]
+
+    aligned_qseq = qseq[start-1:end]
+    aligned_sseq = sseq[start-1:end]
+
+    gaps = sum(
+        1 for a, b in zip(aligned_qseq, aligned_sseq)
+        if (a == '-' or b == '-')
+    )
+    length = len(aligned_qseq)
+
+    if length == 0:
+        return 100.0
+
+    if as_percentage:
+        gap_percentage = (gaps / length) * 100
+    else:
+        gap_percentage = gaps
+
+    return gap_percentage
+
+def fasta_str_to_dict(fasta_str):
+    """ Convert a FASTA string to a dictionary of sequences.
+
+    Args:
+        fasta_str (str): FASTA string
+
+    Returns:
+        dict: Dictionary of sequences.
+
+    Example:
+    >>> fasta_str = '''>seq1
+    ... ABCD
+    ... >seq2
+    ... ABCD'''
+
+    >>> fasta_str_to_dict(fasta_str)
+    {'seq1': 'ABCD', 'seq2': 'ABCD'}
+    """
+
+    fasta_str = fasta_str.splitlines()
+    fasta_dict = {}
+    for i, line in enumerate(fasta_str):
+        if line.startswith(">"):
+            seq_name = line[1:].strip()
+            fasta_dict[seq_name] = ""
+        else:
+            fasta_dict[seq_name] += line.strip()
+    return fasta_dict

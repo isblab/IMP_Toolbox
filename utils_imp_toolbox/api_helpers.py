@@ -20,17 +20,16 @@ def request_session(max_retries: int=3) -> requests.sessions.Session:
     req_sess.trust_env = False  # Disable environment variables for proxies
     return req_sess
 
-
 def request_result(
     get_request: requests.models.Response,
-    uniprot_id: str | None=None,
+    identifier: str | None=None,
     ignore_error: bool=False
 ) -> dict | bytes | None:
     """Get the result of a `get_request`
 
     Args:
         get_request (requests.models.Response): `get_request`
-        uniprot_id (str): valid entrypoint id
+        identifier (str): valid entrypoint id
         ignore_error (bool, optional): Defaults to False.
 
     """
@@ -41,7 +40,6 @@ def request_result(
         except json.decoder.JSONDecodeError:
             return get_request.content
     else:
-        print(f"Error while requesting {uniprot_id}") \
-            if not ignore_error else None
+        print(f"Error while requesting {identifier}") if not ignore_error else None
 
         return None

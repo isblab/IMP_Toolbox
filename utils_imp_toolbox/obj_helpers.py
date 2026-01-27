@@ -74,9 +74,7 @@ def get_key_from_res_range(
         if num == prev + 1:
             prev = num
         else:
-            ranges.append(
-                f"{start}-{prev}") if start != prev else ranges.append(str(start)
-            )
+            ranges.append(f"{start}-{prev}") if start != prev else ranges.append(str(start))
             start = prev = num
 
     if start == prev:
