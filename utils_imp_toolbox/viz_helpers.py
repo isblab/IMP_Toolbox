@@ -1,9 +1,6 @@
 import os
 import numpy as np
 from itertools import product
-import sys
-IMP_TOOLBOX = "/home/omkar/Omkar/IMP_TOOLBOX"
-sys.path.append(IMP_TOOLBOX)
 from IMP_Toolbox.utils_imp_toolbox.obj_helpers import get_key_from_res_range
 
 def make_protein(

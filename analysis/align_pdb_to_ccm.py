@@ -1,4 +1,5 @@
 import os
+import json
 import yaml
 import argparse
 import IMP
@@ -7,6 +8,7 @@ import IMP.core
 import IMP.rmf
 import IMP.atom
 import IMP.pmi.analysis
+from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_json
 from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key,
@@ -239,7 +241,7 @@ if __name__ == "__main__":
         "--input",
         type=str,
         required=True,
-        help="Path to the YAML configuration file specifying chain and protein details.",
+        help="Path to the JSON/YAML file specifying chain and protein details.",
     )
     parser.add_argument(
         "--output_dir",
@@ -250,14 +252,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    input_config = yaml.load(open(args.input), Loader=yaml.FullLoader)
-    fits_to_perform = input_config["fits_to_perform"]
-    # print(fits_to_perform)
+    if args.input.endswith('.json'):
+        fits_to_perform = read_json(args.input)
+    elif args.input.endswith(('.yml', '.yaml')):
+        input_config = yaml.load(open(args.input), Loader=yaml.FullLoader)
+        fits_to_perform = input_config["fits_to_perform"]
+    else:
+        raise ValueError("Input file must be JSON or YAML format.")
+
     os.makedirs(args.output_dir, exist_ok=True)
-    ccm_file = args.ccm_file
 
     fit_pdb_to_ccm(
-        ccm_file=ccm_file,
+        ccm_file=args.ccm_file,
         fits_to_perform=fits_to_perform,
         output_dir=args.output_dir,
     )
