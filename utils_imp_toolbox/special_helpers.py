@@ -625,6 +625,72 @@ class MatrixPatches:
             colname_2
         ].issubset(other_row[colname_2])
 
+def get_closest_mapped_residue(
+    psa_map: dict,
+    codon_number: int,
+    which: str = "lower",
+):
+    """ Given a pairwise alignment map and a codon number, return the
+    closest mapped residue number.
+
+    Args:
+
+        psa_map (dict):
+            Pairwise alignment map of codon number to residue number
+
+        codon_number (int):
+            Codon number to map
+        which (str, optional):
+            Whether to return the closest lower or higher residue number.
+            Defaults to "lower".
+    Returns:
+        int:
+            Closest mapped residue number
+    """
+    
+    mapped_residues = sorted(psa_map.keys())
+
+    if which == "lower":
+        lower_residues = [
+            res for res in mapped_residues if res <= codon_number
+        ]
+        if lower_residues:
+            closest_residue = psa_map[lower_residues[-1]]
+        else:
+            warnings.warn(
+                f"""
+                No lower residue found for codon number {codon_number}
+                in the pairwise alignment map.
+                Returning higher residue instead.
+                """
+            )
+            closest_residue = get_closest_mapped_residue(
+                psa_map, codon_number, which="higher"
+            )
+
+    elif which == "higher":
+        higher_residues = [
+            res for res in mapped_residues if res >= codon_number
+        ]
+        if higher_residues:
+            closest_residue = psa_map[higher_residues[0]]
+        else:
+            warnings.warn(
+                f"""
+                No higher residue found for codon number {codon_number}
+                in the pairwise alignment map.
+                Returning lower residue instead.
+                """
+            )
+            closest_residue = get_closest_mapped_residue(
+                psa_map, codon_number, which="lower"
+            )
+
+    else:
+        raise ValueError("which must be 'lower' or 'higher'")
+
+    return closest_residue
+
 def pairwise_alignment_map(
     pairwise_alignment_file: str,
 ) -> dict:
