@@ -626,17 +626,13 @@ class MatrixPatches:
         ].issubset(other_row[colname_2])
 
 def pairwise_alignment_map(
-    pairwise_alignment_file:str,
-    include_aligned_seq: bool=False,
+    pairwise_alignment_file: str,
 ) -> dict:
     """ Given a pairwise alignment, return one-one map of aligned residues.
 
     Args:
         pairwise_alignment_file (str):
             Path to the pairwise alignment file
-
-        include_aligned_seq (bool, optional):
-            Whether to return the aligned sequences
 
     Returns:
         dict: mapping of codon numbers to residue numbers
@@ -668,30 +664,25 @@ def pairwise_alignment_map(
         False: lambda d: d,
     }
 
-    for idx in range(len(qseq)):
+    for q_res, s_res in zip(qseq, sseq):
 
-        inc_case = (sseq[idx] != "-", qseq[idx] != "-")
+        inc_case = (s_res != "-", q_res != "-")
         q_count, s_count = increment_dict[inc_case](q_count, s_count)
 
-        if sseq[idx] != "-" and qseq[idx] != "-":
+        if s_res != "-" and q_res != "-":
             pairwise_alignment_dict[init_case[q_count==0](q_count)] = (
                 init_case[s_count==0](s_count)
             )
 
-    if include_aligned_seq:
-        return pairwise_alignment_dict, qseq, sseq
-    else:
-        return pairwise_alignment_dict
+    return pairwise_alignment_dict
 
 def handle_pairwise_alignment(
-    p_name: str,
     sseq: str,
     qseq: str,
     pairwise_alignment_file: str,
     alignment_program: str = "stretcher",
-    ignore_warnings: bool = False,
-    include_identical: bool = False,
-    include_aligned_seq: bool = False,
+    xtra_attributes: list = [],
+    overwrite: bool = True,
 ):
     """ Handle pairwise alignment between two sequences and return the mapping.
 
@@ -699,59 +690,39 @@ def handle_pairwise_alignment(
         p_name (str): Protein name
         sseq (str): Subject sequence
         qseq (str): Query sequence
-        pairwise_alignments_dir (str): Directory to save pairwise alignments
+        pairwise_alignments_file (str): Path to the pairwise alignment file
+        alignment_program (str, optional): Alignment program to use.
+        xtra_attributes (list, optional): Extra attributes to extract from
+            the pairwise alignment object. Defaults to [].
+        overwrite (bool, optional): Whether to overwrite existing alignment file.
 
     Returns:
         dict: Mapping of codon to residue number
     """
 
-    # no need to align if sequences are identical
-    if sseq == qseq and not include_identical:
-        psa_map = {}
+    os.makedirs(os.path.dirname(pairwise_alignment_file),exist_ok=True)
 
-    else:
-        os.makedirs(os.path.dirname(pairwise_alignment_file),exist_ok=True)
+    if not os.path.exists(pairwise_alignment_file) or overwrite:
 
-        if not os.path.exists(pairwise_alignment_file):
-
-            pairwise_alignment = psa.align(
-                program=alignment_program,
-                moltype="prot",
-                qseq=qseq,
-                sseq=sseq,
-            )
-
-            with open(pairwise_alignment_file, "w") as f:
-                f.write(pairwise_alignment.fasta())
-            print(f"Pairwise alignment saved to {pairwise_alignment_file}")
-
-        psa_output = pairwise_alignment_map(
-            pairwise_alignment_file,
-            include_aligned_seq=include_aligned_seq,
+        pairwise_alignment = psa.align(
+            program=alignment_program,
+            moltype="prot",
+            qseq=qseq,
+            sseq=sseq,
         )
 
-        aligned_qseq = None
-        aligned_sseq = None
+        with open(pairwise_alignment_file, "w") as f:
+            f.write(pairwise_alignment.fasta())
 
-        if include_aligned_seq:
-            psa_map, aligned_qseq, aligned_sseq = psa_output
-        else:
-            psa_map = psa_output
+        print(f"Pairwise alignment saved to {pairwise_alignment_file}")
 
-        # warn if sequences not identical
-        if not ignore_warnings:
-            warnings.warn(
-                f"""
-                Sequences not identical for {p_name}. Cross-check the pairwise alignment.\n
-                Pairwise alignment for {p_name}:\n{pairwise_alignment.raw}\n
-                """
-            )
-            # print(f"Codon to residue map: {psa_map}")
+    psa_map = pairwise_alignment_map(pairwise_alignment_file)
 
-    if include_aligned_seq:
-        return psa_map, aligned_qseq, aligned_sseq
-    else:
-        return psa_map
+    xtra = {}
+    for attr in xtra_attributes:
+        xtra[attr] = getattr(pairwise_alignment, attr, None)
+
+    return psa_map, xtra
 
 def get_mapped_residue(
     psa_map: dict,

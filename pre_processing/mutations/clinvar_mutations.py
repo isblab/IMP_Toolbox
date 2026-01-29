@@ -870,13 +870,19 @@ class VariantInfo:
 
         p_sequence = get_ncbi_ref_seq(self.ncbi_ref_seq_id, ref_seq_file)
 
-        clinvar_psa_map = handle_pairwise_alignment(
-            p_name=self.p_name,
+        clinvar_psa_map, _xtra = handle_pairwise_alignment(
             sseq=p_sequence,
             qseq=modeled_seq,
             pairwise_alignment_file=pairwise_alignment_file,
-            ignore_warnings=True
         )
+
+        # warn if sequences not identical
+        if p_sequence != modeled_seq and ignore_warnings is False:
+            warnings.warn(
+                f"""Sequences not identical for {self.p_name}.
+                Cross-check the pairwise alignment.\n
+                Pairwise alignment at {pairwise_alignment_file}."""
+            )
 
         split_mut = split_missense_mutation(
             p_mutation=self.p_mutation,
@@ -896,7 +902,7 @@ class VariantInfo:
         )
 
         if ignore_warnings is False and len(warn_msg) > 0:
-            warnings.warn(f"""{warn_msg} (Protein: {p_name})""")
+            warnings.warn(f"""{warn_msg} (Protein: {self.p_name})""")
 
         if len(clinvar_psa_map) == 0:
             res_num_mapped = res_num
@@ -907,7 +913,7 @@ class VariantInfo:
                 warnings.warn(
                     f"""
                     Residue number {res_num} not found in
-                    pairwise alignment map for protein {p_name}.
+                    pairwise alignment map for protein {self.p_name}.
                     Skipping...
                     """
                 ) if ignore_warnings is False else None
@@ -1126,13 +1132,19 @@ if __name__ == "__main__":
                 continue
 
             # won't align if sequences are identical
-            afm_psa_map = handle_pairwise_alignment(
-                p_name=p_name,
+            afm_psa_map, _xtra = handle_pairwise_alignment(
                 sseq=af_missense_ref_seq,
                 qseq=modeled_seq,
                 pairwise_alignment_file=AF_MISSENSE_PAIR_ALN_FASTA,
-                ignore_warnings=True
             )
+
+            # warn if sequences not identical
+            if af_missense_ref_seq != modeled_seq:
+                warnings.warn(
+                    f"""Sequences not identical for {p_name}.
+                    Cross-check the pairwise alignment.\n
+                    Pairwise alignment at {AF_MISSENSE_PAIR_ALN_FASTA}."""
+                )
 
             if not os.path.exists(AF_MISSENSE_CSV):
                 warnings.warn(
