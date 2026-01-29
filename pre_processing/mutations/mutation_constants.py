@@ -187,6 +187,11 @@ AF_MISSENSE_PAIR_ALN_SUFFIX = "_afm_vs_modeled"
 import os
 AF_MISSENSE_AA_SUBSTITUTIONS_TSV = f"/data/{os.getlogin()}/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
 
+CLINVAR_PAIR_ALN_SUFFIX = "_clinvar_vs_modeled"
+CLINVAR_VARIANTS_SUFFIX = "_clinvar_variants"
+CLINVAR_VARIANT_IDS_SUFFIX = "_clinvar_variant_ids"
+CLINVAR_REF_SEQ_JSON_SUFFIX = "_clinvar_ref_seq"
+
 CLINVAR_TEMPLATE_QUERY_ID = {
     "db": "clinvar",
     "term": "$gene_name[gene]",
