@@ -41,11 +41,16 @@ class BestStructures:
         return best_structures
 
 
-    def make_best_structures_df(self, best_structures: dict) -> pd.DataFrame:
+    def make_best_structures_df(
+        self, 
+        best_structures: dict,
+        uniprot_protein_map: dict = {},
+    ) -> pd.DataFrame:
         """Create a dataframe of best structures from dictionary
 
         Args:
             best_structures (dict): best structures for given uniprot ids
+            uniprot_protein_map (dict, optional): Mapping from uniprot ids to protein names. Defaults to {}.
 
         Returns:
             pd.DataFrame: dataframe of best structures
@@ -58,7 +63,7 @@ class BestStructures:
             if not best_structure:
                 print(f"No best structure found for {uniprot_id}")
 
-            best_chains = best_structure[uniprot_id]
+            best_chains = best_structure[uniprot_id.split("-")[0]]
             best_chains = [
                 chain for chain in best_chains
                 if chain["resolution"] is not None
@@ -70,6 +75,7 @@ class BestStructures:
                 all_best_chains.append(
                 {
                     "uniprot_id": uniprot_id,
+                    "protein": uniprot_protein_map.get(uniprot_id, ""),
                     "best_chain": chain["chain_id"],
                     "best_structure": chain["pdb_id"],
                     "coverage": chain["coverage"],
@@ -84,6 +90,7 @@ class BestStructures:
         df = pd.DataFrame(all_best_chains)
         mask = df.duplicated(subset=['uniprot_id'], keep='first')
         df['uniprot_id'] = df['uniprot_id'].mask(mask, '')
+        df['protein'] = df['protein'].mask(mask, '')
         df = df.drop_duplicates(subset=['best_structure'], keep='first')
 
         return df
@@ -111,8 +118,10 @@ class BestStructures:
         else:
             best_structures = {}
             for uniprot_id in tqdm(self.uniprot_ids):
-                uniprot_id = uniprot_id.split("-")[0]
-                best_structures[uniprot_id] = self.get_best_structures(uniprot_id)
+                # uniprot_id = uniprot_id.split("-")[0]
+                best_structures[uniprot_id] = self.get_best_structures(
+                    uniprot_id.split("-")[0]
+                )
             write_json(save_path, best_structures)
 
         return best_structures
