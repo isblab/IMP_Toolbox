@@ -137,9 +137,26 @@ if [ $install_mode == "tarball" ]; then
 elif [ $install_mode == "github" ]; then
 
     if [[ -d "./imp" ]] ; then
-        echo "The imp repository already exists, will not clone again.";
+        whether_to_install="no"
+        echo "The imp repository already exists. Checking version.";
+        github_imp_version=$(cat $install_path/imp-clean/imp/VERSION)
+
+        if [ "$github_imp_version" == "$imp_version" ]; then
+            echo "The cloned GitHub IMP version ($github_imp_version) matches the requested version ($imp_version). Will not clone again.";
+            whether_to_install="no"
+
+        else
+            echo "The cloned GitHub IMP version ($github_imp_version) does not match the requested version ($imp_version). Re-cloning the repository.";
+            whether_to_install="yes"
+            sudo rm -rf imp ;
+
+        fi
 
     else
+        whether_to_install="yes"
+    fi
+
+    if [ "$whether_to_install" == "yes" ]; then
 
         echo "Cloning IMP from github repository.";
 
