@@ -13,6 +13,7 @@ fi
 imp_version=${5:?"Please provide the IMP version to install (e.g., 2.23.0). or branch name if installing from github."}
 
 cwd_=$(pwd) ;
+install_path=$(realpath $install_path) ;
 
 # conda environment setup
 
