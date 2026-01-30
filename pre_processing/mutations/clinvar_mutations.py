@@ -874,6 +874,7 @@ class VariantInfo:
             sseq=p_sequence,
             qseq=modeled_seq,
             pairwise_alignment_file=pairwise_alignment_file,
+            overwrite=False,
         )
 
         # warn if sequences not identical
@@ -1136,6 +1137,7 @@ if __name__ == "__main__":
                 sseq=af_missense_ref_seq,
                 qseq=modeled_seq,
                 pairwise_alignment_file=AF_MISSENSE_PAIR_ALN_FASTA,
+                overwrite=False,
             )
 
             # warn if sequences not identical
