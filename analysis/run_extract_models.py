@@ -153,18 +153,18 @@ if __name__ == "__main__":
 
     # Extract models from the RMF files into a single RMF file for each sample
     at_obj.do_extract_models_single_rmf(
-        df_A,
-        rmf_file_out_A,
-        args.modeling_dir,
-        args.analysis_dir,
+        gsms_info=df_A,
+        out_rmf_name=rmf_file_out_A,
+        traj_dir=args.modeling_dir,
+        analysis_dir=args.analysis_dir,
         scores_prefix="A_models_clust" + str(args.cluster_id),
     )
 
     at_obj.do_extract_models_single_rmf(
-        df_B,
-        rmf_file_out_B,
-        args.modeling_dir,
-        args.analysis_dir,
+        gsms_info=df_B,
+        out_rmf_name=rmf_file_out_B,
+        traj_dir=args.modeling_dir,
+        analysis_dir=args.analysis_dir,
         scores_prefix="B_models_clust" + str(args.cluster_id)
     )
 
