@@ -1,6 +1,6 @@
 
 DOCKER_BASE_COMMAND = (
-    """docker run --rm -v $path_to_mount:$path_to_mount -it andrpet/cocomaps-backend:0.0.19 python /app/coco2/begin.py $config_path"""
+    """sudo docker run --rm -v $path_to_mount:$path_to_mount -it andrpet/cocomaps-backend:0.0.19 python /app/coco2/begin.py $config_path"""
 )
 
 TEMPLATE_CONFIG = {

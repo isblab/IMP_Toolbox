@@ -410,8 +410,8 @@ def get_fasta_dict_for_af_missense(protein_uniprot_map: dict):
 
     # For AF-missense, the reference sequence is the Uniprot sequence
     # for non-isoform-specific uniprot ids
-    uniprot_ids = list(protein_uniprot_map.values())
-    uniprot_ids = [uid.split("-")[0] for uid in uniprot_ids]
+    uniprot_ids = list(set((protein_uniprot_map.values())))
+    uniprot_ids = list(set([uid.split("-")[0] for uid in uniprot_ids]))
     fetchit = FetchSequences(uniprot_ids=uniprot_ids)
     fasta_str = fetchit.query_uniprot_api_for_sequences()
     fasta_str = fetchit.only_uniprot_id_as_name(fasta_str)
