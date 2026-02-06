@@ -383,6 +383,37 @@ def exhaust(
 
     os.system(" ".join(map(str, command)))
 
+def correlate_cluster_sample_LPDs(
+    script_path: str,
+    sampcon_cluster_path: str,
+    mode: str,
+    use_combined_map: bool,
+    logger: logging.Logger | None = None,
+    save_log: bool = True,
+    log_dir: str = None,
+):
+    command = [
+        "python", script_path,
+        "--sampcon_cluster_path", sampcon_cluster_path,
+        "--mode", mode,
+    ]
+
+    if use_combined_map:
+        command.append("--use_combined_map")
+
+    if save_log:
+        if log_dir is None:
+            log_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'correlate_cluster_sample_LPDs.log')
+        command.append(f">> {log_path} 2>&1")
+
+    if logger is not None:
+        logger.info("Running correlation of cluster sample LPDs with command:")
+        logger.info(" ".join(map(str, command)))
+
+    os.system(" ".join(map(str, command)))
+
 def fit_pdb_to_ccm(
     script_path: str,
     ccm_file: str,
@@ -938,10 +969,37 @@ if __name__ == "__main__":
     else:
         logger.info("Skipping exhaust as per user request.")
 
+    sampcon_cluster_idx = 0 # only analyze the cluster 0 from exhaust.py
+
+    ###########################################################################
+    # compare cluster sample LPDs for sample A and B
+    ###########################################################################
+    if "correlate_cluster_sample_LPDs" in args.scripts_to_run:
+        sampcon_cluster_path=os.path.join(
+            sampcon_output_dir, f"cluster.{sampcon_cluster_idx}"
+        )
+        assert os.path.exists(sampcon_cluster_path), (
+            f"""Sampcon cluster path {sampcon_cluster_path} does not exist.
+            Please check if exhaust has been run successfully and 
+            cluster.{sampcon_cluster_idx} directory exists. """
+        )
+
+        correlate_cluster_sample_LPDs(
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/correlate_cluster_sample_LPDs.py",
+            sampcon_cluster_path=sampcon_cluster_path,
+            mode="pasani",
+            use_combined_map=True,
+            logger=logger,
+            save_log=args.keep_logs
+        )
+        lap = time.perf_counter()
+        logger.info(
+            f"Completed correlation of cluster sample LPDs in {lap - start_t:0.4f} seconds"
+        )
+
     ###########################################################################
     # extract sampcon frames
     ###########################################################################
-    sampcon_cluster_idx = 0 # only analyze the cluster 0 from exhaust.py
     extracted_rmf_path = os.path.join(
         sampcon_output_dir, "sampcon_extracted_frames.rmf3"
     )
