@@ -100,27 +100,6 @@ def calculate_with_external_grid_with_addition_two_lists(
     print(f'{name} (all points, filter=False)')
     print(f'\tOverlap: {o:.4f}, C0: {c0:.4f}, Cam: {cm:.4f} ({cp[0]:.4f}, {cp[1]:.4f})')
 
-
-threshold = {
-    "DP-N": 0.02925, # 25% of 0.117
-    "DP-S": 0.1084, # 20% of 0.542
-    "DSC-C1": 0.02943, # 27% of 0.109
-    "DSC-C2": 0.0244, # 25% of 0.0813
-    "DSC-C3": 0.026, # 25% of 0.104
-    "DSG-C1": 0.023328, # 24% of 0.0972
-    "DSG-C2": 0.017444, # 28% of 0.0623
-    "DSG-C3": 0.0202, # 20% of 0.101
-    "DSG-C4": 0.02544, # 16% of 0.159
-    "PG-C": 0.017992, # 26% of 0.0692
-    "PG-N": 0.015525, # 25% of 0.0621
-    "PG-S": 0.17955, # 35% of 0.513
-    "PKP-C": 0.1908, # 30% of 0.636
-    "PKP-N1": 0.07128, # 25% of 0.264
-    "PKP-N2": 0.0465, # 30% of 0.155
-    "PKP-N3": 0.028192, # 32% of 0.0881
-    "PKP-N4": 0.024875, # 25% of 0.0995
-}
-
 def parse_chimerax_log(chimerax_log: str):
 
     log_lines = []
@@ -132,15 +111,20 @@ def parse_chimerax_log(chimerax_log: str):
     for idx, line in enumerate(log_lines):
         if (
             idx + 1 >= len(log_lines) or
-            line.startswith("Correlation of") is False
+            # line.startswith("Correlation of") is False
+            line.startswith("Fit map") is False
         ):
             continue
+
         line_parts = line.split(" ")
-        nxt_line_parts = log_lines[idx + 1].split(" ")
+        nxt_line_parts = log_lines[idx + 1].strip().split(" ")
+
         model_mrc = line_parts[2]
-        ref_mrc = line_parts[-2]
+        ref_mrc = line_parts[-4]
+
         correlation = nxt_line_parts[2].split(",")[0].strip()
-        cam = nxt_line_parts[-1].strip()
+        cam = nxt_line_parts[7].split(",")[0].strip()
+
         correlation_list.append({
             "model_mrc": model_mrc,
             "ref_mrc": ref_mrc,
@@ -164,6 +148,10 @@ if __name__ == "__main__":
         choices=["pasani", "chimerax"],
         default="pasani",
         help="Method to use for correlation calculation. Default is 'chimerax'."
+    )
+    parser.add_argument(
+        "--use_combined_map",
+        action='store_true',
     )
     args = parser.parse_args()
 
@@ -203,26 +191,52 @@ if __name__ == "__main__":
 
         log_path = os.path.join(args.sampcon_cluster_path, 'correlation_logs.txt')
 
-        for idx, (f1, f2) in enumerate(zip(fa, fb)):
-            id1 = os.path.basename(f1).split('LPD_')[1].split('.mrc')[0]
-            id2 = os.path.basename(f2).split('LPD_')[1].split('.mrc')[0]
-            thr1 = threshold[id1]
-            thr2 = threshold[id2]
-            commands_run = [
-                f"open {f1}",
-                f"open {f2}",
-                f"volume #1 sdLevel {thr1}",
-                f"volume #2 sdLevel {thr2}",
-                f"measure correlation #1 in_map #2 envelope false",
-                f"measure correlation #2 in_map #1 envelope false",
+        if args.use_combined_map:
+            commands_run = []
+            for f1 in fa:
+                id1 = os.path.basename(f1).split('LPD_')[1].split('.mrc')[0]
+                commands_run += [f"open {f1}"]
+
+            for f2 in fb:
+                id2 = os.path.basename(f2).split('LPD_')[1].split('.mrc')[0]
+                commands_run += [f"open {f2}"]
+
+            commands_run += [
+                f"volume add #1-{len(fa)}",
+                f"volume add #{len(fa)+1}-{len(fa)+len(fb)}",
+                f"fitmap #{len(fa)+len(fb)+1} in_map #{len(fa)+len(fb)+2} shift false rotate false envelope false zeros true",
+                f"fitmap #{len(fa)+len(fb)+2} in_map #{len(fa)+len(fb)+1} shift false rotate false envelope false zeros true",
                 f"close all",
             ]
-            log_mode = ">>" if idx > 0 else ">"
             os.system(
                 f"{CHIMERAX_RUN_CMD} --exit --nogui --cmd " +
-                f"'{"; ".join(commands_run)}' {log_mode} {log_path}"
+                f"'{"; ".join(commands_run)}' > {log_path}"
             )
+
+        else:
+
+            for idx, (f1, f2) in enumerate(zip(fa, fb)):
+                id1 = os.path.basename(f1).split('LPD_')[1].split('.mrc')[0]
+                id2 = os.path.basename(f2).split('LPD_')[1].split('.mrc')[0]
+                commands_run = [
+                    f"open {f1}",
+                    f"open {f2}",
+                    f"fitmap #1 in_map #2 shift false rotate false envelope false zeros true",
+                    f"fitmap #2 in_map #1 shift false rotate false envelope false zeros true",
+                    f"close all",
+                ]
+                log_mode = ">>" if idx > 0 else ">"
+                os.system(
+                    f"{CHIMERAX_RUN_CMD} --exit --nogui --cmd " +
+                    f"'{"; ".join(commands_run)}' {log_mode} {log_path}"
+                )
+
         correlation_list = parse_chimerax_log(log_path)
         # pprint(correlation_list)
         df = pd.DataFrame(correlation_list)
+        # print(df)
+        corr_ = df["correlation"].astype(float)
+        cam_ = df["cam"].astype(float)
+        print(f"Average Correlation: {corr_.mean():.4f} ± {corr_.std():.4f}")
+        print(f"Average CAM: {cam_.mean():.4f} ± {cam_.std():.4f}")
         df.to_csv(os.path.join(args.sampcon_cluster_path, 'correlation_results.csv'), index=False)
