@@ -718,7 +718,7 @@ def fit_to_binding_data(
     command = [
         "python", script_path,
         "--xyzr_file", xyzr_file,
-        "--input_config", input_config,
+        "--input", input_config,
         "--output_dir", output_dir,
         "--nproc", nproc,
         "--float_dtype", float_dtype,
