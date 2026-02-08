@@ -23,7 +23,29 @@ from IMP_Toolbox.analysis.contact_map import (
 _user = getpass.getuser()
 _f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
 
-def get_pairwise_distances(xyzr1, xyzr2, f_dtype=np.float64):
+def get_pairwise_distances(
+    xyzr1: np.ndarray, 
+    xyzr2: np.ndarray, 
+    f_dtype: np.dtype=np.float64,
+):
+    """ Given two arrays of XYZR, return all pairwise distances.
+
+    ## Arguments:
+
+    - **xyzr1 (np.ndarray)**:<br />
+        Array of shape (n_beads1, n_frames, 4) containing XYZR data for molecule 1.
+
+    - **xyzr2 (np.ndarray)**:<br />
+        Array of shape (n_beads2, n_frames, 4) containing XYZR data for molecule 2.
+
+    - **f_dtype (np.dtype, optional):**:<br />
+        Float dtype for distance calculations. Defaults to np.float64.
+
+    ## Returns:
+
+    - **np.ndarray**:<br />
+        Array of shape (n_beads1*n_beads2, n_frames) containing pairwise distances.
+    """
 
     coords1 = xyzr1[:, :, :3].astype(f_dtype)
     coords2 = xyzr2[:, :, :3].astype(f_dtype)
@@ -116,7 +138,6 @@ if __name__ == "__main__":
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
-    binarize_cmap = False
     f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
 
     binding_data = read_json(args.input)
@@ -131,38 +152,36 @@ if __name__ == "__main__":
 
     updated_mol_pairs = []
     for data_pt in binding_data:
+
         mol1 = data_pt["molecule1"]
         mol2 = data_pt["molecule2"]
         range1 = data_pt["residue_range1"]
         range2 = data_pt["residue_range2"]
+
         m1_m2_pairs = []
         for m1, m2 in mol_pairs:
+
             if m1.startswith(f"{mol1}_") and m2.startswith(f"{mol2}_"):
-                m1_m2_pairs.append((f"{m1}|{range1[0]}-{range1[1]}", f"{m2}|{range2[0]}-{range2[1]}"))
+                m1_m2_pairs.append((
+                    f"{m1}|{range1[0]}-{range1[1]}",
+                    f"{m2}|{range2[0]}-{range2[1]}"
+                ))
+
             elif m1.startswith(f"{mol2}_") and m2.startswith(f"{mol1}_"):
-                m1_m2_pairs.append((f"{m1}|{range2[0]}-{range2[1]}", f"{m2}|{range1[0]}-{range1[1]}"))
+                m1_m2_pairs.append((
+                    f"{m1}|{range2[0]}-{range2[1]}",
+                    f"{m2}|{range1[0]}-{range1[1]}"
+                ))
 
         updated_mol_pairs.extend(m1_m2_pairs)
 
-    # user provided mol pairs
-    # mol_pairs = [('DSC2a_0|720-819', 'PG_0'), ('DSC2a_0|720-800', 'PG_1'), ('DSC2a_0|720-800', 'PG_2'), ('DSC2a_0|720-800', 'PG_3')]
-    # mol_pairs = [('DSC2a_0|720-731', 'PG_0|1-50'), ('DSC2a_0|720-731', 'PG_1|1-50'), ('DSC2a_0|720-731', 'PG_2|1-50'), ('DSC2a_0|720-731', 'PG_3|1-50')]
-    # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("PKP2") or m2.startswith("PKP2"))]
-    # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("DSC2a_0") or m2.startswith("DSC2a_0"))]
-    # mol_pairs = [(m1, m2) for m1, m2 in mol_pairs if (m1.startswith("DSC2a") and m2.startswith("PG")) or (m1.startswith("PG") and m2.startswith("DSC2a"))]
     mol_pairs = list(set(updated_mol_pairs))
 
     unique_sels, unique_mols = get_unique_selections(mol_pairs, mol_res_dict)
 
-    print("Unique mols in pairs:", unique_mols)
-    print("Unique sels in pairs:", {k: get_key_from_res_range(sorted(v)) for k, v in unique_sels.items()})
-
     xyzr_data = update_xyzr_data(xyzr_data, unique_sels)
 
     xyzr_data = sort_xyzr_data(xyzr_data)
-
-    molecules = list(xyzr_data.keys())
-    mol_length_keys = {mol: [k for k in xyzr_data.keys() if k.startswith(mol)] for mol in unique_mols}
 
     xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
     xyzr_keys = list(xyzr_data.keys())
@@ -182,9 +201,13 @@ if __name__ == "__main__":
     for _m1, _m2 in tqdm.tqdm(mol_pairs):
 
         pair_name = f"{_m1}:{_m2}"
-        print(pair_name)
-        if os.path.exists(os.path.join(output_dir, f"{pair_name}_dmap.txt")):
-            pairwise_dmaps[pair_name] = np.loadtxt(os.path.join(output_dir, f"{pair_name}_dmap.txt"))
+        dmap_txt = os.path.join(output_dir, f"{pair_name}_dmap.txt")
+
+        if os.path.exists(dmap_txt):
+            pairwise_dmaps[pair_name] = np.loadtxt(
+                dmap_txt,
+                dtype=f_dtype,
+            )
             continue
 
         m1, sel1 = _m1.split("|") if "|" in _m1 else (_m1, None)
@@ -194,19 +217,23 @@ if __name__ == "__main__":
         res_range2 = get_res_range_from_key(sel2) if sel2 else None
 
         if res_range1 is not None:
-            idx1 = [
-                i for i, k in enumerate(xyzr_keys)
-                if k.startswith(m1) and any(r in res_range1 for r in get_res_range_from_key(k.rsplit("_", 1)[1]))
-            ]
+            idx1 = [i for i, k in enumerate(xyzr_keys) if (
+                k.startswith(m1) and any(
+                    r in res_range1
+                    for r in get_res_range_from_key(k.rsplit("_", 1)[1])
+                )
+            )]
 
         else:
             idx1 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m1)])
 
         if res_range2 is not None:
-            idx2 = [
-                i for i, k in enumerate(xyzr_keys)
-                if k.startswith(m2) and any(r in res_range2 for r in get_res_range_from_key(k.rsplit("_", 1)[1]))
-            ]
+            idx2 = [i for i, k in enumerate(xyzr_keys) if (
+                k.startswith(m2) and any(
+                    r in res_range2
+                    for r in get_res_range_from_key(k.rsplit("_", 1)[1])
+                )
+            )]
 
         else:
             idx2 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m2)])
@@ -238,19 +265,19 @@ if __name__ == "__main__":
         n_frames = 0
         for i, flat_dmap_ in enumerate(results):
 
-            dmap_m1_m2[n_frames:n_frames+flat_dmap_.shape[1]] = np.min(flat_dmap_, axis=0).astype(f_dtype)
+            # from each flattened dmap of shape (n_beads1*n_beads2, batch_frames),
+            # we take the minimum distance across all bead pairs for each frame, 
+            # resulting in an array of shape (batch_frames,)
+            frame_slice = slice(n_frames, n_frames + flat_dmap_.shape[1])
+            dmap_m1_m2[frame_slice] = np.min(flat_dmap_, axis=0).astype(f_dtype)
             n_frames += flat_dmap_.shape[1]
 
         del results
 
         pairwise_dmaps[pair_name] = dmap_m1_m2.astype(f_dtype)
 
-        if not os.path.exists(os.path.join(output_dir, f"{pair_name}_dmap.txt")):
-            np.savetxt(
-                os.path.join(output_dir, f"{pair_name}_dmap.txt"),
-                dmap_m1_m2,
-                fmt="%.6f",
-            )
+        if not os.path.exists(dmap_txt):
+            np.savetxt(dmap_txt, dmap_m1_m2, fmt="%.6f")
 
     del xyzr_mat
 
@@ -258,9 +285,13 @@ if __name__ == "__main__":
     print(f"Time taken: {end_t - start_t} seconds")
     ################################################################################
 
+    # This is specific to MPDBR implementation, where we deal with ambiguity such
+    # that if the minimum distace across copies of the same protein pair is less
+    # than the threshold, we consider the pair to be in contact. So we take the minimum
+    # across copies for each pair before plotting.
     if args.merge_copies:
 
-        merged_pairwise_dmaps = {}
+        m_pairwise_dmaps = {}
 
         for pair_name, dmap in pairwise_dmaps.items():
 
@@ -272,26 +303,26 @@ if __name__ == "__main__":
             base_m1 = mol1.rsplit("_", 1)[0]
             base_m2 = mol2.rsplit("_", 1)[0]
 
-            merged_pair_name = f"{base_m1}|{_sel1}:{base_m2}|{_sel2}"
+            m_pair_name = f"{base_m1}|{_sel1}:{base_m2}|{_sel2}"
 
-            if merged_pair_name not in merged_pairwise_dmaps:
-                merged_pairwise_dmaps[merged_pair_name] = [dmap]
+            if m_pair_name not in m_pairwise_dmaps:
+                m_pairwise_dmaps[m_pair_name] = [dmap]
             else:
-                merged_pairwise_dmaps[merged_pair_name].append(dmap)
+                m_pairwise_dmaps[m_pair_name].append(dmap)
 
         # average the maps for each merged pair
-        for merged_pair_name, dmaps in merged_pairwise_dmaps.items():
+        for m_pair_name, dmaps in m_pairwise_dmaps.items():
             
-            merged_pairwise_dmaps[merged_pair_name] = np.min(dmaps, axis=0).astype(f_dtype)
+            m_pairwise_dmaps[m_pair_name] = np.min(dmaps, axis=0).astype(f_dtype)
 
-        pairwise_dmaps = merged_pairwise_dmaps
+        pairwise_dmaps = m_pairwise_dmaps
 
-    # sort the maps by pair name
     pairwise_dmaps = dict(sorted(pairwise_dmaps.items(), key=lambda x: x[0]))
 
     all_data = list(pairwise_dmaps.values())
 
     print("Pairwise distance data calculated for all pairs. Now plotting...\n")
+
     fig, ax = plt.subplots(figsize=(12, 5))
     violinplot = ax.violinplot(
         all_data,
