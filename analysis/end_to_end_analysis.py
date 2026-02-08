@@ -710,8 +710,7 @@ def fit_to_binding_data(
         input_config (str): Path to the input config file containing binding data
         output_dir (str): Directory to save outputs
         nproc (int): Number of cores to use
-        merge_copies (bool): Whether to merge maps across copies for protein
-            pairs
+        merge_copies (bool): Whether to merge maps across copies for protein pairs
         logger (logging.Logger | None, optional): Logger for logging messages.
     """
 
@@ -729,6 +728,47 @@ def fit_to_binding_data(
 
     if logger is not None:
         logger.info("Running fit_to_binding_data with command:")
+        logger.info(" ".join(map(str, command)))
+
+    os.system(" ".join(map(str, command)))
+
+def fit_to_immunoem_data(
+    script_path: str,
+    xyzr_file: str,
+    input_config: str, 
+    output_dir: str,
+    nproc: int = 24,
+    merge_copies: bool = True,
+    float_dtype: int = 64,
+    logger: logging.Logger | None = None,
+):
+    """ Run the script `fit_to_immunoem_data.py` and fit the models to immuno-EM data
+
+    Args:
+        script_path (str): Path to the `fit_to_immunoem_data.py` script
+        xyzr_file (str): Path to the input hdf5 file containing XYZR data
+        input_config (str): Path to the input config file containing immuno-EM data
+        output_dir (str): Directory to save outputs
+        nproc (int): Number of cores to use
+        merge_copies (bool): Whether to merge maps across copies for protein
+        float_dtype (int): Float dtype for calculations (e.g., 32 or 64)
+        logger (logging.Logger | None, optional): Logger for logging messages.
+    """
+
+    command = [
+        "python", script_path,
+        "--xyzr_file", xyzr_file,
+        "--input", input_config,
+        "--output_dir", output_dir,
+        "--nproc", nproc,
+        "--float_dtype", float_dtype,
+    ]
+
+    if merge_copies:
+        command.append("--merge_copies")
+
+    if logger is not None:
+        logger.info("Running fit_to_immunoem_data with command:")
         logger.info(" ".join(map(str, command)))
 
     os.system(" ".join(map(str, command)))
@@ -1275,6 +1315,40 @@ if __name__ == "__main__":
         )
         lap = time.perf_counter()
         logger.info(f"Completed fit_to_binding_data in {lap - start_t:0.4f} seconds")
+
+    ###########################################################################
+    # Fit to immunoem data (optional)
+    ###########################################################################
+
+    if "fit_to_immunoem_data" in args.scripts_to_run:
+
+        fit_to_immunoem_data_dir = os.path.join(
+            ANALYSIS_OUTPUT_PATH, "fit_to_immunoem_data"
+        )
+        os.makedirs(fit_to_immunoem_data_dir, exist_ok=True)
+        input_config = f"{IMP_TOOLOBX_PATH}/analysis/fit_to_immunoem.json"
+        assert os.path.exists(xyzr_output_path), (
+            f"""XYZR output file {xyzr_output_path} does not exist.
+            Please check if rmf_to_xyzr has been run successfully.
+            """
+        )
+        assert os.path.exists(input_config), (
+            f"""Input config file {input_config} does not exist.
+            Please check if the file exists at the specified path. 
+            """
+        )
+        fit_to_immunoem_data(
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/fit_to_immunoem_data.py",
+            xyzr_file=xyzr_output_path,
+            input_config=input_config,
+            output_dir=fit_to_immunoem_data_dir,
+            nproc=24,
+            merge_copies=True,
+            float_dtype=64,
+            logger=logger
+        )
+        lap = time.perf_counter()
+        logger.info(f"Completed fit_to_immunoem_data in {lap - start_t:0.4f} seconds")
 
     ###########################################################################
     logger.info("End-to-end analysis completed.")
