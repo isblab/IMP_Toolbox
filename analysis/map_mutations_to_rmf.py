@@ -74,14 +74,9 @@ def get_rmf_to_residue_map(all_bead_keys, chain_map):
         particles = [key for key in all_bead_keys if key.startswith(molecule)]
         for particle in particles:
             res_range = particle.rsplit("_", 1)[-1]
-            if "-" in res_range:
-                res_start, res_end = map(int, res_range.split("-"))
-                res_num = (res_start + res_end) // 2
-                for res in range(res_start, res_end+1):
-                    rmf_to_residue_map[f"{molecule}_{res}"] = [ch_id, res]
-            else:
-                res_num = int(res_range)
-                rmf_to_residue_map[particle] = [ch_id, res_num]
+            for res in get_res_range_from_key(res_range):
+                rmf_to_residue_map[f"{molecule}_{res}"] = [ch_id, res]
+
     return rmf_to_residue_map
 
 if __name__ == "__main__":

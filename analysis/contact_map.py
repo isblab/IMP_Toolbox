@@ -25,6 +25,7 @@ def parse_xyzr_h5_file(xyzr_file: str) -> dict:
       - MOL1_COPYIDX_RESSTART-RESEND (Dataset)
       - MOL2_COPYIDX_RESSTART-RESEND (Dataset)
       - ...
+
     Each dataset contains a 2D numpy array of shape (num_frames, 4) where
     each row is (x, y, z, r).
 
