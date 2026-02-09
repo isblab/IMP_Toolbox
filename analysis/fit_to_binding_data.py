@@ -27,6 +27,7 @@ def get_pairwise_distances(
     xyzr1: np.ndarray, 
     xyzr2: np.ndarray, 
     f_dtype: np.dtype=np.float64,
+    subtract_radii: bool=True,
 ):
     """ Given two arrays of XYZR, return all pairwise distances.
 
@@ -72,7 +73,7 @@ def get_pairwise_distances(
 
         np.subtract(
             cdist(coords1[:, i, :], coords2[:, i, :]),
-            radii_sum,
+            radii_sum if subtract_radii else 0.0,
             out=temp_dmap,
             dtype=f_dtype,
         )
@@ -250,7 +251,7 @@ if __name__ == "__main__":
 
         with ThreadPoolExecutor(max_workers=nproc) as executor:
             futures = [
-                executor.submit(get_pairwise_distances, xyzr1_b, xyzr2_b, f_dtype)
+                executor.submit(get_pairwise_distances, xyzr1_b, xyzr2_b, f_dtype, True)
                 for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
             ]
             results = []
