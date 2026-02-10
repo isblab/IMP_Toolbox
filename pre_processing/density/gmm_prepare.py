@@ -34,6 +34,7 @@ def get_best_gmm(
     sd_level: float,
     metric: str = "cam",
     chimerax_run_cmd: str = CHIMERAX_RUN_CMD,
+    threshold: float = 0.95,
 ):
     """ For a given reference map and candidate model maps corresponding to
     different GMMs, get the candidate model that best fits the reference map
@@ -83,13 +84,14 @@ def get_best_gmm(
         f"'{"; ".join(commands_run)}' > {log_path}"
     )
 
-    best_gmm, _ = compare_gmms(log_path, metric=metric)
+    best_gmm, _ = compare_gmms(log_path, metric=metric, threshold=threshold)
 
     return best_gmm
 
 def compare_gmms(
     chimerax_log: str, 
     metric: str = "cam",
+    threshold: float = 0.95,
 ):
     """ Get the best GMM based on the correlation metrics from the
     ChimeraX log file.
@@ -142,7 +144,7 @@ def compare_gmms(
     correlation_list = sorted(correlation_list, key=lambda x: x["gaussians"])
     best_gmm = None
     for item in correlation_list:
-        if float(item[metric]) >= 0.95:
+        if float(item[metric]) >= threshold:
             best_gmm = item["model_mrc"].split(".mrc")[0]
             print(f"Selected GMM: {best_gmm} with {metric}: {item[metric]}")
             break
@@ -150,7 +152,7 @@ def compare_gmms(
     df = pd.DataFrame(correlation_list)
     out_html = chimerax_log.replace(".txt", "_gmm_correlation_summary.html")
     styled_df = df.style.map(
-        highlight_greater_than_95,
+        lambda val: highlight_greater_than(val, threshold=threshold),
         subset=['correlation', 'cam']
     )
     styled_df.to_html(
@@ -162,6 +164,6 @@ def compare_gmms(
 
     return best_gmm, correlation_list
 
-def highlight_greater_than_95(val):
-    color = 'yellow' if float(val) > 0.95 else ''
+def highlight_greater_than(val, threshold=0.95):
+    color = 'yellow' if float(val) > threshold else ''
     return f'background-color: {color}'
