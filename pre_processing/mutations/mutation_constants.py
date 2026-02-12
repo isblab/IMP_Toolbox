@@ -1,5 +1,5 @@
 import re
-
+import os
 
 DATE_FORMAT = r"%Y-%m-%d"
 
@@ -75,30 +75,6 @@ VARIANT_PREDICTORS = [
 
 UNIPROT_ALLOWED_CLINICAL_SIGNIFICANCE = CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE
 
-# add new ids as and when required
-UNIPROT_PUBMED_TO_IGNORE = [
-    "14607462",
-    "16839424",
-    "20301308",
-    "20301310",
-    "20301486",
-    "20301717",
-    "20301725",
-    "21810866",
-    "23788249",
-    "23994779",
-    "25173338",
-    "25356965",
-    "27854360",
-    "34012068",
-    "35802134",
-    "20301373",
-    "20301466",
-    "20301690",
-    "21267010",
-    "35378257"
-]
-
 API_URLS = {
     "uniprot_variant": "https://www.ebi.ac.uk/proteins/api/variation/uniprot_id",
     "af_missense_csv": "https://alphafold.ebi.ac.uk/files/AF-uniprot_id-F1-aa-substitutions.csv",
@@ -110,20 +86,16 @@ API_URLS = {
     "lovd_variant_txt": "https://databases.lovd.nl/shared/download/all/gene/gene_name",
 }
 
-LOVD_PREFERRED_TRANSCRIPT_IDS = {
-    "PKP2": 25790,
-    "DSP": 6721,
-    "DSG2": 6717,
-    "DSC2": 6702,
-    "JUP": 10288,
-    "FZD4": '00008236',
-}
-
 LOVD_ALLOWED_CLINICAL_SIGNIFICANCE = [
     "pathogenic",
-    "likeply pathogenic",
+    "likely pathogenic",
     "pathogenic (dominant)",
     "likely pathogenic (dominant)",
+]
+
+ARVC_ALLOWED_CLINICAL_SIGNIFICANCE = [
+    "Pathogenic",
+    "Likely pathogenic",
 ]
 
 TRUNCATION_NOTATIONS = ["*", "Ter", "X", "Term"]
@@ -167,24 +139,10 @@ MISSENSE_REGEX = {
     }
 }
 
-ARVC_ALLOWED_CLINICAL_SIGNIFICANCE = [
-    "Pathogenic",
-    "Likely pathogenic",
-]
-
-ARVC_REF_SEQUENCE_IDS = {
-    "PKP2": "NM_004572.4",
-    "DSP": "NM_004415.4",
-    "DSG2": "NM_001943.5",
-    "DSC2": "NM_024422.6",
-    "JUP": "NM_021991.4",
-}
-
 AF_MISSENSE_CSV_SUFFIX = "_alpha_missense_variants"
 AF_MISSENSE_PAIR_ALN_SUFFIX = "_afm_vs_modeled"
 
 # from https://console.cloud.google.com/storage/browser/dm_alphamissense
-import os
 AF_MISSENSE_AA_SUBSTITUTIONS_TSV = f"/data/{os.getlogin()}/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
 
 CLINVAR_PAIR_ALN_SUFFIX = "_clinvar_vs_modeled"
