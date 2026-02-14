@@ -70,6 +70,7 @@ if [ "$install_mode" != "github" ] && [ "$install_mode" != "tarball" ]; then
 fi
 
 cwd_=$(pwd) ;
+script_dir_="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" ;
 install_path=$(realpath $install_path) ;
 
 # conda environment setup
@@ -189,7 +190,7 @@ if [ $install_mode == "tarball" ]; then
             echo "Error downloading the IMP tarball. Please check the version number and your internet connection." ;
             exit 1 ;
         fi
-        python $cwd_/check_sha256sum.py --file_path $tarball_name.tar.gz --sha256_file SHA256SUM ;
+        python $script_dir_/check_sha256sum.py --file_path $tarball_name.tar.gz --sha256_file SHA256SUM ;
         if [ $? -eq 0 ]; then
             echo "SHA256 checksum verification passed." ;
         else
