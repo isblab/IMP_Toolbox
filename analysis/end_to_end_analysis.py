@@ -604,6 +604,7 @@ def rmf_to_xyzr(
     frame_subset: str | None = None,
     float_dtype: int = 64,
     nproc: int = 24,
+    overwrite: bool = False,
     logger: logging.Logger | None = None,
 ):
     """ Run the script `rmf_to_xyzr.py`
@@ -636,6 +637,9 @@ def rmf_to_xyzr(
 
     if frame_subset is not None:
         command.extend(["--frame_subset", frame_subset])
+
+    if overwrite:
+        command.append("--overwrite")
 
     if logger is not None:
         logger.info("Running rmf_to_xyzr with command:")
@@ -1241,6 +1245,7 @@ if __name__ == "__main__":
             frame_subset=None,
             float_dtype=64,
             nproc=24,
+            overwrite=False,
             logger=logger
         )
         assert os.path.exists(xyzr_output_path), (
