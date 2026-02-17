@@ -652,6 +652,7 @@ def contact_map(
     frac_cutoff: float = 0.25,
     plotting: str = "matplotlib",
     merge_copies: bool = False,
+    binarize_cmap: bool = False,
     float_dtype: int = 64,
     int_dtype: int = 32,
     logger: logging.Logger | None = None,
@@ -685,6 +686,9 @@ def contact_map(
 
     if merge_copies:
         command.append("--merge_copies")
+
+    if binarize_cmap:
+        command.append("--binarize_cmap")
 
     if logger is not None:
         logger.info("Running contact_map with command:")
@@ -1272,6 +1276,7 @@ if __name__ == "__main__":
             frac_cutoff=0.25,
             plotting="matplotlib",
             merge_copies=False,
+            binarize_cmap=False,
             float_dtype=64,
             int_dtype=32,
             logger=logger,

@@ -332,6 +332,12 @@ if __name__ == "__main__":
         help="Whether to merge maps across copies of the same protein pair.",
     )
     parser.add_argument(
+        "--binarize_cmap",
+        action="store_true",
+        default=False,
+        help="Whether to binarize contact maps based on the fraction cutoff.",
+    )
+    parser.add_argument(
         "--float_dtype",
         type=int,
         default=64,
@@ -352,7 +358,7 @@ if __name__ == "__main__":
     cutoff1 = args.dist_cutoff
     cutoff2 = args.frac_cutoff
     contact_map_dir = args.contact_map_dir
-    binarize_cmap = False
+    binarize_cmap = bool(args.binarize_cmap)
     f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
     i_dtype = _i_dtypes.get(args.int_dtype, np.int32)
     os.makedirs(contact_map_dir, exist_ok=True)
@@ -438,17 +444,6 @@ if __name__ == "__main__":
             results = []
             for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
                 results.append(future.result())
-
-        # for i in range(len(xyzr1_batches)):
-        #     print(f"Processing batch {i+1}/{len(xyzr1_batches)} for pair {pair_name}...")
-        #     dmap_, cmap_ = get_pairwise_map(
-        #         xyzr1_batches[i], xyzr2_batches[i], cutoff, f_dtype, i_dtype
-        #     )
-        #     if i == 0:
-        #         results = [(dmap_, cmap_)]
-        #     else:
-        #         results.append((dmap_, cmap_))
-        #     del dmap_, cmap_
 
         del xyzr1, xyzr2
         del xyzr1_batches, xyzr2_batches
@@ -632,15 +627,15 @@ if __name__ == "__main__":
             fig.update_layout(
                 # title=f'Average Distance Map: {pair_name}',
                 title=f"Binarized Average Distance Map (cutoff={args.dist_cutoff} Å): {pair_name}",
-                xaxis_title=f"{mol1}",
-                yaxis_title=f"{mol2}",
+                xaxis_title=f"{mol2}",
+                yaxis_title=f"{mol1}",
                 xaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[1], 50),
-                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
+                    tickvals=np.arange(0, dmap.shape[1], 1),
+                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 1)
                 ),
                 yaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[0], 50),
-                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
+                    tickvals=np.arange(0, dmap.shape[0], 1),
+                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 1)
                 ),
             )
             fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_dmap.html"))
@@ -652,17 +647,20 @@ if __name__ == "__main__":
                 zmax=1 if binarize_cmap else args.frac_cutoff,
                 colorbar=dict(title='Fraction of Frames in Contact')
             ))
+            title_ = f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}'
+            if binarize_cmap:
+                title_ = "Binarized " + title_
             fig.update_layout(
-                title=f'Average Contact Map (cutoff={args.frac_cutoff}) : {pair_name}',
-                xaxis_title=f"{mol1}",
-                yaxis_title=f"{mol2}",
+                title=title_,
+                xaxis_title=f"{mol2}",
+                yaxis_title=f"{mol1}",
                 xaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[1], 50),
-                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 50)
+                    tickvals=np.arange(0, dmap.shape[1], 1),
+                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 1)
                 ),
                 yaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, dmap.shape[0], 50),
-                    ticktext=np.arange(mol_res_dict[mol2][0], mol_res_dict[mol2][-1]+1, 50)
+                    tickvals=np.arange(0, dmap.shape[0], 1),
+                    ticktext=np.arange(mol_res_dict[mol1][0], mol_res_dict[mol1][-1]+1, 1)
                 ),
             )
             fig.write_html(os.path.join(contact_map_dir, f"{pair_name}_cmap.html"))
