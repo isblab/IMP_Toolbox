@@ -588,16 +588,20 @@ class MatrixPatches:
         {4}         {3}
         """
 
-        rows_to_keep = []
+        sets_1 = df[colname_1].tolist()
+        sets_2 = df[colname_2].tolist()
+        idxs = df.index.tolist()
 
-        for i, row in df.iterrows():
+        sets_ = list(zip(sets_1, sets_2))
+        common_subset_idxs = [
+            i for i in idxs for j in idxs
+            if (i != j and (
+                sets_[i][0].issubset(sets_[j][0]) and
+                sets_[i][1].issubset(sets_[j][1])
+            ))
+        ]
 
-            if not any(
-                self.is_subset(row, df.iloc[j], colname_1, colname_2)
-                for j in range(len(df))
-                if i != j
-            ):
-                rows_to_keep.append(i)
+        rows_to_keep = [i for i in idxs if i not in common_subset_idxs]
 
         filtered_df = df.loc[rows_to_keep].reset_index(drop=True)
 
