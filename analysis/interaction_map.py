@@ -16,9 +16,12 @@ from scipy.spatial.distance import cdist
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Pool
 from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_json
-from IMP_Toolbox.utils import get_key_from_res_range, get_res_range_from_key
 from IMP_Toolbox.utils_imp_toolbox.special_helpers import MatrixPatches
 from IMP_Toolbox.utils_imp_toolbox.viz_helpers import save_map
+from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
+    get_key_from_res_range,
+    get_res_range_from_key
+)
 
 _user = getpass.getuser()
 _f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
@@ -126,9 +129,9 @@ def read_molecule_pairs_from_file(input: str) -> list:
     if len(set(only_mol_pairs)) != len(only_mol_pairs):
         raise NotImplementedError(textwrap.dedent("""
             Multiple selections for the same molecule pairs are not supported.
-            If you want separate contact maps for different selections of the
-            same molecule pair, compute the contact map without selection and
-            slice the maps
+            If you want separate interaction maps for different selections of
+            the same molecule pair, compute the interaction map without
+            selection and slice the maps.
             """)
         )
 
@@ -429,7 +432,7 @@ def fetch_pairwise_maps(
     xyzr_keys: list,
     mol_pairs: list,
     contact_cutoff: float,
-    contact_map_dir: str,
+    interaction_map_dir: str,
     nproc: int,
     f_dtype: np.dtype = np.float64,
     i_dtype: np.dtype = np.int32,
@@ -455,8 +458,8 @@ def fetch_pairwise_maps(
     - **contact_cutoff (float)**:<br />
         The contact cutoff distance (in Angstroms) for computing contact maps.
 
-    - **contact_map_dir (str)**:<br />
-        The directory where contact maps are saved.
+    - **interaction_map_dir (str)**:<br />
+        The directory where interaction maps are saved.
 
     - **nproc (int)**:<br />
         The number of processes to use for parallel computation.
@@ -468,7 +471,7 @@ def fetch_pairwise_maps(
         The integer data type to use for contact map calculations.
 
     - **overwrite (bool, optional):**:<br />
-        Whether to overwrite existing contact map files. If False, the function
+        Whether to overwrite existing interaction map files. If False, function
         will load existing maps from disk if they are available, and skip
         recomputation. Note that the plots are always overwritten to reflect the
         current binarization settings, but the raw maps are not recomputed if
@@ -495,8 +498,8 @@ def fetch_pairwise_maps(
     for _m1, _m2 in tqdm.tqdm(mol_pairs):
 
         pair_name = f"{_m1.split(':')[0]}:{_m2.split(':')[0]}"
-        dmap_file = os.path.join(contact_map_dir, f"{pair_name}_dmap.txt")
-        cmap_file = os.path.join(contact_map_dir, f"{pair_name}_cmap.txt")
+        dmap_file = os.path.join(interaction_map_dir, f"{pair_name}_dmap.txt")
+        cmap_file = os.path.join(interaction_map_dir, f"{pair_name}_cmap.txt")
 
         if (
             (os.path.exists(dmap_file) and os.path.exists(cmap_file)) and
@@ -958,7 +961,7 @@ def get_binary_map(
 def matrix_patches_worker(
     cmap: npt.NDArray[np.integer],
     pair_name: str,
-    contact_map_dir: str,
+    interaction_map_dir: str,
     region_of_interest: dict,
 ):
     """ Extract interacting patches from the contact map and save them as csvs.
@@ -971,7 +974,7 @@ def matrix_patches_worker(
     - **pair_name (str)**:<br />
         The name of the molecule pair corresponding to the contact map (e.g. "MOL1:MOL2").
 
-    - **contact_map_dir (str)**:<br />
+    - **interaction_map_dir (str)**:<br />
         The directory where the patch files will be saved.
 
     - **region_of_interest (dict)**:<br />
@@ -1018,13 +1021,10 @@ def matrix_patches_worker(
 
     if len(patches) > 0:
 
-        file_name = "_".join(
-            [
-                f"{k}:{v[0]}-{v[1]}"
-                for k, v in region_of_interest.items()
-                if k in [mol1, mol2]
-            ]
-        )
+        file_name = "_".join([
+            f"{k}:{v[0]}-{v[1]}"
+            for k, v in region_of_interest.items() if k in [mol1, mol2]
+        ])
 
         save_map(
             contact_map=cmap,
@@ -1037,7 +1037,7 @@ def matrix_patches_worker(
             p1_region=region_of_interest[mol1],
             p2_region=region_of_interest[mol2],
             out_file=os.path.join(
-                contact_map_dir, f"patches_{file_name}.png"
+                interaction_map_dir, f"patches_{file_name}.png"
             ),
             save_plot=False,
             # plot_type="static",
@@ -1059,11 +1059,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--contact_map_dir",
+        "--interaction_map_dir",
         # default=f"/data/{_user}/imp_toolbox_test/analysis/contact_maps1",
         type=str,
         required=True,
-        help="Directory to save contact maps.",
+        help="Directory to save interaction maps.",
     )
 
     parser.add_argument(
@@ -1071,7 +1071,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="Path to the JSON/YAML file specifying the protein pairs for \
-            contact map calculation.",
+            interaction map calculation. (optional)",
     )
 
     parser.add_argument(
@@ -1155,13 +1155,13 @@ if __name__ == "__main__":
     nproc = args.nproc
     cutoff1 = args.dist_cutoff
     cutoff2 = args.frac_cutoff
-    contact_map_dir = args.contact_map_dir
+    interaction_map_dir = args.interaction_map_dir
     binarize_dmap = bool(args.binarize_dmap)
     binarize_cmap = bool(args.binarize_cmap)
     plotting_lib = args.plotting
     f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
     i_dtype = _i_dtypes.get(args.int_dtype, np.int32)
-    os.makedirs(contact_map_dir, exist_ok=True)
+    os.makedirs(interaction_map_dir, exist_ok=True)
     ############################################################################
     # Load and parse the XYZR data from the HDF5 file
     xyzr_data, all_bead_keys, unique_mols, mol_res_dict = parse_xyzr_h5_file(
@@ -1214,7 +1214,7 @@ if __name__ == "__main__":
         xyzr_keys=xyzr_keys,
         mol_pairs=mol_pairs,
         contact_cutoff=cutoff1,
-        contact_map_dir=contact_map_dir,
+        interaction_map_dir=interaction_map_dir,
         nproc=nproc,
         f_dtype=f_dtype,
         i_dtype=i_dtype,
@@ -1238,13 +1238,13 @@ if __name__ == "__main__":
 
         save_map_txt(
             q_map=dmap,
-            save_dir=contact_map_dir,
+            save_dir=interaction_map_dir,
             map_name=f"{save_name}_dmap",
             overwrite=bool(args.overwrite)
         )
         save_map_txt(
             q_map=cmap,
-            save_dir=contact_map_dir,
+            save_dir=interaction_map_dir,
             map_name=f"{save_name}_cmap",
             overwrite=bool(args.overwrite)
         )
@@ -1335,7 +1335,7 @@ if __name__ == "__main__":
                 (
                     pairwise_dmaps[pair_name],
                     pair_name,
-                    contact_map_dir,
+                    interaction_map_dir,
                     "dmap",
                     cutoff1,
                     sel_mol_res_dict,
@@ -1352,7 +1352,7 @@ if __name__ == "__main__":
                 (
                     pairwise_cmaps[pair_name],
                     pair_name,
-                    contact_map_dir,
+                    interaction_map_dir,
                     "cmap",
                     cutoff2,
                     sel_mol_res_dict,
@@ -1384,14 +1384,14 @@ if __name__ == "__main__":
                 (
                     pairwise_cmaps[pair_name].astype(f_dtype),
                     pair_name,
-                    contact_map_dir,
+                    interaction_map_dir,
                     region_of_interest,
                 )
                 for pair_name in valid_pairs
             ], total=len(valid_pairs))
         )
 
-    print(f"Saved contact maps to {contact_map_dir}")
+    print(f"Saved interaction maps to {interaction_map_dir}")
 
     end_t = time.perf_counter()
     print(f"Time taken: {end_t - start_t} seconds")
