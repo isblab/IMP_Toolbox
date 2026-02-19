@@ -607,29 +607,6 @@ class MatrixPatches:
 
         return filtered_df
 
-    @staticmethod
-    def is_subset(
-        row: pd.Series,
-        other_row: pd.Series,
-        colname_1: str,
-        colname_2: str,
-    ):
-        """Check if row is a subset of other_row for two specified columns
-
-        Args:
-            row (pd.Series): _description_
-            other_row (pd.Series): _description_
-            colname_1 (str): _description_
-            colname_2 (str): _description_
-
-        Returns:
-            bool: True if row is a subset of other_row, False otherwise
-        """
-
-        return row[colname_1].issubset(other_row[colname_1]) and row[
-            colname_2
-        ].issubset(other_row[colname_2])
-
 def get_closest_mapped_residue(
     psa_map: dict,
     codon_number: int,
@@ -652,7 +629,7 @@ def get_closest_mapped_residue(
         int:
             Closest mapped residue number
     """
-    
+
     mapped_residues = sorted(psa_map.keys())
 
     if which == "lower":
@@ -840,10 +817,10 @@ def get_mapped_residue(
     return res_num_mapped, warn_msg
 
 def get_seq_identity(
-    qseq: str, 
-    sseq: str, 
-    start: int, 
-    end: int, 
+    qseq: str,
+    sseq: str,
+    start: int,
+    end: int,
     as_percentage: bool=True
 ):
     """ Calculate sequence identity between two aligned sequences in a given range.
@@ -895,10 +872,10 @@ def get_seq_identity(
     return identity
 
 def get_gap(
-    qseq: str, 
-    sseq: str, 
-    start: int, 
-    end: int, 
+    qseq: str,
+    sseq: str,
+    start: int,
+    end: int,
     as_percentage: bool=True
 ):
     """ Calculate gap percentage between two aligned sequences in a given range.

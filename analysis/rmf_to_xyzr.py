@@ -236,7 +236,16 @@ def export_xyzr_to_hdf5(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Extract XYZR data from RMF file and save in HDF5 format."
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="""
+        Extract XYZR data from RMF file and save in HDF5 format.
+        !! IMPORTANT NOTE:
+        To save space, the output is stored at the highest resolution bead level
+        and not at the residue level. So if a bead corresponds to residues 1-10,
+        the output will be stored under the key "molName_copyIndex_1-10" indicating
+        that the residues 1-10 have identical XYZR as they are part of the same bead.
+        Please take this into account while using the output file for downstream analysis.
+        """
     )
     parser.add_argument(
         "--rmf_path",

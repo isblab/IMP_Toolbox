@@ -13,10 +13,10 @@ from IMP_Toolbox.utils import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.contact_map import (
+from IMP_Toolbox.analysis.interaction_map import (
     parse_xyzr_h5_file,
-    get_unique_selections,
-    update_xyzr_data,
+    get_residue_selections,
+    filter_xyzr_data,
     sort_xyzr_data,
 )
 
@@ -24,8 +24,8 @@ _user = getpass.getuser()
 _f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
 
 def get_pairwise_distances(
-    xyzr1: np.ndarray, 
-    xyzr2: np.ndarray, 
+    xyzr1: np.ndarray,
+    xyzr2: np.ndarray,
     f_dtype: np.dtype=np.float64,
     subtract_radii: bool=True,
 ):
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_dir",
-        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/fit_to_binding_data", 
+        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/fit_to_binding_data",
         type=str,
         help="Directory to save output files.",
     )
@@ -178,9 +178,13 @@ if __name__ == "__main__":
 
     mol_pairs = list(set(updated_mol_pairs))
 
-    unique_sels, unique_mols = get_unique_selections(mol_pairs, mol_res_dict)
+    unique_sels = get_residue_selections(
+        mol_pairs=mol_pairs,
+        mol_res_dict=mol_res_dict,
+    )
+    unique_mols = set(unique_sels.keys())
 
-    xyzr_data = update_xyzr_data(xyzr_data, unique_sels)
+    xyzr_data = filter_xyzr_data(xyzr_data, unique_sels)
 
     xyzr_data = sort_xyzr_data(xyzr_data)
 
@@ -267,7 +271,7 @@ if __name__ == "__main__":
         for i, flat_dmap_ in enumerate(results):
 
             # from each flattened dmap of shape (n_beads1*n_beads2, batch_frames),
-            # we take the minimum distance across all bead pairs for each frame, 
+            # we take the minimum distance across all bead pairs for each frame,
             # resulting in an array of shape (batch_frames,)
             frame_slice = slice(n_frames, n_frames + flat_dmap_.shape[1])
             dmap_m1_m2[frame_slice] = np.min(flat_dmap_, axis=0).astype(f_dtype)
@@ -313,7 +317,7 @@ if __name__ == "__main__":
 
         # average the maps for each merged pair
         for m_pair_name, dmaps in m_pairwise_dmaps.items():
-            
+
             m_pairwise_dmaps[m_pair_name] = np.min(dmaps, axis=0).astype(f_dtype)
 
         pairwise_dmaps = m_pairwise_dmaps

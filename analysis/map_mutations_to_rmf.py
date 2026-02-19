@@ -7,7 +7,7 @@ from IMP_Toolbox.utils import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.contact_map import (
+from analysis.interaction_map import (
     parse_xyzr_h5_file,
 )
 from IMP_Toolbox.pre_processing.mutations.utils_mutation import (

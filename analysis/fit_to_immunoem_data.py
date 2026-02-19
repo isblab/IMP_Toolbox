@@ -19,7 +19,7 @@ from IMP_Toolbox.utils import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.contact_map import (
+from IMP_Toolbox.analysis.interaction_map import (
     parse_xyzr_h5_file,
     # get_unique_selections,
     update_xyzr_data,
