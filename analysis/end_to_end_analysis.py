@@ -647,29 +647,31 @@ def rmf_to_xyzr(
 
     os.system(" ".join(map(str, command)))
 
-def contact_map(
+def interaction_map(
     script_path: str,
     xyzr_file: str,
-    contact_map_dir: str,
+    interaction_map_dir: str,
     nproc: int = 24,
     dist_cutoff: float = 10.0,
     frac_cutoff: float = 0.25,
     plotting: str = "matplotlib",
     merge_copies: bool = False,
     binarize_cmap: bool = False,
+    binarize_dmap: bool = False,
     float_dtype: int = 64,
     int_dtype: int = 32,
+    overwrite: bool = False,
     logger: logging.Logger | None = None,
 ):
-    """ Run the script `contact_map.py` and get pairwise distance/contact maps
+    """ Run the script `interaction_map.py` and get pairwise distance/contact maps
 
     Args:
-        script_path (str): Path to the `contact_map.py` script
+        script_path (str): Path to the `interaction_map.py` script
         xyzr_file (str): Path to the input hdf5 file containing XYZR data
         nproc (int): Number of cores to use
         dist_cutoff (float): dist_cutoff distance for contact map (in Angstroms)
         frac_cutoff (float): Minimum fraction of frames for a contact
-        contact_map_dir (str): Directory to save contact map outputs
+        interaction_map_dir (str): Directory to save interaction map outputs
         plotting (str): Type of plotting to perform ('matplotlib', 'plotly')
         merge_copies (bool): Whether to merge maps across copies for protein
             pairs
@@ -682,7 +684,7 @@ def contact_map(
         "--nproc", nproc,
         "--dist_cutoff", dist_cutoff,
         "--frac_cutoff", frac_cutoff,
-        "--contact_map_dir", contact_map_dir,
+        "--interaction_map_dir", interaction_map_dir,
         "--plotting", plotting,
         "--float_dtype", float_dtype,
         "--int_dtype", int_dtype,
@@ -694,8 +696,44 @@ def contact_map(
     if binarize_cmap:
         command.append("--binarize_cmap")
 
+    if binarize_dmap:
+        command.append("--binarize_dmap")
+
+    if overwrite:
+        command.append("--overwrite")
+
     if logger is not None:
-        logger.info("Running contact_map with command:")
+        logger.info("Running interaction_map with command:")
+        logger.info(" ".join(map(str, command)))
+
+    os.system(" ".join(map(str, command)))
+
+def interaction_metapatches(
+    script_path: str,
+    interaction_map_dir: str,
+    threshold: int = 40,
+    plotting: str = "plotly",
+    logger: logging.Logger | None = None,
+):
+    """ Run the script `interacting_metapatches.py` to identify interacting metapatches from interaction map data
+
+    Args:
+        script_path (str): Path to the `interacting_metapatches.py` script
+        interaction_map_dir (str): Directory containing interaction map data
+        threshold (int): Gap threshold (in number of residues) to merge neighboring patches into metapatches
+        plotting (str): Plotting library to use for visualizations ("matplotlib", "plotly", or "no_plot")
+        logger (logging.Logger | None, optional): Logger for logging messages.
+    """
+
+    command = [
+        "python", script_path,
+        "--interaction_map_dir", interaction_map_dir,
+        "--threshold", threshold,
+        "--plotting", plotting,
+    ]
+
+    if logger is not None:
+        logger.info("Running interacting_metapatches with command:")
         logger.info(" ".join(map(str, command)))
 
     os.system(" ".join(map(str, command)))
@@ -837,7 +875,7 @@ if __name__ == "__main__":
         "prism_annotate",
         "prism_color",
         "rmf_to_xyzr",
-        "contact_map",
+        "interaction_map",
     ] for s in args.scripts_to_run]), (
         f"""
         Invalid script name in scripts_to_run.
@@ -850,7 +888,7 @@ if __name__ == "__main__":
         prism_annotate
         prism_color
         rmf_to_xyzr
-        contact_map
+        interaction_map
         """
     )
 
@@ -1260,37 +1298,39 @@ if __name__ == "__main__":
         logger.info("Skipping rmf_to_xyzr as per user request.")
 
     ###########################################################################
-    # contact map
+    # Interaction maps
     ###########################################################################
 
-    if "contact_map" in args.scripts_to_run:
+    if "interaction_map" in args.scripts_to_run:
 
-        contact_map_dir = os.path.join(ANALYSIS_OUTPUT_PATH, "contact_map")
-        os.makedirs(contact_map_dir, exist_ok=True)
+        interaction_map_dir = os.path.join(ANALYSIS_OUTPUT_PATH, "interaction_map")
+        os.makedirs(interaction_map_dir, exist_ok=True)
         assert os.path.exists(xyzr_output_path), (
             f"""XYZR output file {xyzr_output_path} does not exist.
             Please check if rmf_to_xyzr has been run successfully.
             """
         )
-        contact_map(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/contact_map.py",
+        interaction_map(
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/interaction_map.py",
             xyzr_file=xyzr_output_path,
-            contact_map_dir=contact_map_dir,
+            interaction_map_dir=interaction_map_dir,
             nproc=24,
             dist_cutoff=10.0,
             frac_cutoff=0.25,
             plotting="matplotlib",
             merge_copies=False,
             binarize_cmap=False,
+            binarize_dmap=False,
             float_dtype=64,
             int_dtype=32,
+            overwrite=False,
             logger=logger,
         )
         lap = time.perf_counter()
-        logger.info(f"Completed contact_map in {lap - start_t:0.4f} seconds")
+        logger.info(f"Completed interaction_map in {lap - start_t:0.4f} seconds")
 
     else:
-        logger.info("Skipping contact_map as per user request.")
+        logger.info("Skipping interaction_map as per user request.")
 
     ###########################################################################
     # Fit to binding data (optional)
