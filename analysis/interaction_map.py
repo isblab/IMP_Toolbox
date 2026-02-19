@@ -23,6 +23,11 @@ from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
     get_res_range_from_key
 )
 
+PAIR_SEP = "|"
+RES_RANGE_SEP = "-"
+MOL_COPY_SEP = "_"
+MOL_RANGE_SEP = ":"
+
 _user = getpass.getuser()
 _f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
 _i_dtypes = {8: np.int8, 16: np.int16, 32: np.int32, 64: np.int64}
@@ -123,7 +128,8 @@ def read_molecule_pairs_from_file(input: str) -> list:
             )
 
     only_mol_pairs = [
-        (m1.split(":")[0], m2.split(":")[0]) for m1, m2 in mol_pairs
+        (m1.split(MOL_RANGE_SEP)[0], m2.split(MOL_RANGE_SEP)[0])
+        for m1, m2 in mol_pairs
     ]
 
     if len(set(only_mol_pairs)) != len(only_mol_pairs):
@@ -176,8 +182,8 @@ def get_residue_selections(
 
     for _m1, _m2 in mol_pairs:
 
-        m1, res_range1 = _m1.split(":") if ":" in _m1 else (_m1, None)
-        m2, res_range2 = _m2.split(":") if ":" in _m2 else (_m2, None)
+        m1, res_range1 = _m1.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m1 else (_m1, None)
+        m2, res_range2 = _m2.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m2 else (_m2, None)
 
         if res_range1 is not None:
             res_nums1 = get_res_range_from_key(res_range1)
@@ -394,7 +400,7 @@ def expand_map_to_residue_level(
         Expanded distance/contact map.
     """
 
-    mol1, mol2 = pair_name.split(":")
+    mol1, mol2 = pair_name.split(PAIR_SEP)
 
     # expand the maps to include all residues in the selection
     special_keys1 = [
@@ -439,6 +445,9 @@ def fetch_pairwise_maps(
     overwrite: bool = False,
 ) -> tuple[dict, dict]:
     """ Fetch pairwise distance and contact maps for specified molecule pairs.
+
+    > [!NOTE]
+    > The selection defined in `mol_pairs` does not matter here.
 
     ## Arguments:
 
@@ -497,7 +506,7 @@ def fetch_pairwise_maps(
 
     for _m1, _m2 in tqdm.tqdm(mol_pairs):
 
-        pair_name = f"{_m1.split(':')[0]}:{_m2.split(':')[0]}"
+        pair_name = f"{_m1.split(MOL_RANGE_SEP)[0]}{PAIR_SEP}{_m2.split(MOL_RANGE_SEP)[0]}"
         dmap_file = os.path.join(interaction_map_dir, f"{pair_name}_dmap.txt")
         cmap_file = os.path.join(interaction_map_dir, f"{pair_name}_cmap.txt")
 
@@ -510,8 +519,8 @@ def fetch_pairwise_maps(
             pairwise_dmaps[pair_name] = np.loadtxt(dmap_file)
             continue
 
-        m1, sel1 = _m1.split(":") if ":" in _m1 else (_m1, None)
-        m2, sel2 = _m2.split(":") if ":" in _m2 else (_m2, None)
+        m1, sel1 = _m1.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m1 else (_m1, None)
+        m2, sel2 = _m2.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m2 else (_m2, None)
 
         idx1 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m1)])
         idx2 = sorted([i for i, k in enumerate(xyzr_keys) if k.startswith(m2)])
@@ -554,7 +563,7 @@ def fetch_pairwise_maps(
 
         del results
 
-        pair_name = f"{m1}:{m2}"
+        pair_name = f"{m1}{PAIR_SEP}{m2}"
 
         pairwise_dmaps[pair_name] = dmap_m1_m2.astype(f_dtype) / f_dtype(num_frames)
         pairwise_cmaps[pair_name] = cmap_m1_m2.astype(i_dtype) / f_dtype(num_frames)
@@ -647,11 +656,11 @@ def merge_maps_by_copies(
 
     for pair_name in pairwise_maps.keys():
 
-        mol1, mol2 = pair_name.split(":")
-        base_mol1 = mol1.rsplit("_", 1)[0]
-        base_mol2 = mol2.rsplit("_", 1)[0]
+        mol1, mol2 = pair_name.split(PAIR_SEP)
+        base_mol1 = mol1.rsplit(MOL_COPY_SEP, 1)[0]
+        base_mol2 = mol2.rsplit(MOL_COPY_SEP, 1)[0]
 
-        merged_pair_name = f"{base_mol1}:{base_mol2}"
+        merged_pair_name = f"{base_mol1}{PAIR_SEP}{base_mol2}"
 
         if map_type == "dmap":
 
@@ -751,7 +760,7 @@ def merge_residue_selection_by_copies(mol_res_dict: dict) -> dict:
     merged_mol_res_dict = {}
 
     for mol in mol_res_dict.keys():
-        base_mol = mol.rsplit("_", 1)[0]
+        base_mol = mol.rsplit(MOL_COPY_SEP, 1)[0]
 
         if base_mol in merged_mol_res_dict:
             merged_mol_res_dict[base_mol].extend(mol_res_dict[mol])
@@ -810,11 +819,15 @@ def plot_map(
         Whether to binarize the map before plotting.
     """
 
-    mol1, mol2 = pair_name.split(":")
+    mol1, mol2 = pair_name.split(PAIR_SEP)
     s1, e1 = mol_res_dict[mol1][0], mol_res_dict[mol1][-1]
     s2, e2 = mol_res_dict[mol2][0], mol_res_dict[mol2][-1]
 
-    save_prefix = f"{mol1}:{s1}-{e1}_{mol2}:{s2}-{e2}"
+    save_prefix = (
+        f"{mol1}{MOL_RANGE_SEP}{s1}{RES_RANGE_SEP}{e1}" +
+        f"{PAIR_SEP}" +
+        f"{mol2}{MOL_RANGE_SEP}{s2}{RES_RANGE_SEP}{e2}"
+    )
 
     map_titles = {
         "dmap": {
@@ -989,7 +1002,7 @@ def matrix_patches_worker(
         }
     """
 
-    mol1, mol2 = pair_name.split(":")
+    mol1, mol2 = pair_name.split(PAIR_SEP)
 
     if len(np.unique(cmap)) == 1 and np.unique(cmap)[0] == 0:
         # print(f"No contacts found for {pair_name}, skipping patches.")
@@ -1021,8 +1034,8 @@ def matrix_patches_worker(
 
     if len(patches) > 0:
 
-        file_name = "_".join([
-            f"{k}:{v[0]}-{v[1]}"
+        file_name = f"{PAIR_SEP}".join([
+            f"{k}{MOL_RANGE_SEP}{v[0]}{RES_RANGE_SEP}{v[1]}"
             for k, v in region_of_interest.items() if k in [mol1, mol2]
         ])
 
@@ -1052,7 +1065,6 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--xyzr_file",
-        # default=f"/data/{_user}/imp_toolbox_test/analysis/sampcon_extracted_frames_xyzr.h5",
         type=str,
         required=True,
         help="Path to the input HDF5 file containing XYZR data.",
@@ -1060,7 +1072,6 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--interaction_map_dir",
-        # default=f"/data/{_user}/imp_toolbox_test/analysis/contact_maps1",
         type=str,
         required=True,
         help="Directory to save interaction maps.",
@@ -1186,6 +1197,16 @@ if __name__ == "__main__":
     # Only keep the beads corresponding to the selected residues
     # TODO: Allow different selections of the same molecule pairs.
     #       This needs a different implementation of the map calculation
+    # NOTE: Not a good idea to implement this here.
+    #       The subsequent scripts (fit to binding data), reuse the txt files
+    #       generated here. Slicing the full contact maps based on the residue
+    #       selection is cleaner to implement. The initial idea was to save
+    #       time by restricting calculation to the selected residues, but it
+    #       adds a lot of complexity. And current implementation is fast enough
+    #       that the time saved is not significant.
+    # TODO: Implement the slicing of the full contact maps based on the residue
+    #       selection provided in the input file instead of filtering the XYZRs.
+    #       Always save the entire contact and distance maps.
     xyzr_data = filter_xyzr_data(
         xyzr_data=xyzr_data,
         sel_mol_res_dict=sel_mol_res_dict,
@@ -1209,6 +1230,7 @@ if __name__ == "__main__":
     start_t = time.perf_counter()
     ############################################################################
     # Fetch pairwise distance and contact maps for the specified molecule pairs
+    #TODO: saving should be done inside fetch_pairwise_maps
     pairwise_dmaps, pairwise_cmaps = fetch_pairwise_maps(
         xyzr_mat=xyzr_mat,
         xyzr_keys=xyzr_keys,
@@ -1228,10 +1250,14 @@ if __name__ == "__main__":
     # the loaded maps to residue-level for plotting and patch extraction.
     for pair_name in pairwise_dmaps.keys():
 
-        mol1, mol2 = pair_name.split(":")
+        mol1, mol2 = pair_name.split(PAIR_SEP)
         s1, e1 = list(sel_mol_res_dict[mol1])[0], list(sel_mol_res_dict[mol1])[-1]
         s2, e2 = list(sel_mol_res_dict[mol2])[0], list(sel_mol_res_dict[mol2])[-1]
-        save_name = f"{mol1}:{s1}-{e1}_{mol2}:{s2}-{e2}"
+        save_name = (
+            f"{mol1}{MOL_RANGE_SEP}{s1}{RES_RANGE_SEP}{e1}" +
+            f"{PAIR_SEP}" +
+            f"{mol2}{MOL_RANGE_SEP}{s2}{RES_RANGE_SEP}{e2}"
+        )
 
         dmap = pairwise_dmaps[pair_name].astype(f_dtype)
         cmap = pairwise_cmaps[pair_name].astype(f_dtype)
@@ -1323,7 +1349,7 @@ if __name__ == "__main__":
     # avoid self-interactions
     valid_pairs = [
         pair_name for pair_name in pairwise_dmaps.keys()
-        if pair_name.split(":")[0] != pair_name.split(":")[1]
+        if pair_name.split(PAIR_SEP)[0] != pair_name.split(PAIR_SEP)[1]
     ]
     ############################################################################
     # Plot the distance and contact maps for each molecule pair
