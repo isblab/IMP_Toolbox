@@ -18,6 +18,10 @@ from IMP_Toolbox.analysis.interaction_map import (
     get_residue_selections,
     filter_xyzr_data,
     sort_xyzr_data,
+    PAIR_SEP,
+    RES_RANGE_SEP,
+    MOL_RANGE_SEP,
+    MOL_COPY_SEP,
 )
 
 _user = getpass.getuser()
@@ -85,73 +89,13 @@ def get_pairwise_distances(
 
     return flat_distances
 
-if __name__ == "__main__":
+def extract_binding_mol_pairs(input, unique_mols):
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--input",
-        type=str,
-        required=True,
-        help="Path to the JSON file specifying binding data.",
-    )
-    parser.add_argument(
-        "--xyzr_file",
-        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/rmf_xyzr_data/sampcon_extracted_frames_xyzr.h5",
-        type=str,
-        help="Path to the input HDF5 file containing XYZR data.",
-    )
-    parser.add_argument(
-        "--nproc",
-        default=16,
-        type=int,
-        help="Number of processes for parallel execution.",
-    )
-    parser.add_argument(
-        "--output_dir",
-        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/fit_to_binding_data",
-        type=str,
-        help="Directory to save output files.",
-    )
-    # parser.add_argument(
-    #     "--plotting",
-    #     type=str,
-    #     default="matplotlib",
-    #     help="Plotting options: 'plotly' or 'matplotlib'.",
-    # )
-    parser.add_argument(
-        "--merge_copies",
-        action="store_true",
-        default=False,
-        help="Whether to merge maps across copies of the same protein pair.",
-    )
-    parser.add_argument(
-        "--float_dtype",
-        type=int,
-        default=64,
-        choices=[16, 32, 64],
-        help="Float dtype for distance map calculations.",
-    )
-    args = parser.parse_args()
-
-    xyzr_file = args.xyzr_file
-    nproc = args.nproc
-
-    output_dir = args.output_dir
-    os.makedirs(output_dir, exist_ok=True)
-
-    f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
-
-    binding_data = read_json(args.input)
-
-    print("reading", xyzr_file)
-    xyzr_data, all_bead_keys, unique_mols, mol_res_dict = parse_xyzr_h5_file(
-        xyzr_file=xyzr_file,
-    )
-    print("done reading\n")
+    binding_data = read_json(input)
 
     mol_pairs = list(combinations(sorted(unique_mols), 2))
 
-    updated_mol_pairs = []
+    update_mol_pairs = []
     for data_pt in binding_data:
 
         mol1 = data_pt["molecule1"]
@@ -161,62 +105,51 @@ if __name__ == "__main__":
 
         m1_m2_pairs = []
         for m1, m2 in mol_pairs:
-
-            if m1.startswith(f"{mol1}_") and m2.startswith(f"{mol2}_"):
+            if m1.startswith(f"{mol1}{MOL_COPY_SEP}") and m2.startswith(f"{mol2}{MOL_COPY_SEP}"):
                 m1_m2_pairs.append((
-                    f"{m1}|{range1[0]}-{range1[1]}",
-                    f"{m2}|{range2[0]}-{range2[1]}"
+                    f"{m1}{MOL_RANGE_SEP}{range1[0]}{RES_RANGE_SEP}{range1[1]}",
+                    f"{m2}{MOL_RANGE_SEP}{range2[0]}{RES_RANGE_SEP}{range2[1]}"
                 ))
 
-            elif m1.startswith(f"{mol2}_") and m2.startswith(f"{mol1}_"):
+            elif m1.startswith(f"{mol2}{MOL_COPY_SEP}") and m2.startswith(f"{mol1}{MOL_COPY_SEP}"):
                 m1_m2_pairs.append((
-                    f"{m1}|{range2[0]}-{range2[1]}",
-                    f"{m2}|{range1[0]}-{range1[1]}"
+                    f"{m1}{MOL_RANGE_SEP}{range2[0]}{RES_RANGE_SEP}{range2[1]}",
+                    f"{m2}{MOL_RANGE_SEP}{range1[0]}{RES_RANGE_SEP}{range1[1]}"
                 ))
 
-        updated_mol_pairs.extend(m1_m2_pairs)
+        update_mol_pairs.extend(m1_m2_pairs)
 
-    mol_pairs = list(set(updated_mol_pairs))
+    mol_pairs = list(set(update_mol_pairs))
 
-    unique_sels = get_residue_selections(
-        mol_pairs=mol_pairs,
-        mol_res_dict=mol_res_dict,
-    )
-    unique_mols = set(unique_sels.keys())
+    return mol_pairs
 
-    xyzr_data = filter_xyzr_data(xyzr_data, unique_sels)
-
-    xyzr_data = sort_xyzr_data(xyzr_data)
-
-    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
-    xyzr_keys = list(xyzr_data.keys())
-
-    del xyzr_data
-
-    num_frames = xyzr_mat.shape[1]
-    num_beads = xyzr_mat.shape[0]
-    frame_batches = np.array_split(np.arange(num_frames), nproc)
-
-    print("Got xyzr_mat of shape: ", xyzr_mat.shape, " (num_beads, num_frames, 4)")
-
-    start_t = time.perf_counter()
+def fetch_pairwise_distance_maps(
+    xyzr_mat,
+    xyzr_keys,
+    mol_pairs,
+    output_dir,
+    nproc,
+    f_dtype,
+    overwrite=False,
+):
 
     pairwise_dmaps = {}
 
+    num_frames = xyzr_mat.shape[1]
+
+    frame_batches = np.array_split(np.arange(num_frames), nproc)
+
     for _m1, _m2 in tqdm.tqdm(mol_pairs):
 
-        pair_name = f"{_m1}:{_m2}"
+        pair_name = f"{_m1}{PAIR_SEP}{_m2}" # this should include copy idx
         dmap_txt = os.path.join(output_dir, f"{pair_name}_dmap.txt")
 
-        if os.path.exists(dmap_txt):
-            pairwise_dmaps[pair_name] = np.loadtxt(
-                dmap_txt,
-                dtype=f_dtype,
-            )
+        if os.path.exists(dmap_txt) and overwrite is False:
+            pairwise_dmaps[pair_name] = np.loadtxt(dmap_txt)
             continue
 
-        m1, sel1 = _m1.split("|") if "|" in _m1 else (_m1, None)
-        m2, sel2 = _m2.split("|") if "|" in _m2 else (_m2, None)
+        m1, sel1 = _m1.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m1 else (_m1, None)
+        m2, sel2 = _m2.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m2 else (_m2, None)
 
         res_range1 = get_res_range_from_key(sel1) if sel1 else None
         res_range2 = get_res_range_from_key(sel2) if sel2 else None
@@ -269,7 +202,6 @@ if __name__ == "__main__":
 
         n_frames = 0
         for i, flat_dmap_ in enumerate(results):
-
             # from each flattened dmap of shape (n_beads1*n_beads2, batch_frames),
             # we take the minimum distance across all bead pairs for each frame,
             # resulting in an array of shape (batch_frames,)
@@ -281,49 +213,52 @@ if __name__ == "__main__":
 
         pairwise_dmaps[pair_name] = dmap_m1_m2.astype(f_dtype)
 
-        if not os.path.exists(dmap_txt):
+        if not os.path.exists(dmap_txt) or overwrite:
             np.savetxt(dmap_txt, dmap_m1_m2, fmt="%.6f")
 
-    del xyzr_mat
+    return pairwise_dmaps
 
-    end_t = time.perf_counter()
-    print(f"Time taken: {end_t - start_t} seconds")
-    ################################################################################
+def merge_distance_maps_by_copies(f_dtype, pairwise_dmaps, keep_which="min"):
 
-    # This is specific to MPDBR implementation, where we deal with ambiguity such
-    # that if the minimum distace across copies of the same protein pair is less
-    # than the threshold, we consider the pair to be in contact. So we take the minimum
-    # across copies for each pair before plotting.
-    if args.merge_copies:
+    m_pairwise_dmaps = {}
 
-        m_pairwise_dmaps = {}
+    for pair_name, dmap in pairwise_dmaps.items():
+        m1, m2 = pair_name.split(PAIR_SEP)
 
-        for pair_name, dmap in pairwise_dmaps.items():
+        mol1, _sel1 = m1.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in m1 else (m1, None)
+        mol2, _sel2 = m2.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in m2 else (m2, None)
 
-            m1, m2 = pair_name.split(":")
+        base_m1 = mol1.rsplit(MOL_COPY_SEP, 1)[0]
+        base_m2 = mol2.rsplit(MOL_COPY_SEP, 1)[0]
 
-            mol1, _sel1 = m1.split("|") if "|" in m1 else (m1, None)
-            mol2, _sel2 = m2.split("|") if "|" in m2 else (m2, None)
+        m_pair_name = (
+            f"{base_m1}{MOL_RANGE_SEP}{_sel1}" +
+            f"{PAIR_SEP}" +
+            f"{base_m2}{MOL_RANGE_SEP}{_sel2}"
+        )
 
-            base_m1 = mol1.rsplit("_", 1)[0]
-            base_m2 = mol2.rsplit("_", 1)[0]
+        if m_pair_name not in m_pairwise_dmaps:
+            m_pairwise_dmaps[m_pair_name] = [dmap]
+        else:
+            m_pairwise_dmaps[m_pair_name].append(dmap)
 
-            m_pair_name = f"{base_m1}|{_sel1}:{base_m2}|{_sel2}"
+    func_ = {
+        "min": np.min,
+        "max": np.max,
+        "mean": np.mean,
+    }
 
-            if m_pair_name not in m_pairwise_dmaps:
-                m_pairwise_dmaps[m_pair_name] = [dmap]
-            else:
-                m_pairwise_dmaps[m_pair_name].append(dmap)
+    for m_pair_name, dmaps in m_pairwise_dmaps.items():
+        if len(dmaps) > 1:
+            m_pairwise_dmaps[m_pair_name] = func_[keep_which](np.stack(dmaps, axis=0), axis=0).astype(f_dtype)
+        else:
+            m_pairwise_dmaps[m_pair_name] = dmaps[0].astype(f_dtype)
 
-        # average the maps for each merged pair
-        for m_pair_name, dmaps in m_pairwise_dmaps.items():
+    pairwise_dmaps = m_pairwise_dmaps
 
-            m_pairwise_dmaps[m_pair_name] = np.min(dmaps, axis=0).astype(f_dtype)
+    return pairwise_dmaps
 
-        pairwise_dmaps = m_pairwise_dmaps
-
-    pairwise_dmaps = dict(sorted(pairwise_dmaps.items(), key=lambda x: x[0]))
-
+def plot_pairwise_distances(output_dir, pairwise_dmaps):
     all_data = list(pairwise_dmaps.values())
 
     print("Pairwise distance data calculated for all pairs. Now plotting...\n")
@@ -355,3 +290,135 @@ if __name__ == "__main__":
         dpi=600
     )
     plt.close()
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--input",
+        type=str,
+        required=True,
+        help="Path to the JSON file specifying binding data.",
+    )
+    parser.add_argument(
+        "--xyzr_file",
+        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/rmf_xyzr_data/sampcon_extracted_frames_xyzr.h5",
+        type=str,
+        help="Path to the input HDF5 file containing XYZR data.",
+    )
+    parser.add_argument(
+        "--nproc",
+        default=16,
+        type=int,
+        help="Number of processes for parallel execution.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/fit_to_binding_data",
+        type=str,
+        help="Directory to save output files.",
+    )
+    # parser.add_argument(
+    #     "--plotting",
+    #     type=str,
+    #     default="matplotlib",
+    #     help="Plotting options: 'plotly' or 'matplotlib'.",
+    # )
+    parser.add_argument(
+        "--merge_copies",
+        action="store_true",
+        default=False,
+        help="Whether to merge maps across copies of the same protein pair.",
+    )
+    parser.add_argument(
+        "--float_dtype",
+        type=int,
+        default=64,
+        choices=[16, 32, 64],
+        help="Float dtype for distance map calculations.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="Whether to overwrite existing distance map files."
+    )
+
+    args = parser.parse_args()
+    ############################################################################
+    xyzr_file = args.xyzr_file
+    nproc = args.nproc
+    f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
+    output_dir = args.output_dir
+    os.makedirs(output_dir, exist_ok=True)
+    ############################################################################
+    # Load and parse the XYZR data from the HDF5 file
+    xyzr_data, all_bead_keys, unique_mols, mol_res_dict = parse_xyzr_h5_file(
+        xyzr_file=xyzr_file,
+    )
+    ############################################################################
+    # Load the binding data from the JSON file to determine molecule pairs
+    # and residue ranges
+    mol_pairs = extract_binding_mol_pairs(
+        input=args.input,
+        unique_mols=unique_mols,
+    )
+    ############################################################################
+    # Select the residues for each molecule as specified
+    sel_mol_res_dict = get_residue_selections(
+        mol_pairs=mol_pairs,
+        mol_res_dict=mol_res_dict,
+    )
+    unique_mols = set(sel_mol_res_dict.keys())
+    ############################################################################
+    # Only keep the beads corresponding to the selected residues
+    xyzr_data = filter_xyzr_data(
+        xyzr_data=xyzr_data,
+        sel_mol_res_dict=sel_mol_res_dict
+    )
+    xyzr_data = sort_xyzr_data(xyzr_data=xyzr_data)
+
+    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
+    xyzr_keys = list(xyzr_data.keys())
+
+    del xyzr_data
+
+    num_frames = xyzr_mat.shape[1]
+
+    print("Got xyzr_mat of shape: ", xyzr_mat.shape, " (num_beads, num_frames, 4)")
+
+    start_t = time.perf_counter()
+    ############################################################################
+    # Fetch pairwise distance maps for the specified molecule pairs and residue
+    # selections
+    pairwise_dmaps = fetch_pairwise_distance_maps(
+        xyzr_mat=xyzr_mat,
+        xyzr_keys=xyzr_keys,
+        mol_pairs=mol_pairs,
+        output_dir=output_dir,
+        nproc=nproc,
+        f_dtype=f_dtype,
+        overwrite=bool(args.overwrite)
+    )
+
+    del xyzr_mat
+
+    end_t = time.perf_counter()
+    print(f"Time taken: {end_t - start_t} seconds")
+    ################################################################################
+
+    # This is specific to MPDBR implementation, where we deal with ambiguity such
+    # that if the minimum distace across copies of the same protein pair is less
+    # than the threshold, we consider the pair to be in contact. So we take the minimum
+    # across copies for each pair before plotting.
+    if args.merge_copies:
+
+        pairwise_dmaps = merge_distance_maps_by_copies(
+            f_dtype=f_dtype,
+            pairwise_dmaps=pairwise_dmaps,
+            keep_which="min",
+        )
+
+    pairwise_dmaps = dict(sorted(pairwise_dmaps.items(), key=lambda x: x[0]))
+
+    plot_pairwise_distances(output_dir, pairwise_dmaps)
