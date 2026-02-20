@@ -1283,12 +1283,12 @@ def plot_map(
 
     map_titles = {
         "dmap": {
-            True: f"Binarized Average Distance Map (cutoff={cutoff} Å): {pair_name}",
-            False: f"Average Distance Map (Å): {pair_name}",
+            True: f"Binarized Average Distance Map (cutoff={cutoff} Å): {mol1}{PAIR_SEP}{mol2}",
+            False: f"Average Distance Map (Å): {mol1}{PAIR_SEP}{mol2}",
         },
         "cmap": {
-            True: f"Binarized Average Contact Map (cutoff={cutoff}) : {pair_name}",
-            False: f'Average Contact Map (cutoff={cutoff}) : {pair_name}',
+            True: f"Binarized Average Contact Map (cutoff={cutoff}) : {mol1}{PAIR_SEP}{mol2}",
+            False: f'Average Contact Map (cutoff={cutoff}) : {mol1}{PAIR_SEP}{mol2}',
         },
     }
     map_labels = {
@@ -1332,7 +1332,7 @@ def plot_map(
             r2_start = slices_["s2"] - molwise_residues[mol2][0]
             r2_end = slices_["e2"] - molwise_residues[mol2][0] + 1
             slice_q_map = q_map[r1_start:r1_end, r2_start:r2_end]
-            slice_save_prefix = f"{slice_name}"
+            save_prefix = f"{slice_name}"
 
             fig, ax = plt.subplots(figsize=(10, 10))
             temp = ax.imshow(
@@ -1341,7 +1341,12 @@ def plot_map(
                 vmin=0,
                 vmax=max_vals[map_type][binarize_map]
             )
-            ax.set_title(map_titles[map_type][binarize_map])
+            ax.set_title(
+                map_titles[map_type][binarize_map].replace(
+                    f"{mol1}{PAIR_SEP}{mol2}",
+                    f"{slice_name}"
+                )
+            )
             ax.set_xlabel(f"{mol2}")
             ax.set_ylabel(f"{mol1}")
             ax.set_xticks(ticks=np.arange(0, slice_q_map.shape[1], 50))
@@ -1353,7 +1358,7 @@ def plot_map(
                 slices_["s1"], slices_["e1"]+1, 50
             ))
             fig.colorbar(temp, ax=ax, label=map_labels[map_type][binarize_map])
-            fig.savefig(os.path.join(save_dir, f"{slice_save_prefix}_{map_type}.png"))
+            fig.savefig(os.path.join(save_dir, f"{save_prefix}_{map_type}.png"))
             plt.close(fig)
 
     elif plotting == "plotly":
@@ -1367,7 +1372,7 @@ def plot_map(
             r2_start = slices_["s2"] - molwise_residues[mol2][0]
             r2_end = slices_["e2"] - molwise_residues[mol2][0] + 1
             slice_q_map = q_map[r1_start:r1_end, r2_start:r2_end]
-            slice_save_prefix = f"{slice_name}"
+            save_prefix = f"{slice_name}"
 
             fig = go.Figure(data=go.Heatmap(
                 z=slice_q_map.astype(dtype_[binarize_map]),
@@ -1378,7 +1383,10 @@ def plot_map(
             ))
 
             fig.update_layout(
-                title=map_titles[map_type][binarize_map],
+                title=map_titles[map_type][binarize_map].replace(
+                    f"{mol1}{PAIR_SEP}{mol2}",
+                    f"{slice_name}"
+                ),
                 xaxis_title=f"{mol2}",
                 yaxis_title=f"{mol1}",
                 xaxis=dict(tickmode='array',
@@ -1394,7 +1402,7 @@ def plot_map(
                     )
                 ),
             )
-            fig.write_html(os.path.join(save_dir, f"{slice_save_prefix}_{map_type}.html"))
+            fig.write_html(os.path.join(save_dir, f"{save_prefix}_{map_type}.html"))
 
 def get_binary_map(
     q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
