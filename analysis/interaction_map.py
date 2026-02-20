@@ -12,7 +12,6 @@ import numpy.typing as npt
 import matplotlib
 matplotlib.use('Agg') # Use non-interactive backend for matplotlib
 import matplotlib.pyplot as plt
-from typing import Dict
 from multiprocessing import Pool
 from scipy.spatial.distance import cdist
 from itertools import product, combinations_with_replacement
@@ -24,147 +23,23 @@ from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-
-PAIR_SEP = "|"
-RES_RANGE_SEP = "-"
-MOL_COPY_SEP = "_"
-MOL_RANGE_SEP = ":"
-regex_pattern = r'^([A-Za-z0-9]+)(?:_(\d+))?(?::([\d-]+))?$'
+from IMP_Toolbox.analysis.rmf_to_xyzr import (
+    parse_xyzr_h5_file,
+    get_unique_mols,
+    get_molwise_residues,
+    get_verify_copies
+)
+from IMP_Toolbox.analysis.analysis_constants import (
+    PAIR_SEP,
+    RES_RANGE_SEP,
+    MOL_COPY_SEP,
+    MOL_RANGE_SEP,
+    REGEX_MOLNAME,
+)
 
 _user = getpass.getuser()
 _f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
 _i_dtypes = {8: np.int8, 16: np.int16, 32: np.int32, 64: np.int64}
-
-def get_unique_mols(xyzr_keys: list) -> set:
-    """ Get unique molecules from the bead keys.
-    A molecule is a specific copy of a protein or modeled entity in general.
-
-    ## Arguments:
-
-    - **xyzr_keys (list)**:<br />
-        List of bead keys in the format:
-        "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND".
-
-    ## Returns:
-
-    - **set**:<br />
-        A set of unique molecule identifiers (MOL_COPYIDX) present in the model.
-    """
-
-    return set([k.rsplit("_", 1)[0] for k in xyzr_keys])
-
-def get_molwise_residues(xyzr_keys: list) -> Dict[str, list]:
-    """ Get molecule-wise residues from the list of bead keys.
-
-    ## Arguments:
-
-    - **xyzr_keys (list)**:<br />
-        List of bead keys in the format:
-        "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND".
-
-    ## Returns:
-
-    - **dict**:<br />
-        A dictionary mapping each unique molecule (MOL_COPYIDX) to a sorted list
-        of all residues represented.
-        Format: {
-            "MOL1_COPYIDX": [residue numbers],
-            "MOL2_COPYIDX": [residue numbers],
-            ...
-        }
-    """
-
-    unique_mols = get_unique_mols(xyzr_keys)
-
-    molwise_residues = {mol: [] for mol in unique_mols}
-
-    for bead_k in xyzr_keys:
-        mol_name, res_range = bead_k.rsplit("_", 1)
-        res_nums = get_res_range_from_key(res_range)
-        molwise_residues[mol_name].extend(res_nums)
-
-    molwise_residues = {
-        mol: sorted(set(res)) for mol, res in molwise_residues.items()
-    }
-
-    return molwise_residues
-
-def get_molwise_xyzr_keys(xyzr_keys: list) -> Dict[str, list]:
-    """ Get molecule-wise bead keys
-
-    ## Arguments:
-
-    - **xyzr_keys (list)**:<br />
-        List of bead keys in the format:
-        "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND".
-
-    ## Returns:
-
-    - **dict**:<br />
-        A dictionary mapping each unique molecule (MOL_COPYIDX) to a list of
-        all bead keys associated with it.
-    """
-
-    unique_mols = get_unique_mols(xyzr_keys)
-    return {
-        mol: [bead for bead in xyzr_keys if bead.startswith(mol)]
-        for mol in unique_mols
-    }
-
-def parse_xyzr_h5_file(xyzr_file: str) -> tuple:
-    """ Parse an HDF5 file containing XYZR data for multiple molecules.
-
-    Assuming the HDF5 file structure is as follows:
-    - Root
-        - MOL1_COPYIDX_RESSTART-RESEND (Dataset)
-        - MOL2_COPYIDX_RESSTART-RESEND (Dataset)
-        - MOL3_COPYIDX_RESNUM (Dataset)
-        - ...
-
-    Each dataset contains a 2D numpy array of shape (num_frames, 4) where
-    each row is (x, y, z, r).
-
-    ## Arguments:
-
-    - **xyzr_file (str)**:<br />
-        Path to the HDF5 file.
-
-    ## Returns:
-
-    - **tuple**:<br />
-        A tuple containing:
-        1. A dictionary where keys are molecule identifiers
-            in format MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM
-            and values are numpy arrays of shape (num_frames, 4).
-        2. A list of all bead keys in the file. Keys are in the format
-            MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM.
-        3. A set of unique molecule identifiers (MOL_COPYIDX).
-        4. A dictionary mapping each unique molecule (MOL_COPYIDX) to a sorted
-            list of all residues represented.
-    """
-
-    xyzr_data = {}
-
-    with h5py.File(xyzr_file, "r") as f:
-        for mol in f.keys():
-            xyzr_data[mol] = f[mol][:]
-
-    xyzr_data = sort_xyzr_data(xyzr_data=xyzr_data)
-
-    xyzr_keys = list(xyzr_data.keys())
-    unique_mols = get_unique_mols(xyzr_keys)
-    molwise_residues = get_molwise_residues(xyzr_keys)
-    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys)
-
-    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
-
-    return (
-        xyzr_mat,
-        xyzr_keys,
-        unique_mols,
-        molwise_residues,
-        molwise_xyzr_keys
-    )
 
 def read_molecule_pairs_from_file(input: str) -> list:
     """ Extract molecule pairs from a json file.
@@ -198,8 +73,8 @@ def read_molecule_pairs_from_file(input: str) -> list:
     mol_pairs = [tuple(pair) for pair in mol_pairs]
 
     for m1, m2 in mol_pairs:
-        match1 = re.match(regex_pattern, m1)
-        match2 = re.match(regex_pattern, m2)
+        match1 = re.match(REGEX_MOLNAME, m1)
+        match2 = re.match(REGEX_MOLNAME, m2)
         if match1 is None or len(match1.groups()) != 3:
             raise ValueError(
                 f"Invalid format for molecule pair: {m1}. "\
@@ -213,51 +88,6 @@ def read_molecule_pairs_from_file(input: str) -> list:
             )
 
     return [sorted(pair) for pair in mol_pairs]
-
-def get_verify_copies(
-    mol_basename: str,
-    copy_idx: str | int | None,
-    xyzr_keys: list,
-) -> list:
-    """ Get and verify molecule copies from bead keys based on the provided
-    basename and copy index.
-
-    ## Arguments:
-
-    - **mol_basename (str)**:<br />
-        The base name of the molecule (e.g. "MOL1" from "MOL1_0").
-
-    - **copy_idx (str | int | None)**:<br />
-        The copy index to filter by.
-        If None, all copies of the molecule will be returned.
-
-    - **xyzr_keys (list)**:<br />
-        A list of all bead keys in the file. Keys are in the format
-        MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM.
-
-    ## Returns:
-
-    - **list**:<br />
-        A list of molecule copies that match the provided basename and copy index.
-    """
-
-    unique_mols = get_unique_mols(xyzr_keys)
-
-    if copy_idx is None:
-        copies_m1 = [
-            mol for mol in unique_mols
-            if mol.startswith(mol_basename + MOL_COPY_SEP)
-        ]
-
-    else:
-        _mol = f"{mol_basename}{MOL_COPY_SEP}{str(copy_idx)}"
-        if _mol not in unique_mols:
-            raise ValueError(
-                f"{_mol} is not a valid molecule copy in the model."
-            )
-        copies_m1 = [_mol]
-
-    return copies_m1
 
 def get_pairs_to_remove(
     mol_pairs: list,
@@ -295,8 +125,8 @@ def get_pairs_to_remove(
 
     for m1, m2 in mol_pairs:
 
-        base1, cp_idx1, range1 = re.match(regex_pattern, m1).groups()
-        base2, cp_idx2, range2 = re.match(regex_pattern, m2).groups()
+        base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
+        base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
         assert (
             all([base1 is not None, base2 is not None]) and
             all([cp_idx1 is not None, cp_idx2 is not None])
@@ -350,8 +180,8 @@ def extend_mol_pairs_for_copies(
     for m1, m2 in mol_pairs:
 
         try:
-            base1, cp_idx1, range1 = re.match(regex_pattern, m1).groups()
-            base2, cp_idx2, range2 = re.match(regex_pattern, m2).groups()
+            base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
+            base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
 
         except Exception as e:
             raise ValueError(
@@ -436,8 +266,8 @@ def add_residue_range_to_mol_pairs(
     for m1, m2 in mol_pairs:
 
         try:
-            base1, cp_idx1, range1 = re.match(regex_pattern, m1).groups()
-            base2, cp_idx2, range2 = re.match(regex_pattern, m2).groups()
+            base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
+            base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
 
         except Exception as e:
             raise ValueError(
@@ -615,83 +445,6 @@ def get_residue_selections(
 
     return sel_molwise_residues
 
-def filter_xyzr_data(
-    xyzr_data: dict,
-    sel_molwise_residues: dict,
-) -> dict:
-    """ Update xyzr_data to keep only beads corresponding to sel_molwise_residues.
-
-    ## Arguments:
-
-    - **xyzr_data (dict)**:<br />
-        Original xyzr_data dictionary mapping bead keys to XYZR data arrays.
-
-    - **sel_molwise_residues (dict)**:<br />
-        Dictionary mapping molecule names to sets of residue numbers to keep.
-
-    ## Returns:
-
-    - **dict**:<br />
-        Updated xyzr_data dictionary with only the relevant beads.
-    """
-
-    keys_to_del = []
-    keys_to_update = {}
-
-    for bead_k, _xyzr in xyzr_data.items():
-
-        mol, sel = bead_k.rsplit("_", 1)
-        res_nums = set(get_res_range_from_key(sel))
-        req_res_nums = sel_molwise_residues.get(mol, set())
-
-        if len(req_res_nums) == 0:
-            keys_to_del.append(bead_k)
-            continue
-
-        elif len(res_nums.intersection(req_res_nums)) == 0:
-            keys_to_del.append(bead_k)
-            continue
-
-        intersecting_res = sorted(res_nums.intersection(req_res_nums))
-        n_bead_k = f"{mol}_{get_key_from_res_range(intersecting_res)}"
-        if n_bead_k == bead_k:
-            continue
-
-        keys_to_update[bead_k] = n_bead_k
-
-    for k in keys_to_del:
-        del xyzr_data[k]
-
-    for old_k, new_k in keys_to_update.items():
-        xyzr_data[new_k] = xyzr_data[old_k]
-        del xyzr_data[old_k]
-
-    return xyzr_data
-
-def sort_xyzr_data(xyzr_data: dict) -> dict:
-    """ Sort xyzr_data dictionary first by molecule name, residue number.
-
-    ## Arguments:
-
-    - **xyzr_data (dict)**:<br />
-        Original xyzr_data dictionary mapping bead keys to XYZR data arrays.
-
-    ## Returns:
-
-    - **dict**:<br />
-        Sorted xyzr_data dictionary.
-    """
-
-    return dict(
-        sorted(
-            xyzr_data.items(),
-            key=lambda item: (
-                item[0].rsplit("_", 1)[0],
-                get_res_range_from_key(item[0].rsplit("_", 1)[1])[0]
-            )
-        )
-    )
-
 def get_pairwise_map(
     xyzr1: np.ndarray,
     xyzr2: np.ndarray,
@@ -811,8 +564,8 @@ def expand_map_to_residue_level(
     """
 
     _m1, _m2 = pair_name.split(PAIR_SEP)
-    base1, cp_idx1, _range1 = re.match(regex_pattern, _m1).groups()
-    base2, cp_idx2, _range2 = re.match(regex_pattern, _m2).groups()
+    base1, cp_idx1, _range1 = re.match(REGEX_MOLNAME, _m1).groups()
+    base2, cp_idx2, _range2 = re.match(REGEX_MOLNAME, _m2).groups()
     mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
     mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
 
@@ -925,8 +678,8 @@ def fetch_pairwise_maps(
 
     for _m1, _m2 in tqdm.tqdm(mol_pairs):
 
-        base1, cp_idx1, range1 = re.match(regex_pattern, _m1).groups()
-        base2, cp_idx2, range2 = re.match(regex_pattern, _m2).groups()
+        base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
+        base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
         mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
         mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
         range1 = get_res_range_from_key(range1) if range1 is not None else molwise_residues[mol1]
@@ -1105,8 +858,8 @@ def merge_maps_by_copies(
     for pair_name in pairwise_maps.keys():
 
         _m1, _m2 = pair_name.split(PAIR_SEP)
-        base1, _cp_idx1, range1 = re.match(regex_pattern, _m1).groups()
-        base2, _cp_idx2, range2 = re.match(regex_pattern, _m2).groups()
+        base1, _cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
+        base2, _cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
 
         merged_pair_name = (
             f"{base1}{MOL_RANGE_SEP}{range1}" +
@@ -1213,7 +966,7 @@ def merge_residue_selection_by_copies(molwise_residues: dict) -> dict:
 
     for mol in molwise_residues.keys():
 
-        base_mol, _cp_idx, _range = re.match(regex_pattern, mol).groups()
+        base_mol, _cp_idx, _range = re.match(REGEX_MOLNAME, mol).groups()
 
         if base_mol in merged_molwise_residues:
             merged_molwise_residues[base_mol].extend(molwise_residues[mol])
@@ -1276,8 +1029,8 @@ def plot_map(
     """
 
     _m1, _m2 = pair_name.split(PAIR_SEP)
-    base1, cp_idx1, _range1 = re.match(regex_pattern, _m1).groups()
-    base2, cp_idx2, _range2 = re.match(regex_pattern, _m2).groups()
+    base1, cp_idx1, _range1 = re.match(REGEX_MOLNAME, _m1).groups()
+    base2, cp_idx2, _range2 = re.match(REGEX_MOLNAME, _m2).groups()
     mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
     mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
 
@@ -1469,8 +1222,8 @@ def matrix_patches_worker(
     """
 
     _m1, _m2 = pair_name.split(PAIR_SEP)
-    base1, cp_idx1, range1 = re.match(regex_pattern, _m1).groups()
-    base2, cp_idx2, range2 = re.match(regex_pattern, _m2).groups()
+    base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
+    base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
     mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
     mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
 
@@ -1826,8 +1579,8 @@ if __name__ == "__main__":
 
     for _m1, _m2 in sel_mol_pairs:
 
-        base1, cp_idx1, sel1 = re.match(regex_pattern, _m1).groups()
-        base2, cp_idx2, sel2 = re.match(regex_pattern, _m2).groups()
+        base1, cp_idx1, sel1 = re.match(REGEX_MOLNAME, _m1).groups()
+        base2, cp_idx2, sel2 = re.match(REGEX_MOLNAME, _m2).groups()
 
         mol1 = base1 if merge_copies else f"{base1}{MOL_COPY_SEP}{cp_idx1}"
         mol2 = base2 if merge_copies else f"{base2}{MOL_COPY_SEP}{cp_idx2}"

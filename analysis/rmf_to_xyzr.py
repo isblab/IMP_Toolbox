@@ -13,8 +13,16 @@ import IMP.rmf
 import numpy as np
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from IMP_Toolbox.utils import get_res_range_from_key, write_json
+from IMP_Toolbox.utils import (
+    get_res_range_from_key,
+    get_key_from_res_range,
+    write_json
+)
+from IMP_Toolbox.analysis.analysis_constants import (
+    MOL_COPY_SEP,
+)
 import getpass
+from typing import Dict
 
 _user = getpass.getuser()
 
@@ -156,7 +164,6 @@ def batch_worker(
 def process_frame_batches(
     num_cores: int,
     rmf_path: str,
-    molwise_xyzr: dict,
     frame_batches: list
 ) -> dict:
     """ Wrapper over `batch_worker` to parallely process frame batches and get
@@ -170,9 +177,6 @@ def process_frame_batches(
     - **rmf_path (str)**:<br />
         Path to the RMF file.
 
-    - **molwise_xyzr (dict)**:<br />
-        Dictionary of moleculewise XYZR data.
-
     - **frame_batches (list)**:<br />
         List of arrays of frame indices for each batch.
 
@@ -183,6 +187,8 @@ def process_frame_batches(
         key: molecule name with copy index (e.g. "mol1_0_1-10" or "mol1_0_11")
         value: list of [x, y, z, r] for each bead in the molecule across all processed frames.
     """
+
+    molwise_xyzr = defaultdict(list)
 
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
         futures = [
@@ -233,6 +239,259 @@ def export_xyzr_to_hdf5(
                 compression="gzip",
                 compression_opts=9
             )
+
+def filter_xyzr_data(
+    xyzr_data: dict,
+    sel_molwise_residues: dict,
+) -> dict:
+    """ Update xyzr_data to keep only beads corresponding to sel_molwise_residues.
+
+    ## Arguments:
+
+    - **xyzr_data (dict)**:<br />
+        Original xyzr_data dictionary mapping bead keys to XYZR data arrays.
+
+    - **sel_molwise_residues (dict)**:<br />
+        Dictionary mapping molecule names to sets of residue numbers to keep.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Updated xyzr_data dictionary with only the relevant beads.
+    """
+
+    keys_to_del = []
+    keys_to_update = {}
+
+    for bead_k, _xyzr in xyzr_data.items():
+
+        mol, sel = bead_k.rsplit("_", 1)
+        res_nums = set(get_res_range_from_key(sel))
+        req_res_nums = sel_molwise_residues.get(mol, set())
+
+        if len(req_res_nums) == 0:
+            keys_to_del.append(bead_k)
+            continue
+
+        elif len(res_nums.intersection(req_res_nums)) == 0:
+            keys_to_del.append(bead_k)
+            continue
+
+        intersecting_res = sorted(res_nums.intersection(req_res_nums))
+        n_bead_k = f"{mol}_{get_key_from_res_range(intersecting_res)}"
+        if n_bead_k == bead_k:
+            continue
+
+        keys_to_update[bead_k] = n_bead_k
+
+    for k in keys_to_del:
+        del xyzr_data[k]
+
+    for old_k, new_k in keys_to_update.items():
+        xyzr_data[new_k] = xyzr_data[old_k]
+        del xyzr_data[old_k]
+
+    return xyzr_data
+
+def get_verify_copies(
+    mol_basename: str,
+    copy_idx: str | int | None,
+    xyzr_keys: list,
+) -> list:
+    """ Get and verify molecule copies from bead keys based on the provided
+    basename and copy index.
+
+    ## Arguments:
+
+    - **mol_basename (str)**:<br />
+        The base name of the molecule (e.g. "MOL1" from "MOL1_0").
+
+    - **copy_idx (str | int | None)**:<br />
+        The copy index to filter by.
+        If None, all copies of the molecule will be returned.
+
+    - **xyzr_keys (list)**:<br />
+        A list of all bead keys in the file. Keys are in the format
+        MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM.
+
+    ## Returns:
+
+    - **list**:<br />
+        A list of molecule copies that match the provided basename and copy index.
+    """
+
+    unique_mols = get_unique_mols(xyzr_keys)
+
+    if copy_idx is None:
+        copies_m1 = [
+            mol for mol in unique_mols
+            if mol.startswith(mol_basename + MOL_COPY_SEP)
+        ]
+
+    else:
+        _mol = f"{mol_basename}{MOL_COPY_SEP}{str(copy_idx)}"
+        if _mol not in unique_mols:
+            raise ValueError(
+                f"{_mol} is not a valid molecule copy in the model."
+            )
+        copies_m1 = [_mol]
+
+    return copies_m1
+
+def get_unique_mols(xyzr_keys: list) -> set:
+    """ Get unique molecules from the bead keys.
+    A molecule is a specific copy of a protein or modeled entity in general.
+
+    ## Arguments:
+
+    - **xyzr_keys (list)**:<br />
+        List of bead keys in the format:
+        "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND".
+
+    ## Returns:
+
+    - **set**:<br />
+        A set of unique molecule identifiers (MOL_COPYIDX) present in the model.
+    """
+
+    return set([k.rsplit("_", 1)[0] for k in xyzr_keys])
+
+def get_molwise_residues(xyzr_keys: list) -> Dict[str, list]:
+    """ Get molecule-wise residues from the list of bead keys.
+
+    ## Arguments:
+
+    - **xyzr_keys (list)**:<br />
+        List of bead keys in the format:
+        "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND".
+
+    ## Returns:
+
+    - **dict**:<br />
+        A dictionary mapping each unique molecule (MOL_COPYIDX) to a sorted list
+        of all residues represented.
+        Format: {
+            "MOL1_COPYIDX": [residue numbers],
+            "MOL2_COPYIDX": [residue numbers],
+            ...
+        }
+    """
+
+    unique_mols = get_unique_mols(xyzr_keys)
+
+    molwise_residues = {mol: [] for mol in unique_mols}
+
+    for bead_k in xyzr_keys:
+        mol_name, res_range = bead_k.rsplit("_", 1)
+        res_nums = get_res_range_from_key(res_range)
+        molwise_residues[mol_name].extend(res_nums)
+
+    molwise_residues = {
+        mol: sorted(set(res)) for mol, res in molwise_residues.items()
+    }
+
+    return molwise_residues
+
+def get_molwise_xyzr_keys(xyzr_keys: list) -> Dict[str, list]:
+    """ Get molecule-wise bead keys
+
+    ## Arguments:
+
+    - **xyzr_keys (list)**:<br />
+        List of bead keys in the format:
+        "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND".
+
+    ## Returns:
+
+    - **dict**:<br />
+        A dictionary mapping each unique molecule (MOL_COPYIDX) to a list of
+        all bead keys associated with it.
+    """
+
+    unique_mols = get_unique_mols(xyzr_keys)
+    return {
+        mol: [bead for bead in xyzr_keys if bead.startswith(mol)]
+        for mol in unique_mols
+    }
+
+def sort_xyzr_data(xyzr_data: dict) -> dict:
+    """ Sort xyzr_data dictionary first by molecule name, residue number.
+
+    ## Arguments:
+
+    - **xyzr_data (dict)**:<br />
+        Original xyzr_data dictionary mapping bead keys to XYZR data arrays.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Sorted xyzr_data dictionary.
+    """
+
+    return dict(
+        sorted(
+            xyzr_data.items(),
+            key=lambda item: (
+                item[0].rsplit("_", 1)[0],
+                get_res_range_from_key(item[0].rsplit("_", 1)[1])[0]
+            )
+        )
+    )
+
+def parse_xyzr_h5_file(xyzr_file: str) -> tuple:
+    """ Parse an HDF5 file containing XYZR data for multiple molecules.
+
+    Assuming the HDF5 file structure is as follows:
+    - Root
+        - MOL1_COPYIDX_RESSTART-RESEND (Dataset)
+        - MOL2_COPYIDX_RESSTART-RESEND (Dataset)
+        - MOL3_COPYIDX_RESNUM (Dataset)
+        - ...
+
+    Each dataset contains a 2D numpy array of shape (num_frames, 4) where
+    each row is (x, y, z, r).
+
+    ## Arguments:
+
+    - **xyzr_file (str)**:<br />
+        Path to the HDF5 file.
+
+    ## Returns:
+
+    - **tuple**:<br />
+        A tuple containing:
+        1. A dictionary where keys are molecule identifiers
+            in format MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM
+            and values are numpy arrays of shape (num_frames, 4).
+        2. A list of all bead keys in the file. Keys are in the format
+            MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM.
+        3. A set of unique molecule identifiers (MOL_COPYIDX).
+        4. A dictionary mapping each unique molecule (MOL_COPYIDX) to a sorted
+            list of all residues represented.
+    """
+
+    xyzr_data = {}
+
+    with h5py.File(xyzr_file, "r") as f:
+        for mol in f.keys():
+            xyzr_data[mol] = f[mol][:]
+
+    xyzr_data = sort_xyzr_data(xyzr_data=xyzr_data)
+
+    xyzr_keys = list(xyzr_data.keys())
+    unique_mols = get_unique_mols(xyzr_keys)
+    molwise_residues = get_molwise_residues(xyzr_keys)
+    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys)
+
+    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
+
+    return (
+        xyzr_mat,
+        xyzr_keys,
+        unique_mols,
+        molwise_residues,
+        molwise_xyzr_keys
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -300,7 +559,6 @@ if __name__ == "__main__":
         sys.exit(0)
 
     start_t = time.perf_counter()
-    molwise_xyzr = defaultdict(list)
 
     # mdl = IMP.Model()
     num_frames = get_number_of_frames(rmf_path)
@@ -315,7 +573,6 @@ if __name__ == "__main__":
     molwise_xyzr = process_frame_batches(
         num_cores=num_cores,
         rmf_path=rmf_path,
-        molwise_xyzr=molwise_xyzr,
         frame_batches=frame_batches
     )
 
