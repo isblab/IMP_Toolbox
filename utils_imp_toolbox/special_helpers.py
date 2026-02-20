@@ -181,7 +181,7 @@ class MatrixPatches:
     def santiy_check_row_col_obj(self):
 
         assert self.row_obj != self.col_obj, (
-            """`pd.grouby()` will fail if row_obj and col_obj are the same
+            """`df.grouby()` will fail if row_obj and col_obj are the same
             Add suffixes to row_obj and col_obj to make them different.
             """
         )

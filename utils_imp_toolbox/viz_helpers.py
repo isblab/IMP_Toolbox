@@ -256,6 +256,7 @@ def save_map(
     contact_probability: bool = False,
     num_to_idx: dict = None,
     idx_to_num: dict = None,
+    verbose: bool = False,
 ):
     """Save the interacting patches and the contact map to a file.
 
@@ -286,7 +287,8 @@ def save_map(
 
     csv_outfile = os.path.join(out_dir, f"{file_name}.csv")
 
-    print(f"Writing interacting patches to {csv_outfile}")
+    if verbose:
+        print(f"Writing interacting patches to {csv_outfile}")
 
     import pandas as pd
     df_rows = []
