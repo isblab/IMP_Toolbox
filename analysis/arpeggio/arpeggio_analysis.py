@@ -12,8 +12,8 @@ import os
 import warnings
 from string import Template
 import pandas as pd
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import get_res_range_from_key
-from IMP_Toolbox.analysis.arpeggio.arpeggio_constants import (
+from IMP_Toolbox.utils.obj_helpers import get_res_range_from_key
+from IMP_Toolbox.constants.arpeggio_constants import (
     CONTACTS_FIELDS,
     RI_FIELDS,
     RING_FIELDS,

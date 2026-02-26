@@ -5,18 +5,18 @@ import numpy as np
 import pandas as pd
 from string import Template
 from itertools import product
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import write_json
-from IMP_Toolbox.analysis.cocomap.cocomap_constants import (
+from IMP_Toolbox.utils.file_helpers import write_json
+from IMP_Toolbox.constants.cocomap_constants import (
     REP_ATOMS,
     TEMPLATE_CONFIG,
     DOCKER_BASE_COMMAND,
     ATOM_COL_NAMES,
     VALID_INTERACTIONS,
 )
-from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
+from IMP_Toolbox.utils.mutation_utils import (
     split_missense_mutation,
 )
-from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
+from IMP_Toolbox.constants.mutation_constants import (
     AMINO_ACID_MAP,
 )
 
