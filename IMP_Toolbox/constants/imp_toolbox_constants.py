@@ -13,6 +13,12 @@ class MiscStrEnum(StrEnum):
     UPPER = auto()
     TRUE = auto()
     FALSE = auto()
+    NUM_PTS = auto()
+    MODEL_MRC = auto()
+    REF_MRC = auto()
+    SAMPLE_A = "Sample_A"
+    SAMPLE_B = "Sample_B"
+    NUM_GAUSSIANS = auto()
 
 class FileFormat(StrEnum):
     """
@@ -51,6 +57,12 @@ class APIurl:
         "/${emdb_id_hyphen}/masks/${mask_name}.map"
     )
 
+class MRCComparisonMode(StrEnum):
+    PASANI = auto()
+    CHIMERAX = auto()
+
+CLUSTER_MRC_PREFIX = "LPD"
+
 class CorrelationMetric(StrEnum):
     """
     Enum for supported correlation metrics for fitting GMMs to density maps.
@@ -79,8 +91,9 @@ class ChimeraXVolumeLevelType(StrEnum):
 
 @dataclass
 class ChimeraXCommands:
-    fitmap_cmd: str = Template(
-        "fitmap #${model_count} inmap #1 " +
+    fitmap_cmd = Template(
+        "fitmap #${model_idxs} " +
+        "inmap #${ref_idxs} " +
         "metric ${metric} " +
         "shift ${shift_val} " +
         "rotate ${rotate_val} " +
@@ -89,12 +102,20 @@ class ChimeraXCommands:
         "zeros ${zeros_val}"
     )
     measure_correlation_cmd: str = Template(
-        "measure correlation #${model_count} in_map #1 " +
+        "measure correlation #${model_idxs} " +
+        "in_map #${ref_idxs} " +
         "envelope ${envelop_val}"
     )
     open_cmd = Template("open ${file_path}")
+    close_cmd = Template("close ${model_idxs}")
     volume_threshold_cmd = Template(
-        "volume #${model_count} ${level_type} ${level_val}"
+        "volume #${model_idxs} ${level_type} ${level_val}"
+    )
+    volume_add_cmd = Template(
+        "volume add #${model_range}"
+    )
+    rename_cmd = Template(
+        "rename #${model_idx} ${new_name}"
     )
 
 class ChimeraXCommand(StrEnum):
@@ -111,12 +132,12 @@ class ChimeraXLogPatterns:
         ChimeraXCommand.FITMAP: {
             "look_for": "Fit map",
             "regex1": r"Fit map (.+) in map (.+) using (\d+) points",
-            "regex2": r"  correlation\s*=\s*([0-9]+\.[0-9]+),\s*correlation\s+about\s+mean\s*=\s*([0-9]+\.[0-9]+),\s*overlap\s*=\s*([0-9]+\.[0-9]+)"
+            "regex2": r"correlation = ([0-9]*\.?[0-9]+), correlation about mean = ([0-9]*\.?[0-9]+), overlap = ([0-9]*\.?[0-9]+)"
         },
         ChimeraXCommand.MEASURE_CORRELATION: {
             "look_for": "Correlation of",
             "regex1": r"Correlation\s+of\s+(\S+)\s+#(\d+)\s+above\s+level\s+([0-9.]+e[+-]?[0-9]+)\s+in\s+(\S+)\s+#(\d+)",
-            "regex2": r"correlation\s*=\s*([0-9]+\.[0-9]+),\s*correlation\s+about\s+mean\s*=\s*([0-9]+\.[0-9]+)"
+            "regex2": r"correlation\s*=\s*([0-9]*\.?[0-9]+),\s*correlation\s+about\s+mean\s*=\s*([0-9]*\.?[0-9]+)"
         }
     }
 
