@@ -19,10 +19,12 @@ from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.interaction_map import (
+from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map import (
     parse_xyzr_h5_file,
     # get_unique_selections,
-    update_xyzr_data,
+)
+from IMP_Toolbox.analysis.rmf_to_xyzr import (
+    filter_xyzr_data,
     sort_xyzr_data,
 )
 
@@ -124,7 +126,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_dir",
-        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/fit_to_immunoem_data", 
+        default=f"/home/{_user}/Projects/cardiac_desmosome/analysis/prod_runs/output_trans_dsc_5716/set5/fit_to_immunoem_data",
         type=str,
         help="Directory to save output files.",
     )
@@ -174,7 +176,7 @@ if __name__ == "__main__":
         res_range = data_pt["residue_range"]
         ref_distance = data_pt["distance_to_PM"]
         sigma = data_pt["sigma"]
-    
+
         mol_copies = [_mol for _mol in unique_mols if _mol.startswith(mol)]
 
         molecules.extend([f"{mol_copy}|{res_range[0]}-{res_range[1]}" for mol_copy in mol_copies])
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     print("Unique mols in pairs:", unique_mols)
     print("Unique sels in pairs:", {k: get_key_from_res_range(sorted(v)) for k, v in unique_sels.items()})
 
-    xyzr_data = update_xyzr_data(xyzr_data, unique_sels)
+    xyzr_data = filter_xyzr_data(xyzr_data, unique_sels)
 
     xyzr_data = sort_xyzr_data(xyzr_data)
 
@@ -208,7 +210,7 @@ if __name__ == "__main__":
     molwise_diffs = {}
 
     for _idx, mol in enumerate(tqdm.tqdm(molecules, desc="Processing molecules")):
-    
+
         data_pt = data_pts[_idx]
 
         diff_txt = os.path.join(output_dir, f"{mol}_diff.txt")
@@ -244,7 +246,7 @@ if __name__ == "__main__":
             results = []
             for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
                 results.append(future.result())
-        
+
         del xyzr, xyzr_batches
 
         diff_m = np.zeros(num_frames, dtype=f_dtype)
@@ -262,7 +264,7 @@ if __name__ == "__main__":
 
         if not os.path.exists(diff_txt):
             np.savetxt(diff_txt, diff_m, fmt="%0.4f")
-    
+
     del xyzr_mat
 
     end_t = time.perf_counter()
