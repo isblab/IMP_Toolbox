@@ -327,7 +327,7 @@ def add_af_metrics(
     """
 
     try:
-        from af_pipeline._initialize import _Initialize
+        from af_pipeline.initialize import Initialize
 
     except ImportError:
         raise ImportError(
@@ -350,7 +350,7 @@ def add_af_metrics(
     processed_struct_path = result_metadata["structure_path"]
     struct_type = os.path.splitext(processed_struct_path)[1].lower()[1:]
 
-    initializer = _Initialize( #TODO: make public in af_pipeline
+    initializer = Initialize( #TODO: make public in af_pipeline
         data_file_path=af_data_path,
         structure_file_path=af_struct_path,
         af_offset=af_offset,
@@ -477,7 +477,7 @@ def add_af_metrics(
 
 def extract_af3_metrics(
     rep_atom_dict: dict,
-    initializer: af_pipeline._initialize._Initialize,
+    initializer: af_pipeline.initialize.Initialize,
     zipped_cra: zip,
 ):
     """ Extract AlphaFold 3 metrics for interacting atoms.
@@ -487,7 +487,7 @@ def extract_af3_metrics(
         rep_atom_dict (dict):
             Dictionary mapping residue names to representative atom names.
 
-        initializer (af_pipeline._initialize._Initialize):
+        initializer (af_pipeline.initialize.Initialize):
             Initialized AlphaFold parser object.
 
         zipped_cra (zip):
@@ -578,7 +578,7 @@ def extract_af3_metrics(
 
 def get_atom_plddt(
     rep_atom_dict: dict,
-    initializer: af_pipeline._initialize._Initialize,
+    initializer: af_pipeline.initialize.Initialize,
     chain: str,
     res: int,
     atom: str,
@@ -590,7 +590,7 @@ def get_atom_plddt(
         rep_atom_dict (dict):
             Dictionary mapping residue names to representative atom names.
 
-        initializer (af_pipeline._initialize._Initialize):
+        initializer (af_pipeline.initialize.Initialize):
             Initialized AlphaFold parser object.
 
         chain (str):

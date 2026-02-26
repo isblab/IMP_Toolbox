@@ -3,7 +3,8 @@ import random
 import time
 import argparse
 import getpass
-from IMP_Toolbox.utils import generate_cmap, sanity_check_cores
+from IMP_Toolbox.utils.viz_helpers import generate_cmap
+from IMP_Toolbox.utils.special_helpers import sanity_check_cores
 try:
     import analysis_trajectories
     from analysis_trajectories import AnalysisTrajectories

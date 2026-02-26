@@ -8,8 +8,8 @@ import IMP.core
 import IMP.rmf
 import IMP.atom
 import IMP.pmi.analysis
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_json
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
+from IMP_Toolbox.utils.file_helpers import read_json
+from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key,
 )

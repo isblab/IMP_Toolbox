@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from pprint import pprint
 from argparse import ArgumentParser
 from plotly import graph_objects as go
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
+from IMP_Toolbox.utils.obj_helpers import (
     get_res_range_from_key,
     get_key_from_res_range
 )

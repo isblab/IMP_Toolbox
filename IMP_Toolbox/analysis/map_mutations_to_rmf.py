@@ -2,15 +2,15 @@ import os
 import getpass
 import argparse
 import pandas as pd
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_json, write_json
-from IMP_Toolbox.utils import (
+from IMP_Toolbox.utils.file_helpers import read_json, write_json
+from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
 from analysis.interaction_map import (
     parse_xyzr_h5_file,
 )
-from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
+from IMP_Toolbox.utils.mutation_utils import (
     split_missense_mutation,
 )
 import string

@@ -1,7 +1,6 @@
 from pprint import pprint
 import re
 import os
-import h5py
 import time
 import tqdm
 import getpass
@@ -16,10 +15,10 @@ from multiprocessing import Pool
 from scipy.spatial.distance import cdist
 from itertools import product, combinations_with_replacement
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_json
-from IMP_Toolbox.utils_imp_toolbox.special_helpers import MatrixPatches
-from IMP_Toolbox.utils_imp_toolbox.viz_helpers import save_map
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
+from IMP_Toolbox.utils.file_helpers import read_json
+from IMP_Toolbox.utils.special_helpers import MatrixPatches
+from IMP_Toolbox.utils.viz_helpers import save_map
+from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
@@ -29,7 +28,7 @@ from IMP_Toolbox.analysis.rmf_to_xyzr import (
     get_molwise_residues,
     get_verify_copies
 )
-from IMP_Toolbox.analysis.analysis_constants import (
+from IMP_Toolbox.constants.analysis_constants import (
     PAIR_SEP,
     RES_RANGE_SEP,
     MOL_COPY_SEP,

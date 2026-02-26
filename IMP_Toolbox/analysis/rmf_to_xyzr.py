@@ -13,12 +13,12 @@ import IMP.rmf
 import numpy as np
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from IMP_Toolbox.utils import (
+from IMP_Toolbox.utils.obj_helpers import (
     get_res_range_from_key,
     get_key_from_res_range,
-    write_json
 )
-from IMP_Toolbox.analysis.analysis_constants import (
+from IMP_Toolbox.utils.file_helpers import write_json
+from IMP_Toolbox.constants.analysis_constants import (
     MOL_COPY_SEP,
 )
 import getpass

@@ -8,20 +8,22 @@ import matplotlib.pyplot as plt
 from itertools import combinations
 from scipy.spatial.distance import cdist
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_json
-from IMP_Toolbox.utils import (
+from IMP_Toolbox.utils.file_helpers import read_json
+from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
 from IMP_Toolbox.analysis.interaction_map import (
     parse_xyzr_h5_file,
     get_residue_selections,
-    filter_xyzr_data,
-    sort_xyzr_data,
     PAIR_SEP,
     RES_RANGE_SEP,
     MOL_RANGE_SEP,
     MOL_COPY_SEP,
+)
+from IMP_Toolbox.analysis.rmf_to_xyzr import (
+    filter_xyzr_data,
+    sort_xyzr_data,
 )
 
 _user = getpass.getuser()
