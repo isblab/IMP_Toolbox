@@ -311,6 +311,8 @@ def exhaust(
     matrix_cores: int,
     cluster_cores: int,
     gridsize: int,
+    voxel_size: float,
+    selection: str | None = None,
     logger: logging.Logger | None = None,
     save_log: bool = True,
     log_dir: str = None,
@@ -356,6 +358,7 @@ def exhaust(
         "--cluster-cores", cluster_cores,
         "--density", density,
         "--gridsize", gridsize,
+        "--voxel", voxel_size,
         "--scoreA", scoreA,
         "--scoreB", scoreB,
         "--rmfA", rmfA,
@@ -369,6 +372,9 @@ def exhaust(
         command.append("--prism")
     if align:
         command.append("--align")
+    if selection is not None:
+        command.append("--selection")
+        command.append(selection)
 
     if save_log:
         if log_dir is None:
@@ -1085,6 +1091,7 @@ if __name__ == "__main__":
             matrix_cores=12,
             cluster_cores=4,
             gridsize="5",
+            voxel_size=5.0,
             logger=logger,
             save_log=args.keep_logs
         )
