@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from itertools import product
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import get_key_from_res_range
+from IMP_Toolbox.utils.obj_helpers import get_key_from_res_range
 
 def make_protein(
     protein_name,

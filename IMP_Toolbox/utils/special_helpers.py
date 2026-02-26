@@ -9,11 +9,92 @@ import numpy as np
 import pandas as pd
 from Bio.PDB import Select
 from ruamel.yaml import YAML
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import (
+from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key,
 )
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_fasta
+from IMP_Toolbox.utils.file_helpers import read_fasta
+
+
+
+def make_protein(protein_name, seq_start, seq_end, *kwargs):
+    template_dict = {
+            "mode": "protein",
+            "config": {
+            "canvasWidth": seq_end - seq_start + 1,
+            "canvasHeight": 600,
+            "viewBox": "10 -230 1000 600",
+            "scaleLength": 3000,
+            "zoomRatio": 1
+            },
+            "data":[
+                {
+                "type": "protein",
+                "length": seq_end - seq_start + 1,
+                "option": {
+                    "displayName": protein_name,
+                    "position": {
+                        "start": {
+                            "site": seq_start,
+                            "display": "top"
+                        },
+                        "end": {
+                            "site": seq_end,
+                            "display": "top"
+                        }
+                    },
+                    "coordinate": {
+                        "vertical": {
+                            "start": 1,
+                            "isLocked": False
+                        },
+                        "horizontal": {
+                            "start": 0,
+                            "end": seq_end - seq_start,
+                            "isLocked": False
+                        }
+                    },
+                    "id": "Protein_" + protein_name,
+                    "style":{
+                        "align": "custom",
+                        "height": 25,
+                        "fontSize": 12,
+                        "color": "#babdb6",
+                        "gradient": "none",
+                        "texture": {
+                        "type": "none",
+                        "color": "#333333"
+                        }
+                    },
+                    "borderStyle": {
+                        "color": "#000000",
+                        "size": 1,
+                        "isDash": False
+                    }
+                },
+                "children": []
+            }
+            ]
+     }
+
+    return template_dict
+
+
+def sanity_check_cores(nproc: int):
+    """Sanity check for number of cores
+
+    Args:
+        nproc (int): Number of cores to use
+    """
+
+    if nproc < 1:
+        raise ValueError("Number of cores must be greater than 0")
+
+    elif nproc > os.cpu_count():
+        raise ValueError(
+            f"Number of cores ({nproc}) exceeds available cores ({os.cpu_count()})"
+        )
+
 
 def update_config(
     input_file: str,
@@ -607,350 +688,350 @@ class MatrixPatches:
 
         return filtered_df
 
-def get_closest_mapped_residue(
-    psa_map: dict,
-    codon_number: int,
-    which: str = "lower",
-):
-    """ Given a pairwise alignment map and a codon number, return the
-    closest mapped residue number.
-
-    Args:
-
-        psa_map (dict):
-            Pairwise alignment map of codon number to residue number
-
-        codon_number (int):
-            Codon number to map
-        which (str, optional):
-            Whether to return the closest lower or higher residue number.
-            Defaults to "lower".
-    Returns:
-        int:
-            Closest mapped residue number
-    """
-
-    mapped_residues = sorted(psa_map.keys())
-
-    if which == "lower":
-        lower_residues = [
-            res for res in mapped_residues if res <= codon_number
-        ]
-        if lower_residues:
-            closest_residue = psa_map[lower_residues[-1]]
-        else:
-            warnings.warn(
-                f"""
-                No lower residue found for codon number {codon_number}
-                in the pairwise alignment map.
-                Returning higher residue instead.
-                """
-            )
-            closest_residue = get_closest_mapped_residue(
-                psa_map, codon_number, which="higher"
-            )
-
-    elif which == "higher":
-        higher_residues = [
-            res for res in mapped_residues if res >= codon_number
-        ]
-        if higher_residues:
-            closest_residue = psa_map[higher_residues[0]]
-        else:
-            warnings.warn(
-                f"""
-                No higher residue found for codon number {codon_number}
-                in the pairwise alignment map.
-                Returning lower residue instead.
-                """
-            )
-            closest_residue = get_closest_mapped_residue(
-                psa_map, codon_number, which="lower"
-            )
-
-    else:
-        raise ValueError("which must be 'lower' or 'higher'")
-
-    return closest_residue
-
-def pairwise_alignment_map(
-    pairwise_alignment_file: str,
-) -> dict:
-    """ Given a pairwise alignment, return one-one map of aligned residues.
-
-    Args:
-        pairwise_alignment_file (str):
-            Path to the pairwise alignment file
-
-    Returns:
-        dict: mapping of codon numbers to residue numbers
-    """
-
-    pairwise_alignment = read_fasta(pairwise_alignment_file)
-
-    if len(pairwise_alignment) != 2:
-        raise ValueError(
-            f"""
-            Expected 2 sequences in the pairwise alignment file,
-            found {len(pairwise_alignment)}.
-            """
-        )
-
-    pairwise_alignment_dict = {}
-    q_count, s_count = 0, 0
-    qseq, sseq = list(pairwise_alignment.values())
-
-    increment_dict = {
-        (True, True): lambda q, s: (q + 1, s + 1),
-        (True, False): lambda q, s: (q + 1, s),
-        (False, True): lambda q, s: (q, s + 1),
-        (False, False): lambda q, s: (q, s),
-    }
-
-    init_case = {
-        True: lambda d: d + 1,
-        False: lambda d: d,
-    }
-
-    for q_res, s_res in zip(qseq, sseq):
-
-        inc_case = (s_res != "-", q_res != "-")
-        q_count, s_count = increment_dict[inc_case](q_count, s_count)
-
-        if s_res != "-" and q_res != "-":
-            pairwise_alignment_dict[init_case[q_count==0](q_count)] = (
-                init_case[s_count==0](s_count)
-            )
-
-    return pairwise_alignment_dict
-
-def handle_pairwise_alignment(
-    sseq: str,
-    qseq: str,
-    pairwise_alignment_file: str,
-    alignment_program: str = "stretcher",
-    xtra_attributes: list = [],
-    overwrite: bool = True,
-):
-    """ Handle pairwise alignment between two sequences and return the mapping.
-
-    Args:
-        p_name (str): Protein name
-        sseq (str): Subject sequence
-        qseq (str): Query sequence
-        pairwise_alignments_file (str): Path to the pairwise alignment file
-        alignment_program (str, optional): Alignment program to use.
-        xtra_attributes (list, optional): Extra attributes to extract from
-            the pairwise alignment object. Defaults to [].
-        overwrite (bool, optional): Whether to overwrite existing alignment file.
-
-    Returns:
-        dict: Mapping of codon to residue number
-    """
-
-    os.makedirs(os.path.dirname(pairwise_alignment_file),exist_ok=True)
-
-    if not os.path.exists(pairwise_alignment_file) or overwrite:
-
-        pairwise_alignment = psa.align(
-            program=alignment_program,
-            moltype="prot",
-            qseq=qseq,
-            sseq=sseq,
-        )
-
-        with open(pairwise_alignment_file, "w") as f:
-            f.write(pairwise_alignment.fasta())
-
-        print(f"Pairwise alignment saved to {pairwise_alignment_file}")
-
-    psa_map = pairwise_alignment_map(pairwise_alignment_file)
-
-    xtra = {}
-    for attr in xtra_attributes:
-        xtra[attr] = getattr(pairwise_alignment, attr, None)
-
-    return psa_map, xtra
-
-def get_mapped_residue(
-    psa_map: dict,
-    codon_number: int,
-    p_name: str = "",
-) -> tuple[int | None, str]:
-    """ Given a pairwise alignment map and a codon number, return the
-    mapped residue number.
-
-    Args:
-
-        psa_map (dict):
-            Pairwise alignment map of codon number to residue number
-
-        codon_number (int):
-            Codon number to map
-
-        p_name (str, optional):
-            Protein name for warning messages
-
-    Returns:
-
-        tuple[int | None, str]:
-            Mapped residue number and warning message (if any)
-    """
-
-    warn_msg = ""
-
-    if len(psa_map) == 0:
-        res_num_mapped = codon_number
-    else:
-        try:
-            res_num_mapped = psa_map[codon_number]
-        except KeyError:
-            warn_msg += (
-                f"""
-                Residue number {codon_number} not found in
-                pairwise alignment map for protein {p_name}.
-                Skipping...
-                """
-            )
-            res_num_mapped = None
-
-    return res_num_mapped, warn_msg
-
-def get_seq_identity(
-    qseq: str,
-    sseq: str,
-    start: int,
-    end: int,
-    as_percentage: bool=True
-):
-    """ Calculate sequence identity between two aligned sequences in a given range.
-
-    Args:
-        qseq (str): Query sequence (aligned)
-        sseq (str): Subject sequence (aligned)
-        start (int): Start position (1-based)
-        end (int): End position (1-based)
-
-    Returns:
-        float: Sequence identity percentage
-    """
-
-    seq_count = 0
-    start_idx = end_idx = None
-    for i, a in enumerate(qseq):
-        if a != '-':
-            seq_count += 1
-        if seq_count == start and start_idx is None:
-            start_idx = i
-        if seq_count == end:
-            end_idx = i
-            break
-
-    if start_idx is None or end_idx is None:
-        return 0.0
-
-    aligned_qseq = qseq[start_idx:end_idx+1]
-    aligned_sseq = sseq[start_idx:end_idx+1]
-
-    aligned_qseq = qseq[start-1:end]
-    aligned_sseq = sseq[start-1:end]
-
-    matches = sum(
-        1 for a, b in zip(aligned_qseq, aligned_sseq)
-        if (a == b and a != '-' and b != '-')
-    )
-    length = len(aligned_qseq)
-
-    if length == 0:
-        return 0.0
-
-    if as_percentage:
-        identity = (matches / length) * 100
-    else:
-        identity = matches
-
-    return identity
-
-def get_gap(
-    qseq: str,
-    sseq: str,
-    start: int,
-    end: int,
-    as_percentage: bool=True
-):
-    """ Calculate gap percentage between two aligned sequences in a given range.
-
-    Args:
-        qseq (str): Query sequence (aligned)
-        sseq (str): Subject sequence (aligned)
-        start (int): Start position (1-based)
-        end (int): End position (1-based)
-
-    Returns:
-        float: Gap percentage
-    """
-
-    seq_count = 0
-    start_idx = end_idx = None
-    for i, a in enumerate(qseq):
-        if a != '-':
-            seq_count += 1
-        if seq_count == start and start_idx is None:
-            start_idx = i
-        if seq_count == end:
-            end_idx = i
-            break
-
-    if start_idx is None or end_idx is None:
-        return 100.0
-
-    aligned_qseq = qseq[start_idx:end_idx+1]
-    aligned_sseq = sseq[start_idx:end_idx+1]
-
-    aligned_qseq = qseq[start-1:end]
-    aligned_sseq = sseq[start-1:end]
-
-    gaps = sum(
-        1 for a, b in zip(aligned_qseq, aligned_sseq)
-        if (a == '-' or b == '-')
-    )
-    length = len(aligned_qseq)
-
-    if length == 0:
-        return 100.0
-
-    if as_percentage:
-        gap_percentage = (gaps / length) * 100
-    else:
-        gap_percentage = gaps
-
-    return gap_percentage
-
-def fasta_str_to_dict(fasta_str):
-    """ Convert a FASTA string to a dictionary of sequences.
-
-    Args:
-        fasta_str (str): FASTA string
-
-    Returns:
-        dict: Dictionary of sequences.
-
-    Example:
-    >>> fasta_str = '''>seq1
-    ... ABCD
-    ... >seq2
-    ... ABCD'''
-
-    >>> fasta_str_to_dict(fasta_str)
-    {'seq1': 'ABCD', 'seq2': 'ABCD'}
-    """
-
-    fasta_str = fasta_str.splitlines()
-    fasta_dict = {}
-    for i, line in enumerate(fasta_str):
-        if line.startswith(">"):
-            seq_name = line[1:].strip()
-            fasta_dict[seq_name] = ""
-        else:
-            fasta_dict[seq_name] += line.strip()
-    return fasta_dict
+# def get_closest_mapped_residue(
+#     psa_map: dict,
+#     codon_number: int,
+#     which: str = "lower",
+# ):
+#     """ Given a pairwise alignment map and a codon number, return the
+#     closest mapped residue number.
+
+#     Args:
+
+#         psa_map (dict):
+#             Pairwise alignment map of codon number to residue number
+
+#         codon_number (int):
+#             Codon number to map
+#         which (str, optional):
+#             Whether to return the closest lower or higher residue number.
+#             Defaults to "lower".
+#     Returns:
+#         int:
+#             Closest mapped residue number
+#     """
+
+#     mapped_residues = sorted(psa_map.keys())
+
+#     if which == "lower":
+#         lower_residues = [
+#             res for res in mapped_residues if res <= codon_number
+#         ]
+#         if lower_residues:
+#             closest_residue = psa_map[lower_residues[-1]]
+#         else:
+#             warnings.warn(
+#                 f"""
+#                 No lower residue found for codon number {codon_number}
+#                 in the pairwise alignment map.
+#                 Returning higher residue instead.
+#                 """
+#             )
+#             closest_residue = get_closest_mapped_residue(
+#                 psa_map, codon_number, which="higher"
+#             )
+
+#     elif which == "higher":
+#         higher_residues = [
+#             res for res in mapped_residues if res >= codon_number
+#         ]
+#         if higher_residues:
+#             closest_residue = psa_map[higher_residues[0]]
+#         else:
+#             warnings.warn(
+#                 f"""
+#                 No higher residue found for codon number {codon_number}
+#                 in the pairwise alignment map.
+#                 Returning lower residue instead.
+#                 """
+#             )
+#             closest_residue = get_closest_mapped_residue(
+#                 psa_map, codon_number, which="lower"
+#             )
+
+#     else:
+#         raise ValueError("which must be 'lower' or 'higher'")
+
+#     return closest_residue
+
+# def pairwise_alignment_map(
+#     pairwise_alignment_file: str,
+# ) -> dict:
+#     """ Given a pairwise alignment, return one-one map of aligned residues.
+
+#     Args:
+#         pairwise_alignment_file (str):
+#             Path to the pairwise alignment file
+
+#     Returns:
+#         dict: mapping of codon numbers to residue numbers
+#     """
+
+#     pairwise_alignment = read_fasta(pairwise_alignment_file)
+
+#     if len(pairwise_alignment) != 2:
+#         raise ValueError(
+#             f"""
+#             Expected 2 sequences in the pairwise alignment file,
+#             found {len(pairwise_alignment)}.
+#             """
+#         )
+
+#     pairwise_alignment_dict = {}
+#     q_count, s_count = 0, 0
+#     qseq, sseq = list(pairwise_alignment.values())
+
+#     increment_dict = {
+#         (True, True): lambda q, s: (q + 1, s + 1),
+#         (True, False): lambda q, s: (q + 1, s),
+#         (False, True): lambda q, s: (q, s + 1),
+#         (False, False): lambda q, s: (q, s),
+#     }
+
+#     init_case = {
+#         True: lambda d: d + 1,
+#         False: lambda d: d,
+#     }
+
+#     for q_res, s_res in zip(qseq, sseq):
+
+#         inc_case = (s_res != "-", q_res != "-")
+#         q_count, s_count = increment_dict[inc_case](q_count, s_count)
+
+#         if s_res != "-" and q_res != "-":
+#             pairwise_alignment_dict[init_case[q_count==0](q_count)] = (
+#                 init_case[s_count==0](s_count)
+#             )
+
+#     return pairwise_alignment_dict
+
+# def handle_pairwise_alignment(
+#     sseq: str,
+#     qseq: str,
+#     pairwise_alignment_file: str,
+#     alignment_program: str = "stretcher",
+#     xtra_attributes: list = [],
+#     overwrite: bool = True,
+# ):
+#     """ Handle pairwise alignment between two sequences and return the mapping.
+
+#     Args:
+#         p_name (str): Protein name
+#         sseq (str): Subject sequence
+#         qseq (str): Query sequence
+#         pairwise_alignments_file (str): Path to the pairwise alignment file
+#         alignment_program (str, optional): Alignment program to use.
+#         xtra_attributes (list, optional): Extra attributes to extract from
+#             the pairwise alignment object. Defaults to [].
+#         overwrite (bool, optional): Whether to overwrite existing alignment file.
+
+#     Returns:
+#         dict: Mapping of codon to residue number
+#     """
+
+#     os.makedirs(os.path.dirname(pairwise_alignment_file),exist_ok=True)
+
+#     if not os.path.exists(pairwise_alignment_file) or overwrite:
+
+#         pairwise_alignment = psa.align(
+#             program=alignment_program,
+#             moltype="prot",
+#             qseq=qseq,
+#             sseq=sseq,
+#         )
+
+#         with open(pairwise_alignment_file, "w") as f:
+#             f.write(pairwise_alignment.fasta())
+
+#         print(f"Pairwise alignment saved to {pairwise_alignment_file}")
+
+#     psa_map = pairwise_alignment_map(pairwise_alignment_file)
+
+#     xtra = {}
+#     for attr in xtra_attributes:
+#         xtra[attr] = getattr(pairwise_alignment, attr, None)
+
+#     return psa_map, xtra
+
+# def get_mapped_residue(
+#     psa_map: dict,
+#     codon_number: int,
+#     p_name: str = "",
+# ) -> tuple[int | None, str]:
+#     """ Given a pairwise alignment map and a codon number, return the
+#     mapped residue number.
+
+#     Args:
+
+#         psa_map (dict):
+#             Pairwise alignment map of codon number to residue number
+
+#         codon_number (int):
+#             Codon number to map
+
+#         p_name (str, optional):
+#             Protein name for warning messages
+
+#     Returns:
+
+#         tuple[int | None, str]:
+#             Mapped residue number and warning message (if any)
+#     """
+
+#     warn_msg = ""
+
+#     if len(psa_map) == 0:
+#         res_num_mapped = codon_number
+#     else:
+#         try:
+#             res_num_mapped = psa_map[codon_number]
+#         except KeyError:
+#             warn_msg += (
+#                 f"""
+#                 Residue number {codon_number} not found in
+#                 pairwise alignment map for protein {p_name}.
+#                 Skipping...
+#                 """
+#             )
+#             res_num_mapped = None
+
+#     return res_num_mapped, warn_msg
+
+# def get_seq_identity(
+#     qseq: str,
+#     sseq: str,
+#     start: int,
+#     end: int,
+#     as_percentage: bool=True
+# ):
+#     """ Calculate sequence identity between two aligned sequences in a given range.
+
+#     Args:
+#         qseq (str): Query sequence (aligned)
+#         sseq (str): Subject sequence (aligned)
+#         start (int): Start position (1-based)
+#         end (int): End position (1-based)
+
+#     Returns:
+#         float: Sequence identity percentage
+#     """
+
+#     seq_count = 0
+#     start_idx = end_idx = None
+#     for i, a in enumerate(qseq):
+#         if a != '-':
+#             seq_count += 1
+#         if seq_count == start and start_idx is None:
+#             start_idx = i
+#         if seq_count == end:
+#             end_idx = i
+#             break
+
+#     if start_idx is None or end_idx is None:
+#         return 0.0
+
+#     aligned_qseq = qseq[start_idx:end_idx+1]
+#     aligned_sseq = sseq[start_idx:end_idx+1]
+
+#     aligned_qseq = qseq[start-1:end]
+#     aligned_sseq = sseq[start-1:end]
+
+#     matches = sum(
+#         1 for a, b in zip(aligned_qseq, aligned_sseq)
+#         if (a == b and a != '-' and b != '-')
+#     )
+#     length = len(aligned_qseq)
+
+#     if length == 0:
+#         return 0.0
+
+#     if as_percentage:
+#         identity = (matches / length) * 100
+#     else:
+#         identity = matches
+
+#     return identity
+
+# def get_gap(
+#     qseq: str,
+#     sseq: str,
+#     start: int,
+#     end: int,
+#     as_percentage: bool=True
+# ):
+#     """ Calculate gap percentage between two aligned sequences in a given range.
+
+#     Args:
+#         qseq (str): Query sequence (aligned)
+#         sseq (str): Subject sequence (aligned)
+#         start (int): Start position (1-based)
+#         end (int): End position (1-based)
+
+#     Returns:
+#         float: Gap percentage
+#     """
+
+#     seq_count = 0
+#     start_idx = end_idx = None
+#     for i, a in enumerate(qseq):
+#         if a != '-':
+#             seq_count += 1
+#         if seq_count == start and start_idx is None:
+#             start_idx = i
+#         if seq_count == end:
+#             end_idx = i
+#             break
+
+#     if start_idx is None or end_idx is None:
+#         return 100.0
+
+#     aligned_qseq = qseq[start_idx:end_idx+1]
+#     aligned_sseq = sseq[start_idx:end_idx+1]
+
+#     aligned_qseq = qseq[start-1:end]
+#     aligned_sseq = sseq[start-1:end]
+
+#     gaps = sum(
+#         1 for a, b in zip(aligned_qseq, aligned_sseq)
+#         if (a == '-' or b == '-')
+#     )
+#     length = len(aligned_qseq)
+
+#     if length == 0:
+#         return 100.0
+
+#     if as_percentage:
+#         gap_percentage = (gaps / length) * 100
+#     else:
+#         gap_percentage = gaps
+
+#     return gap_percentage
+
+# def fasta_str_to_dict(fasta_str):
+#     """ Convert a FASTA string to a dictionary of sequences.
+
+#     Args:
+#         fasta_str (str): FASTA string
+
+#     Returns:
+#         dict: Dictionary of sequences.
+
+#     Example:
+#     >>> fasta_str = '''>seq1
+#     ... ABCD
+#     ... >seq2
+#     ... ABCD'''
+
+#     >>> fasta_str_to_dict(fasta_str)
+#     {'seq1': 'ABCD', 'seq2': 'ABCD'}
+#     """
+
+#     fasta_str = fasta_str.splitlines()
+#     fasta_dict = {}
+#     for i, line in enumerate(fasta_str):
+#         if line.startswith(">"):
+#             seq_name = line[1:].strip()
+#             fasta_dict[seq_name] = ""
+#         else:
+#             fasta_dict[seq_name] += line.strip()
+#     return fasta_dict

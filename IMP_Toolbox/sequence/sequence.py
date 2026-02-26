@@ -1,8 +1,8 @@
 import os
 import warnings
 from typing import Any
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_fasta
-from IMP_Toolbox.utils_imp_toolbox.api_helpers import request_session
+from IMP_Toolbox.utils.file_helpers import read_fasta
+from IMP_Toolbox.utils.api_helpers import request_session
 import psa
 from IMP_Toolbox.constants.sequence_constants import (
     PSAProgram,

@@ -1,7 +1,7 @@
 import mrcfile
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from IMP_Toolbox.utils import request_session
+from IMP_Toolbox.utils.api_helpers import request_session
 from IMP_Toolbox.constants.imp_toolbox_constants import (
     APIurl,
     MAX_API_RETRIES,

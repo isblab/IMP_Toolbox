@@ -1,11 +1,11 @@
 import os
 import pandas as pd
 from tqdm import tqdm
-from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
+from IMP_Toolbox.utils.api_helpers import (
     request_session,
     request_result
 )
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import (
+from IMP_Toolbox.utils.file_helpers import (
     read_json,
     write_json
 )
@@ -31,7 +31,7 @@ def get_best_structures(uniprot_id: str) -> dict:
 
     req_sess = request_session(max_retries=3)
     get_request = req_sess.get(
-        url=f"{APIurl.pdbe_api_best_structures}/{uniprot_id}"
+        url=APIurl.pdbe_api_best_structures.substitute(uniprot_id=uniprot_id)
     )
 
     best_structures = request_result(

@@ -6,17 +6,20 @@ import argparse
 import pandas as pd
 from io import StringIO
 from pprint import pprint
-from IMP_Toolbox.pre_processing.sequence.Sequence import FetchSequences
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import read_fasta
-from IMP_Toolbox.utils_imp_toolbox.special_helpers import get_mapped_residue
-from IMP_Toolbox.utils_imp_toolbox.obj_helpers import fasta_str_to_dict
-from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
+from IMP_Toolbox.utils.file_helpers import read_fasta
+from IMP_Toolbox.sequence.sequence import (
+    query_uniprot_api_for_sequences,
+    only_uniprot_id_as_header,
+    fasta_str_to_dict,
+    PairwiseSequenceAlignment,
+)
+from IMP_Toolbox.utils.mutation_utils import (
     split_missense_mutation,
 )
-from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
+from IMP_Toolbox.utils.api_helpers import (
     request_session,
 )
-from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
+from IMP_Toolbox.constants.mutation_constants import (
     AMINO_ACID_MAP,
     AFM_PATHOGENICITY,
     API_URLS,
@@ -371,7 +374,7 @@ def af_missense_df_to_dict(
         mut_aa = AMINO_ACID_MAP.get(mut_aa, mut_aa)
         res_num_int = int(res_num)
 
-        res_num_mapped, warn_msg = get_mapped_residue(
+        res_num_mapped, warn_msg = PairwiseSequenceAlignment.get_mapped_residue(
             psa_map=afm_psa_map,
             codon_number=res_num_int,
         )
@@ -412,10 +415,10 @@ def get_fasta_dict_for_af_missense(protein_uniprot_map: dict):
     # for non-isoform-specific uniprot ids
     uniprot_ids = list(set((protein_uniprot_map.values())))
     uniprot_ids = list(set([uid.split("-")[0] for uid in uniprot_ids]))
-    fetchit = FetchSequences(uniprot_ids=uniprot_ids)
-    fasta_str = fetchit.query_uniprot_api_for_sequences()
-    fasta_str = fetchit.only_uniprot_id_as_name(fasta_str)
-    fasta_dict = fasta_str_to_dict(fasta_str)
+
+    fasta_str = query_uniprot_api_for_sequences(uniprot_ids=uniprot_ids)
+    fasta_str = only_uniprot_id_as_header(fasta_str=fasta_str)
+    fasta_dict = fasta_str_to_dict(fasta_str=fasta_str)
 
     return fasta_dict
 

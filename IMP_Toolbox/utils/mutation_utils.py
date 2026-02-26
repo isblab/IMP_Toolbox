@@ -3,15 +3,15 @@ import re
 import os
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
-from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
+from IMP_Toolbox.utils.api_helpers import (
     request_session,
     request_result,
 )
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import (
+from IMP_Toolbox.utils.file_helpers import (
     write_json,
     read_json,
 )
-from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
+from IMP_Toolbox.constants.mutation_constants import (
     MISSENSE_REGEX,
     TRUNCATION_NOTATIONS,
     API_URLS,

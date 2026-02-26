@@ -10,20 +10,19 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
 import xml.etree.ElementTree as ET
-from IMP_Toolbox.utils_imp_toolbox.api_helpers import (
+from IMP_Toolbox.sequence.sequence import (
+    PairwiseSequenceAlignment,
+)
+from IMP_Toolbox.utils.api_helpers import (
     request_session,
     request_result,
 )
-from IMP_Toolbox.utils_imp_toolbox.file_helpers import (
+from IMP_Toolbox.utils.file_helpers import (
     read_fasta,
     read_json,
     write_json,
 )
-from IMP_Toolbox.utils_imp_toolbox.special_helpers import (
-    get_mapped_residue,
-    handle_pairwise_alignment,
-)
-from IMP_Toolbox.pre_processing.mutations.utils_mutation import (
+from IMP_Toolbox.utils.mutation_utils import (
     split_missense_mutation,
     is_missense_mutation,
     get_ncbi_ref_seq,
@@ -35,7 +34,7 @@ from IMP_Toolbox.pre_processing.mutations.af_missense import (
     export_af_missense_data,
     get_af_missense_attribute,
 )
-from IMP_Toolbox.pre_processing.mutations.mutation_constants import (
+from IMP_Toolbox.constants.mutation_constants import (
     AF_MISSENSE_COLUMNS,
     AF_MISSENSE_CSV_SUFFIX,
     AF_MISSENSE_PAIR_ALN_SUFFIX,
@@ -870,12 +869,21 @@ class VariantInfo:
 
         p_sequence = get_ncbi_ref_seq(self.ncbi_ref_seq_id, ref_seq_file)
 
-        clinvar_psa_map, _xtra = handle_pairwise_alignment(
-            sseq=p_sequence,
-            qseq=modeled_seq,
+        pairwise_seq_alignment = PairwiseSequenceAlignment(
+            seq1=modeled_seq,
+            seq2=p_sequence,
+        )
+        clinvar_psa_map = pairwise_seq_alignment.fetch_pairwise_alingment_map(
             pairwise_alignment_file=pairwise_alignment_file,
             overwrite=False,
         )
+
+        # clinvar_psa_map, _xtra = handle_pairwise_alignment(
+        #     sseq=p_sequence,
+        #     qseq=modeled_seq,
+        #     pairwise_alignment_file=pairwise_alignment_file,
+        #     overwrite=False,
+        # )
 
         # warn if sequences not identical
         if p_sequence != modeled_seq and ignore_warnings is False:
@@ -897,7 +905,7 @@ class VariantInfo:
         wt_aa, res_num, mut_aa = split_mut
         res_num = int(res_num)
 
-        res_num_mapped, warn_msg = get_mapped_residue(
+        res_num_mapped, warn_msg = PairwiseSequenceAlignment.get_mapped_residue(
             psa_map=clinvar_psa_map,
             codon_number=res_num,
         )
@@ -1132,10 +1140,12 @@ if __name__ == "__main__":
                 warnings.warn(f"Sequence not found for {p_name} ({uniprot_base}).")
                 continue
 
-            # won't align if sequences are identical
-            afm_psa_map, _xtra = handle_pairwise_alignment(
-                sseq=af_missense_ref_seq,
-                qseq=modeled_seq,
+            afm_pairwise_alignment = PairwiseSequenceAlignment(
+                seq1=modeled_seq,
+                seq2=af_missense_ref_seq,
+            )
+
+            afm_psa_map = afm_pairwise_alignment.fetch_pairwise_alingment_map(
                 pairwise_alignment_file=AF_MISSENSE_PAIR_ALN_FASTA,
                 overwrite=False,
             )

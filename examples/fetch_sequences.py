@@ -7,9 +7,12 @@ import os
 from set_up import IMP_TOOLBOX, PRE_PROCESSING
 sys.path.append(IMP_TOOLBOX)
 sys.path.append(PRE_PROCESSING)
-from utils import read_json
+from utils_ import read_json
 from argparse import ArgumentParser
-from pre_processing.sequence.Sequence import FetchSequences
+from IMP_Toolbox.sequence.sequence import (
+    query_uniprot_api_for_sequences,
+    only_uniprot_id_as_header,
+)
 
 
 if __name__ == "__main__":
@@ -40,10 +43,8 @@ if __name__ == "__main__":
     uniprot_ids = list(proteins_dict.values())
     uniprot_ids = [u for u in uniprot_ids if u is not None]
 
-    fetchit = FetchSequences(uniprot_ids)
-
-    fasta = fetchit.query_uniprot_api_for_sequences()
-    fasta = fetchit.only_uniprot_id_as_name(fasta)
+    fasta = query_uniprot_api_for_sequences(uniprot_ids=uniprot_ids)
+    fasta = only_uniprot_id_as_header(fasta_str=fasta)
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
 

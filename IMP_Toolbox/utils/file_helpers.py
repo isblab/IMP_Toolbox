@@ -1,4 +1,5 @@
 import json
+import os
 
 def write_json(
     file_path: str,
@@ -41,6 +42,9 @@ def read_fasta(fasta_file: str) -> dict:
     Returns:
         all_sequences (dict): dictionary in the format {sequence_header: sequence}
     """
+
+    if not os.path.exists(fasta_file):
+        raise FileNotFoundError(f"Fasta file {fasta_file} not found")
 
     all_sequences = {}
 
