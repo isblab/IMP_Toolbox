@@ -89,57 +89,62 @@ class ChimeraXVolumeLevelType(StrEnum):
     SD_LEVEL = "sdLevel"
     RMS_LEVEL = "rmsLevel"
 
-@dataclass
-class ChimeraXCommands:
-    fitmap_cmd = Template(
-        "fitmap #${model_idxs} " +
-        "inmap #${ref_idxs} " +
+class ChimeraXCommand(StrEnum):
+    """
+    Enum for supported ChimeraX command names.
+    """
+    FITMAP = auto()
+    MEASURE_CORRELATION = "measure correlation"
+    OPEN = auto()
+    CLOSE = auto()
+    VOLUME = auto()
+    VOLUME_THRESHOLD = auto()
+    VOLUME_ADD = f"{VOLUME} add"
+    RENAME = auto()
+
+CHIMERAX_COMMANDS: dict[ChimeraXCommand, str | Template] = {
+    ChimeraXCommand.FITMAP: Template(
+        "fitmap ${model_idxs} " +
+        "inmap ${ref_idxs} " +
         "metric ${metric} " +
         "shift ${shift_val} " +
         "rotate ${rotate_val} " +
         "envelope ${envelop_val} " +
         "maxSteps ${fitmap_max_steps} " +
         "zeros ${zeros_val}"
-    )
-    measure_correlation_cmd: str = Template(
-        "measure correlation #${model_idxs} " +
-        "in_map #${ref_idxs} " +
+    ),
+    ChimeraXCommand.MEASURE_CORRELATION: Template(
+        "measure correlation ${model_idxs} " +
+        "in_map ${ref_idxs} " +
         "envelope ${envelop_val}"
+    ),
+    ChimeraXCommand.OPEN: Template("open ${file_path}"),
+    ChimeraXCommand.CLOSE: Template("close ${model_idxs}"),
+    ChimeraXCommand.VOLUME_THRESHOLD: Template(
+        "volume ${model_idxs} ${level_type} ${level_val}"
+    ),
+    ChimeraXCommand.VOLUME_ADD: Template(
+        "volume add ${model_range}"
+    ),
+    ChimeraXCommand.RENAME: Template(
+        "rename ${model_idx} ${new_name}"
     )
-    open_cmd = Template("open ${file_path}")
-    close_cmd = Template("close ${model_idxs}")
-    volume_threshold_cmd = Template(
-        "volume #${model_idxs} ${level_type} ${level_val}"
-    )
-    volume_add_cmd = Template(
-        "volume add #${model_range}"
-    )
-    rename_cmd = Template(
-        "rename #${model_idx} ${new_name}"
-    )
+}
 
-class ChimeraXCommand(StrEnum):
-    """
-    Enum for supported ChimeraX command names.
-    """
-    FITMAP = "fitmap"
-    MEASURE_CORRELATION = "measure correlation"
+CHIMERAX_LOG_PATTERNS: dict[ChimeraXCommand, dict] = {
 
-@dataclass
-class ChimeraXLogPatterns:
+    ChimeraXCommand.FITMAP: {
+        "look_for": "Fit map",
+        "regex1": r"Fit map (.+) in map (.+) using (\d+) points",
+        "regex2": r"correlation = ([0-9]*\.?[0-9]+), correlation about mean = ([0-9]*\.?[0-9]+), overlap = ([0-9]*\.?[0-9]+)"
+    },
 
-    correlation = {
-        ChimeraXCommand.FITMAP: {
-            "look_for": "Fit map",
-            "regex1": r"Fit map (.+) in map (.+) using (\d+) points",
-            "regex2": r"correlation = ([0-9]*\.?[0-9]+), correlation about mean = ([0-9]*\.?[0-9]+), overlap = ([0-9]*\.?[0-9]+)"
-        },
-        ChimeraXCommand.MEASURE_CORRELATION: {
-            "look_for": "Correlation of",
-            "regex1": r"Correlation\s+of\s+(\S+)\s+#(\d+)\s+above\s+level\s+([0-9.]+e[+-]?[0-9]+)\s+in\s+(\S+)\s+#(\d+)",
-            "regex2": r"correlation\s*=\s*([0-9]*\.?[0-9]+),\s*correlation\s+about\s+mean\s*=\s*([0-9]*\.?[0-9]+)"
-        }
+    ChimeraXCommand.MEASURE_CORRELATION: {
+        "look_for": "Correlation of",
+        "regex1": r"Correlation of (\S+) #(\d+) above level ([0-9.]+e[+-]?[0-9]+) in (\S+) #(\d+)",
+        "regex2": r"correlation = ([0-9]*\.?[0-9]+), correlation about mean = ([0-9]*\.?[0-9]+)"
     }
+}
 
 @dataclass
 class GMMParams:

@@ -5,7 +5,7 @@ from IMP_Toolbox.chimerax.density_map import parse_chimerax_correlation_log
 from IMP_Toolbox.constants.imp_toolbox_constants import (
     CHIMERAX_RUN_CMD,
     ChimeraXCommand,
-    ChimeraXCommands,
+    CHIMERAX_COMMANDS,
     ChimeraXDefaults,
     ChimeraXVolumeLevelType,
     GMMParams,
@@ -68,37 +68,35 @@ def get_best_gmm(
     """
 
     commands_run = [
-        ChimeraXCommands.open_cmd.substitute(file_path=data_file),
-        ChimeraXCommands.volume_threshold_cmd.substitute(
-            model_idxs=1,
+        CHIMERAX_COMMANDS[ChimeraXCommand.OPEN].substitute(file_path=data_file),
+        CHIMERAX_COMMANDS[ChimeraXCommand.VOLUME_THRESHOLD].substitute(
+            model_idxs="#1",
             level_type=ChimeraXVolumeLevelType.SD_LEVEL,
-            level_val=data_sd_level
-        )
+            level_val=data_sd_level,
+        ),
     ]
 
     model_count = 2
     f_name = os.path.basename(data_file).split(f".{FileFormat.MRC}")[0]
     valid_gmm_files = [
-        f"{GMMParams.gmm_mrc_name.substitute(
-            f_name=f_name,
-            n_gaussian=centers_list[i]
-        )}.{FileFormat.MRC}" for i in range(len(centers_list))
+        f"{GMMParams.gmm_mrc_name.substitute(f_name=f_name, n_gaussian=centers_list[i])}.{FileFormat.MRC}"
+        for i in range(len(centers_list))
     ]
 
     for gmm_file in sorted(os.listdir(gmm_dir)):
         if gmm_file in valid_gmm_files:
             commands_run.extend([
-                ChimeraXCommands.open_cmd.substitute(
+                CHIMERAX_COMMANDS[ChimeraXCommand.OPEN].substitute(
                     file_path=os.path.join(gmm_dir, gmm_file)
                 ),
-                ChimeraXCommands.volume_threshold_cmd.substitute(
-                    model_idxs=model_count,
+                CHIMERAX_COMMANDS[ChimeraXCommand.VOLUME_THRESHOLD].substitute(
+                    model_idxs=f"#{model_count}",
                     level_type=ChimeraXVolumeLevelType.SD_LEVEL,
                     level_val=sd_level,
                 ),
-                ChimeraXCommands.fitmap_cmd.substitute(
-                    model_idxs=model_count,
-                    ref_idxs="1",
+                CHIMERAX_COMMANDS[ChimeraXCommand.FITMAP].substitute(
+                    model_idxs=f"#{model_count}",
+                    ref_idxs="#1",
                     metric=metric,
                     shift_val=MiscStrEnum.FALSE,
                     rotate_val=MiscStrEnum.FALSE,

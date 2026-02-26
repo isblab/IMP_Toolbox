@@ -10,11 +10,11 @@ from IMP_Toolbox.chimerax.density_map import parse_chimerax_correlation_log
 from IMP_Toolbox.constants.imp_toolbox_constants import (
     CLUSTER_MRC_PREFIX,
     CHIMERAX_RUN_CMD,
+    CHIMERAX_COMMANDS,
     FileFormat,
     MRCComparisonMode,
     CorrelationMetric,
     ChimeraXCommand,
-    ChimeraXCommands,
     MiscStrEnum,
 )
 
@@ -138,25 +138,25 @@ if __name__ == "__main__":
             commands_run = []
 
             for f1 in fa:
-                commands_run += [ChimeraXCommands.open_cmd.substitute(file_path=f1)]
+                commands_run += [CHIMERAX_COMMANDS[ChimeraXCommand.OPEN].substitute(file_path=f1)]
 
             for f2 in fb:
-                commands_run += [ChimeraXCommands.open_cmd.substitute(file_path=f2)]
+                commands_run += [CHIMERAX_COMMANDS[ChimeraXCommand.OPEN].substitute(file_path=f2)]
 
             commands_run += [
-                ChimeraXCommands.volume_add_cmd.substitute(model_range=f"1-{len(fa)}"),
-                ChimeraXCommands.volume_add_cmd.substitute(model_range=f"{len(fa)+1}-{len(fa)+len(fb)}"),
-                ChimeraXCommands.rename_cmd.substitute(
-                    model_idx=f"{len(fa)+len(fb)+1}",
+                CHIMERAX_COMMANDS[ChimeraXCommand.VOLUME_ADD].substitute(model_range=f"#1-{len(fa)}"),
+                CHIMERAX_COMMANDS[ChimeraXCommand.VOLUME_ADD].substitute(model_range=f"#{len(fa)+1}-{len(fa)+len(fb)}"),
+                CHIMERAX_COMMANDS[ChimeraXCommand.RENAME].substitute(
+                    model_idx=f"#{len(fa)+len(fb)+1}",
                     new_name=MiscStrEnum.SAMPLE_A,
                 ),
-                ChimeraXCommands.rename_cmd.substitute(
-                    model_idx=f"{len(fa)+len(fb)+2}",
+                CHIMERAX_COMMANDS[ChimeraXCommand.RENAME].substitute(
+                    model_idx=f"#{len(fa)+len(fb)+2}",
                     new_name=MiscStrEnum.SAMPLE_B,
                 ),
-                ChimeraXCommands.fitmap_cmd.substitute(
-                    model_idxs=len(fa)+len(fb)+1,
-                    ref_idxs=len(fa)+len(fb)+2,
+                CHIMERAX_COMMANDS[ChimeraXCommand.FITMAP].substitute(
+                    model_idxs=f"#{len(fa)+len(fb)+1}",
+                    ref_idxs=f"#{len(fa)+len(fb)+2}",
                     metric=CorrelationMetric.CORRELATION, # doesn't matter which metric is used as shift and rotate are false
                     shift_val=MiscStrEnum.FALSE,
                     rotate_val=MiscStrEnum.FALSE,
@@ -164,9 +164,9 @@ if __name__ == "__main__":
                     fitmap_max_steps=0,
                     zeros_val=zeros_,
                 ),
-                ChimeraXCommands.fitmap_cmd.substitute(
-                    model_idxs=len(fa)+len(fb)+2,
-                    ref_idxs=len(fa)+len(fb)+1,
+                CHIMERAX_COMMANDS[ChimeraXCommand.FITMAP].substitute(
+                    model_idxs=f"#{len(fa)+len(fb)+2}",
+                    ref_idxs=f"#{len(fa)+len(fb)+1}",
                     metric=CorrelationMetric.CORRELATION, # doesn't matter which metric is used as shift and rotate are false
                     shift_val=MiscStrEnum.FALSE,
                     rotate_val=MiscStrEnum.FALSE,
@@ -174,7 +174,7 @@ if __name__ == "__main__":
                     fitmap_max_steps=0,
                     zeros_val=zeros_,
                 ),
-                ChimeraXCommands.close_cmd.substitute(model_idxs="all"),
+                CHIMERAX_COMMANDS[ChimeraXCommand.CLOSE].substitute(model_idxs="all"),
             ]
 
             subprocess.run(
@@ -189,11 +189,11 @@ if __name__ == "__main__":
             for idx, (f1, f2) in enumerate(zip(fa, fb)):
 
                 commands_run = [
-                    ChimeraXCommands.open_cmd.substitute(file_path=f1),
-                    ChimeraXCommands.open_cmd.substitute(file_path=f2),
-                    ChimeraXCommands.fitmap_cmd.substitute(
-                        model_idxs=1,
-                        ref_idxs=2,
+                    CHIMERAX_COMMANDS[ChimeraXCommand.OPEN].substitute(file_path=f1),
+                    CHIMERAX_COMMANDS[ChimeraXCommand.OPEN].substitute(file_path=f2),
+                    CHIMERAX_COMMANDS[ChimeraXCommand.FITMAP].substitute(
+                        model_idxs=f"#1",
+                        ref_idxs=f"#2",
                         metric=CorrelationMetric.CORRELATION, # doesn't matter which metric is used as shift and rotate are false
                         shift_val=MiscStrEnum.FALSE,
                         rotate_val=MiscStrEnum.FALSE,
@@ -201,9 +201,9 @@ if __name__ == "__main__":
                         fitmap_max_steps=0,
                         zeros_val=zeros_,
                     ),
-                    ChimeraXCommands.fitmap_cmd.substitute(
-                        model_idxs=2,
-                        ref_idxs=1,
+                    CHIMERAX_COMMANDS[ChimeraXCommand.FITMAP].substitute(
+                        model_idxs=f"#2",
+                        ref_idxs=f"#1",
                         metric=CorrelationMetric.CORRELATION, # doesn't matter which metric is used as shift and rotate are false
                         shift_val=MiscStrEnum.FALSE,
                         rotate_val=MiscStrEnum.FALSE,
@@ -211,7 +211,7 @@ if __name__ == "__main__":
                         fitmap_max_steps=0,
                         zeros_val=zeros_,
                     ),
-                    ChimeraXCommands.close_cmd.substitute(model_idxs="all"),
+                    CHIMERAX_COMMANDS[ChimeraXCommand.CLOSE].substitute(model_idxs="all"),
                 ]
 
                 log_mode = ">>" if idx > 0 else ">"
