@@ -22,26 +22,26 @@ sf =open(statFile,'r')
 
 for i,ln in enumerate(sf.readlines()):
     lndict = eval(ln.strip())
-    
-    if i==0: 
-        keysAsked = []		
+
+    if i==0:
+        keysAsked = []
 
         for k in lndict:
             if lndict[k].startswith('MonteCarlo_Acceptance_BallMover'):
-                
+
              print(lndict[k])
              keysAsked.append(k)
-        
+
         print("Keys",keysAsked)
 
     else:
         avgAcceptance =0.0
-        
+
         for k in keysAsked:
             avgAcceptance = avgAcceptance + float(lndict[k])
-    
+
         avgAcceptance = avgAcceptance/float(len(keysAsked))
-        
+
         print(avgAcceptance)
 
 sf.close()
