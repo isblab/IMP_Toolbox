@@ -27,7 +27,7 @@ from IMP_Toolbox.utils.mutation_utils import (
     is_missense_mutation,
     get_ncbi_ref_seq,
 )
-from IMP_Toolbox.pre_processing.mutations.af_missense import (
+from IMP_Toolbox.mutations.af_missense import (
     af_missense_df_to_dict,
     fetch_fasta_dict_for_af_missense,
     fetch_af_missense_data,
