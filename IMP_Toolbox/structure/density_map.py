@@ -1,3 +1,4 @@
+import os
 import mrcfile
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
@@ -6,6 +7,28 @@ from IMP_Toolbox.constants.imp_toolbox_constants import (
     APIurl,
     MAX_API_RETRIES,
 )
+
+def replace_data_fn(out_file):
+    """ Replace the full path in the `data_fn` in the output txt file
+    from `create_gmm` command with the basename.
+
+    ## Arguments:
+
+    - **out_file (str)**:
+        Path to the output file where the GMM parameters are saved.
+    """
+
+    with open(out_file, 'r') as f:
+        lines = f.readlines()
+
+    if "# data_fn" in lines[1]:
+        _, attr_val = lines[1].split(":")
+        attr_val = attr_val.strip()
+        new_attr_val = os.path.basename(attr_val)
+        lines[1] = f"# data_fn: {new_attr_val}\n"
+
+    with open(out_file, 'w') as f:
+        f.writelines(lines)
 
 def fetch_emdb_map(emdb_id: str, max_retries: int = MAX_API_RETRIES) -> bytes:
     """ Fetch density map from EMDB
