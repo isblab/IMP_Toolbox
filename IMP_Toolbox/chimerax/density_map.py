@@ -2,6 +2,9 @@ import re
 from IMP_Toolbox.constants.imp_toolbox_constants import (
     ChimeraXCommand,
     ChimeraXLogPatterns,
+    CorrelationMetric,
+    FileFormat,
+    MiscStrEnum,
 )
 
 def parse_chimerax_correlation_log(
@@ -59,10 +62,12 @@ def parse_chimerax_correlation_log(
             correlation, cam = match2.groups()
 
         correlation_list.append({
-            "model_mrc": model_map.replace("mrc", "").strip(),
-            "ref_mrc": ref_map.replace("mrc", "").strip(),
-            "correlation": correlation,
-            "cam": cam,
+            MiscStrEnum.MODEL_MRC: model_map.replace(f".{FileFormat.MRC}", "").strip(),
+            MiscStrEnum.REF_MRC: ref_map.replace(f".{FileFormat.MRC}", "").strip(),
+            CorrelationMetric.CORRELATION: correlation,
+            CorrelationMetric.CAM: cam,
+            CorrelationMetric.OVERLAP: overlap if command == ChimeraXCommand.FITMAP else None,
+            MiscStrEnum.NUM_PTS: num_points if command == ChimeraXCommand.FITMAP else None
         })
 
     return correlation_list
