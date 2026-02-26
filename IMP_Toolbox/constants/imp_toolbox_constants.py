@@ -26,14 +26,6 @@ class FileFormat(StrEnum):
     TXT = auto()
     HTML = auto()
 
-class VoxelDataKey(StrEnum):
-    """
-    Enum for keys in the voxel data dictionary.
-    """
-    GRID_POINTS = auto()
-    GRID_VALUES = auto()
-    VOXEL_SIZE = auto()
-
 @dataclass
 class APIurl:
 
@@ -104,6 +96,29 @@ class ChimeraXCommands:
     volume_threshold_cmd = Template(
         "volume #${model_count} ${level_type} ${level_val}"
     )
+
+class ChimeraXCommand(StrEnum):
+    """
+    Enum for supported ChimeraX command names.
+    """
+    FITMAP = "fitmap"
+    MEASURE_CORRELATION = "measure correlation"
+
+@dataclass
+class ChimeraXLogPatterns:
+
+    correlation = {
+        ChimeraXCommand.FITMAP: {
+            "look_for": "Fit map",
+            "regex1": r"Fit map (.+) in map (.+) using (\d+) points",
+            "regex2": r"  correlation\s*=\s*([0-9]+\.[0-9]+),\s*correlation\s+about\s+mean\s*=\s*([0-9]+\.[0-9]+),\s*overlap\s*=\s*([0-9]+\.[0-9]+)"
+        },
+        ChimeraXCommand.MEASURE_CORRELATION: {
+            "look_for": "Correlation of",
+            "regex1": r"Correlation\s+of\s+(\S+)\s+#(\d+)\s+above\s+level\s+([0-9.]+e[+-]?[0-9]+)\s+in\s+(\S+)\s+#(\d+)",
+            "regex2": r"correlation\s*=\s*([0-9]+\.[0-9]+),\s*correlation\s+about\s+mean\s*=\s*([0-9]+\.[0-9]+)"
+        }
+    }
 
 @dataclass
 class GMMParams:
