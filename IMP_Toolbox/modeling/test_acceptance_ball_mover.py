@@ -14,35 +14,37 @@ import IMP.pmi.io.crosslink
 import IMP.pmi.restraints.crosslinking
 import os,sys,string
 
-statFile = sys.argv[1]
+if __name__ == "__main__":
 
-# read the stat file
-sf =open(statFile,'r')
+    statFile = sys.argv[1]
+
+    # read the stat file
+    sf =open(statFile,'r')
 
 
-for i,ln in enumerate(sf.readlines()):
-    lndict = eval(ln.strip())
+    for i,ln in enumerate(sf.readlines()):
+        lndict = eval(ln.strip())
 
-    if i==0:
-        keysAsked = []
+        if i==0:
+            keysAsked = []
 
-        for k in lndict:
-            if lndict[k].startswith('MonteCarlo_Acceptance_BallMover'):
+            for k in lndict:
+                if lndict[k].startswith('MonteCarlo_Acceptance_BallMover'):
 
-             print(lndict[k])
-             keysAsked.append(k)
+                    print(lndict[k])
+                    keysAsked.append(k)
 
-        print("Keys",keysAsked)
+            print("Keys",keysAsked)
 
-    else:
-        avgAcceptance =0.0
+        else:
+            avgAcceptance =0.0
 
-        for k in keysAsked:
-            avgAcceptance = avgAcceptance + float(lndict[k])
+            for k in keysAsked:
+                avgAcceptance = avgAcceptance + float(lndict[k])
 
-        avgAcceptance = avgAcceptance/float(len(keysAsked))
+            avgAcceptance = avgAcceptance/float(len(keysAsked))
 
-        print(avgAcceptance)
+            print(avgAcceptance)
 
-sf.close()
+    sf.close()
 

@@ -19,15 +19,15 @@ except ImportError as e:
         )
 
 _user = getpass.getuser()
-start_t = time.time()
 
 random.seed(47)
 analysis_trajectories.color_palette = generate_cmap(
     n=40,
-    scheme="contrasting"
+    scheme="contrasting-non-bright"
 )
 
 if __name__ == "__main__":
+    start_t = time.time()
     parser = argparse.ArgumentParser(
         description="PMI analysis on modeling trajectories."
     )
@@ -129,65 +129,65 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-sanity_check_cores(args.nproc)
+    sanity_check_cores(args.nproc)
 
-os.makedirs(args.analysis_dir, exist_ok=True)
+    os.makedirs(args.analysis_dir, exist_ok=True)
 
-traj_dirs = [
-    f"{args.modeling_dir}/{args.traj_dir_prefix}{i}"
-    for i in range(args.run_start, args.run_end + 1, args.run_interval)
-]
+    traj_dirs = [
+        f"{args.modeling_dir}/{args.traj_dir_prefix}{i}"
+        for i in range(args.run_start, args.run_end + 1, args.run_interval)
+    ]
 
-assert all(os.path.exists(traj_dir) for traj_dir in traj_dirs), \
-    "One or more trajectory directories do not exist."
+    assert all(os.path.exists(traj_dir) for traj_dir in traj_dirs), \
+        "One or more trajectory directories do not exist."
 
-res_handles1 = [h.split(":")[1] for h in args.restraint_handles]
-res_handles2 = [
-    h.replace("_sum", "") for h in args.hdbscan_restraint_handles
-    if h not in ["EV_sum", "CR_sum"]
-]
+    res_handles1 = [h.split(":")[1] for h in args.restraint_handles]
+    res_handles2 = [
+        h.replace("_sum", "") for h in args.hdbscan_restraint_handles
+        if h not in ["EV_sum", "CR_sum"]
+    ]
 
-assert set(res_handles2).issubset(set(res_handles1)), \
-    f"""
-    All HDBSCAN restraint handles must be included in the restraint handles.
-    Restraint handles: {res_handles1}
-    HDBSCAN restraint handles: {res_handles2}
-    """
+    assert set(res_handles2).issubset(set(res_handles1)), \
+        f"""
+        All HDBSCAN restraint handles must be included in the restraint handles.
+        Restraint handles: {res_handles1}
+        HDBSCAN restraint handles: {res_handles2}
+        """
 
-at_obj = AnalysisTrajectories(
-    out_dirs=traj_dirs,
-    dir_name=args.traj_dir_prefix,
-    analysis_dir=args.analysis_dir,
-    detect_equilibration=True,
-    burn_in_fraction=args.burn_in_fraction,
-    nproc=args.nproc,
-    nskip=args.nskip,
-    number_models_out=29999,
-    plot_fmt="pdf",
-)
-
-# Usual restraints
-at_obj.set_analyze_Connectivity_restraint()
-at_obj.set_analyze_Excluded_volume_restraint()
-# at_obj.set_analyze_EM_restraint()
-
-for handle in args.restraint_handles:
-    restraint, short_name = handle.split(':')
-    at_obj.set_analyze_score_only_restraint(
-        handle=restraint,
-        short_name=short_name,
-        do_sum=True,
+    at_obj = AnalysisTrajectories(
+        out_dirs=traj_dirs,
+        dir_name=args.traj_dir_prefix,
+        analysis_dir=args.analysis_dir,
+        detect_equilibration=True,
+        burn_in_fraction=args.burn_in_fraction,
+        nproc=args.nproc,
+        nskip=args.nskip,
+        number_models_out=29999,
+        plot_fmt="pdf",
     )
 
-at_obj.read_stat_files()
-at_obj.write_models_info()
+    # Usual restraints
+    at_obj.set_analyze_Connectivity_restraint()
+    at_obj.set_analyze_Excluded_volume_restraint()
+    # at_obj.set_analyze_EM_restraint()
 
-at_obj.hdbscan_clustering(
-    args.hdbscan_restraint_handles,
-    min_cluster_size=args.min_cluster_size,
-    min_samples=args.min_samples,
-    skip=args.nskip,
-)
+    for handle in args.restraint_handles:
+        restraint, short_name = handle.split(':')
+        at_obj.set_analyze_score_only_restraint(
+            handle=restraint,
+            short_name=short_name,
+            do_sum=True,
+        )
 
-end_time = time.time()
-print(f"Analysis completed in {end_time - start_t:.2f} seconds.")
+    at_obj.read_stat_files()
+    at_obj.write_models_info()
+
+    at_obj.hdbscan_clustering(
+        args.hdbscan_restraint_handles,
+        min_cluster_size=args.min_cluster_size,
+        min_samples=args.min_samples,
+        skip=args.nskip,
+    )
+
+    end_time = time.time()
+    print(f"Analysis completed in {end_time - start_t:.2f} seconds.")

@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
 import xml.etree.ElementTree as ET
-from IMP_Toolbox.sequence.sequence import (
+from IMP_Toolbox.sequence.sequence_alignment import (
     PairwiseSequenceAlignment,
 )
 from IMP_Toolbox.utils.api_helpers import (

@@ -11,6 +11,8 @@ from IMP_Toolbox.sequence.sequence import (
     query_uniprot_api_for_sequences,
     only_uniprot_id_as_header,
     fasta_str_to_dict,
+)
+from IMP_Toolbox.sequence.sequence_alignment import (
     PairwiseSequenceAlignment,
 )
 from IMP_Toolbox.utils.mutation_utils import (
