@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import warnings
 from IMP_Toolbox.constants.arpeggio_constants import DOCKER_BASE_COMMAND
-from IMP_Toolbox.analysis.arpeggio.arpeggio_analysis import (
+from IMP_Toolbox.analysis.interaction.atomic.arpeggio_analysis import (
     run_arpeggio_docker,
     get_interactions,
     ArpeggioParser,

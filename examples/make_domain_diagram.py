@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import json
 import argparse
-from utils import make_protein
+from IMP_Toolbox.utils.special_helpers import make_protein
 # upload the output json file to the server
 # https://ibs.renlab.org/#/server
 # export svg and edit in inkscape or affinity designer
