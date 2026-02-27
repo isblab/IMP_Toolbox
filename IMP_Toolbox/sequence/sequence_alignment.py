@@ -19,6 +19,18 @@ from IMP_Toolbox.sequence.sequence import (
 class PairwiseSequenceAlignment:
     """ Handle pairwise sequence alignment from two sequences. """
 
+    seq1: str
+    """ First sequence. """
+
+    seq2: str
+    """ Second sequence. """
+
+    program: PSAProgram
+    """ Program to use for pairwise sequence alignment. """
+
+    pairwise_alignment: psa.PairwiseAlignment | None
+    """ Pairwise alignment object. """
+
     def __init__(self, seq1: str, seq2: str):
         self.seq1 = seq1
         self.seq2 = seq2
@@ -30,7 +42,7 @@ class PairwiseSequenceAlignment:
 
         ## Returns:
 
-        - **PairwiseAlignment**:<br />
+        - **psa.PairwiseAlignment**:<br />
             Pairwise alignment object
         """
 
