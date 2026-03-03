@@ -33,17 +33,17 @@ jobs:
           python-version: '3.14'
 
       # ADJUST THIS: install all dependencies (including pdoc)
-      - run: pip install pdoc numpy networkx biopython python-igraph ruamel.yaml PyYAML pandas pyvis requests scipy plotly matplotlib tqdm statsmodels
+      # - run: pip install pdoc numpy networkx biopython python-igraph ruamel.yaml PyYAML pandas pyvis requests scipy plotly matplotlib tqdm statsmodels
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
       # - run: python docs/make.py
       - run: |
           echo "/home/runner/work/IMP_Toolbox/IMP_Toolbox" >> $GITHUB_PATH
-      - run: |
-          echo $PYTHONPATH
-          echo $HOME
-          pwd
-          pdoc --mermaid ./IMP_Toolbox -o docs/
+      # - run: |
+      #     echo $PYTHONPATH
+      #     echo $HOME
+      #     pwd
+      #     pdoc --mermaid ./IMP_Toolbox -o docs/
 
       - uses: actions/upload-pages-artifact@v4
         with:
