@@ -57,28 +57,41 @@ def get_difference(
 
     return diffs
 
-
 def get_unique_selections1(molecules: list, mol_res_dict: dict) -> tuple:
     """ Get unique residue selections for each molecule in the provided pairs.
 
-    e.g. for pairs:
-        [('MOL1|1-10', 'MOL2|5-15'), ('MOL1|8-20', 'MOL3')]
-    returns:
-        {
-            'MOL1': {1, 2, ..., 20},
-            'MOL2': {5, 6, ..., 15},
-            'MOL3': {all residues of MOL3 from mol_res_dict}
-        },
-        {'MOL1', 'MOL2', 'MOL3'}
+    ## Arguments:
 
-    Args:
-        mol_pairs (list): List of tuples containing molecule pairs.
-        mol_res_dict (dict): Map of molecule names to lists of all residues.
+    - **molecules (list)**:<br />
+        List of tuples containing molecule pairs.
 
-    Returns:
-        tuple:
-            - A dictionary mapping molecule names to sets of unique residue numbers.
-            - A set of unique molecule names involved in the pairs.
+    - **mol_res_dict (dict)**:<br />
+        Dictionary mapping molecule names to lists of all residues in that molecule.
+
+    ## Returns:
+
+    - **tuple**:<br />
+        A tuple containing:
+        1. A dictionary mapping molecule names to sets of unique residue numbers.
+        2. A set of unique molecule names involved in the pairs.
+
+    ## Examples:
+
+    >>> mol_res_dict = {
+    ...     'MOL1': list(range(1, 101)),
+    ...     'MOL2': list(range(1, 51)),
+    ...     'MOL3': list(range(1, 10)),
+    ... }
+    >>> molecules = ['MOL1|1-10', 'MOL2|5-15', 'MOL1|8-20', 'MOL3']
+    >>> unique_sels, unique_mols = get_unique_selections1(molecules, mol_res_dict)
+    >>> print(unique_sels)
+    {
+        'MOL1': {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20},
+        'MOL2': {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        'MOL3': {1, 2, 3, 4, 5, 6, 7, 8, 9}
+    }
+    >>> print(unique_mols)
+    {'MOL1', 'MOL2', 'MOL3'}
     """
 
     unique_sels = {mol: set() for mol in mol_res_dict.keys()}

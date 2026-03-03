@@ -7,24 +7,27 @@ import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from argparse import ArgumentParser
+import argparse
 from equilibration import detectEquilibration
 
 def get_stat_file_names(path: str, to_sort: bool=True) -> tuple:
     """ Get the names of the stat and stat_replica files in the given path.
 
-    Args:
-        path (str):
-            Path to the directory containing stat and stat_replica files.
-        to_sort (bool, optional):
-            Whether to sort the files based on the number in their names.
-            Defaults to True.
+    ## Arguments:
 
-    Returns:
-        tuple:
-            A tuple containing two lists:
-            - stat_files (list): List of stat file names.
-            - stat_replica_files (list): List of stat_replica file names.
+    - **path (str)**:<br />
+        Path to the directory containing stat and stat_replica files.
+
+    - **to_sort (bool, optional):**:<br />
+        Whether to sort the files based on the number in their names.
+        Defaults to True.
+
+    ## Returns:
+
+    - **tuple**:<br />
+        A tuple containing two lists:
+        - stat_files (list): List of stat file names.
+        - stat_replica_files (list): List of stat_replica file names.
     """
 
     files = os.listdir(path)
@@ -60,17 +63,20 @@ def get_stat_head(path: str, stat_files: list) -> tuple:
     }
     ```
 
-    Args:
-        path (str):
-            Path to the directory containing stat and stat_replica files.
-        stat_files (list):
-            List of stat or stat_replica file names.
+    ## Arguments:
 
-    Returns:
-        tuple:
-            A tuple containing two dictionaries:
-            - head_dict (dict): Dictionary mapping index to heading.
-            - inv_head_dict (dict): Dictionary mapping heading to index.
+    - **path (str)**:<br />
+        Path to the directory containing stat and stat_replica files.
+
+    - **stat_files (list)**:<br />
+        List of stat or stat_replica file names.
+
+    ## Returns:
+
+    - **tuple**:<br />
+        A tuple containing two dictionaries:
+        - head_dict (dict): Dictionary mapping index to heading.
+        - inv_head_dict (dict): Dictionary mapping heading to index.
     """
 
     with open(os.path.join(path, stat_files[0])) as f:
@@ -98,11 +104,13 @@ def get_stat_head(path: str, stat_files: list) -> tuple:
 
 def check_order(flat_frame_order: list) -> None:
     """ Check the order of the collated frame order.
+
     Check that not more than 1 frame reports a 1.0 temperature at a time
 
-    Args:
-        flat_frame_order (list):
-            Frame indices where the temperature is 1.0 across all replicas.
+    ## Arguments:
+
+    - **flat_frame_order (list)**:<br />
+        Frame indices where the temperature is 1.0 across all replicas.
     """
 
     assert len(flat_frame_order) == len(
@@ -115,15 +123,18 @@ def check_order(flat_frame_order: list) -> None:
 
 def missing_stat_file_check(stat_files: list, stat_replica_files: list) -> None:
     """ Check for missing stat or stat_replica files.
+
     1. Check if there is no missing number in the stat files
     2. Check if a corresponding replica file is present for each stat file
     3. Check if the number of stat and stat_replica files are the same
 
-    Args:
-        stat_files (list):
-            List of stat files
-        stat_replica_files (list):
-            List of stat_replica files
+    ## Arguments:
+
+    - **stat_files (list)**:<br />
+        List of stat files
+
+    - **stat_replica_files (list)**:<br />
+        List of stat_replica files
     """
 
     set_a = set([int(i.split(".")[1]) for i in stat_files])
@@ -142,18 +153,22 @@ def missing_stat_file_check(stat_files: list, stat_replica_files: list) -> None:
 
 def get_stat_stack(path: str, stat_files: list) -> list:
     """ Get the stack from the given stat files.
+
     replica_stack_list = replicas x frames x header_fields
     stack_list = non_empty_replicas x temp_1_frames x header_fields
 
-    Args:
-        path (str):
-            Path to the directory containing stat and stat_replica files.
-        stat_files (list):
-            List of stat or stat_replica file names.
+    ## Arguments:
 
-    Returns:
-        list:
-            A list of numpy arrays, each array corresponds to a stat file.
+    - **path (str)**:<br />
+        Path to the directory containing stat and stat_replica files.
+
+    - **stat_files (list)**:<br />
+        List of stat file names.
+
+    ## Returns:
+
+    - **list**:<br />
+        A list of numpy arrays, each array corresponds to a stat file.
     """
 
     stack_list = []
@@ -198,18 +213,22 @@ def get_frame_order(
     replica_stack_list: list
 ) -> list:
     """ Get the frame order from the replica stack list.
+
     frame_order = replicas x temp_1_frames
 
-    Args:
-        inv_replica_head_dict (dict):
-            Dictionary mapping heading to index for replica files.
-        replica_stack_list (list):
-            List of numpy arrays, each array corresponds to a stat_replica file.
+    ## Arguments:
 
-    Returns:
-        list:
-            A list of numpy arrays, each array contains indices of frames at
-            temperature 1.0 for each replica.
+    - **inv_replica_head_dict (dict)**:<br />
+        Dictionary mapping heading to index for replica files.
+
+    - **replica_stack_list (list)**:<br />
+        List of numpy arrays, each array corresponds to a stat_replica file.
+
+    ## Returns:
+
+    - **list**:<br />
+        A list of numpy arrays, each array contains indices of frames at
+        temperature 1.0 for each replica.
     """
 
     frame_order = ([])
@@ -234,15 +253,18 @@ def sanity_check_replica_stack_list(
     stat_replica_files: list,
 ) -> None:
     """ Sanity check the replica stack list.
+
     1. Check if the number of replica files is equal to the number of stacks
     2. Check if all arrays have the same number of frames
     3. Check if all arrays have the same number of header fields
 
-    Args:
-        replica_stack_list (list):
-            List of numpy arrays, each array corresponds to a stat_replica file.
-        stat_replica_files (list):
-            List of stat_replica file names.
+    ## Arguments:
+
+    - **replica_stack_list (list)**:<br />
+        List of numpy arrays, each array corresponds to a stat_replica file.
+
+    - **stat_replica_files (list)**:<br />
+        List of stat_replica file names.
     """
 
     # number of stacks should be equal to number of replica files
@@ -263,12 +285,15 @@ def sanity_check_replica_stack_list(
 def parser(run_dir: str) -> tuple:
     """ Parse the stat and stat_replica files in the given path.
 
-    Args:
-        path (str):
-            Path to the directory containing stat and stat_replica files.
+    ## Arguments:
 
-    Returns:
-        tuple: A tuple containing:
+    - **run_dir (str)**:<br />
+        Path to the directory containing stat and stat_replica files.
+
+    ## Returns:
+
+    - **tuple**:<br />
+        A tuple containing:
             - per_frame_stats (list): List of dictionaries with stats for each frame.
             - per_frame_replica_stats (list): List of dictionaries with replica stats for each frame.
             - stack_list (list): List of numpy arrays, each array corresponds to a stat file.
@@ -389,16 +414,20 @@ def parser(run_dir: str) -> tuple:
         frame_order,
     )
 
-def is_float(s):
-    """
-    Checks if a string can be successfully converted to a float.
+def is_float(s: str) -> bool:
+    """ Checks if a string can be successfully converted to a float.
 
-    Args:
-        s: The string to check.
+    ## Arguments:
 
-    Returns:
+    - **s (str)**:<br />
+        The string to check.
+
+    ## Returns:
+
+    - **bool**:<br />
         True if the string can be converted to a float, False otherwise.
     """
+
     try:
         float(s)
         return True
@@ -410,22 +439,27 @@ def avg_stats(
     frame_order: list,
     inv_head_dict: dict,
     burn_in: float=0.8,
-):
-    """ Calculate average stat from per-frame stats after a burn-in period.
+) -> pd.DataFrame:
+    """ culate average stat from per-frame stats after a burn-in period.
 
-    Args:
-        per_frame_stats (list):
-            scores and other stats per frame (frames x header fields)
-        frame_order (list):
-            frame indices where the temperature is 1.0 across all replicas
-        inv_head_dict (dict):
-            Dictionary mapping stat header names to their indices
-        burn_in (float, optional):
-            Fraction of frames to discard as burn-in. Defaults to 0.8.
+    ## Arguments:
 
-    Returns:
-        pd.DataFrame:
-            DataFrame containing average stat for each key after burn-in.
+    - **per_frame_stats (list)**:<br />
+        scores and other stats per frame (frames x header fields)
+
+    - **frame_order (list)**:<br />
+        frame indices where the temperature is 1.0 across all replicas.
+
+    - **inv_head_dict (dict)**:<br />
+        Dictionary mapping stat header names to their indices.
+
+    - **burn_in (float, optional):**:<br />
+        Fraction of frames to discard as burn-in. Defaults to 0.8.
+
+    ## Returns:
+
+    - **pd.DataFrame**:<br />
+        DataFrame containing average stat for each key after burn-in.
     """
 
     sel_inv_head_dict = {}
@@ -500,19 +534,21 @@ def avg_stats(
 def sort_the_replica_exchanges_lowest_temp(frame_order: list) -> tuple:
     """ Sort the replica exchanges based on the lowest temperature (1.0).
 
-    Args:
-        frame_order (list):
-            List of numpy arrays, each array contains indices of frames at
-            temperature 1.0 for each replica.
+    ## Arguments:
 
-    Returns:
-        tuple:
-            A tuple containing:
-            - sorted_replicas (list):
-                List of replica indices sorted by frame order.
-            - sorted_replicas_bool (list):
-                List of boolean values indicating replica exchanges at each
-                frame.
+    - **frame_order (list)**:<br />
+        List of numpy arrays, each array contains indices of frames at
+        temperature 1.0 for each replica.
+
+    ## Returns:
+
+    - **tuple**:<br />
+        A tuple containing:
+        - sorted_replicas (list):
+            List of replica indices sorted by frame order.
+        - sorted_replicas_bool (list):
+            List of boolean values indicating replica exchanges at each
+            frame.
     """
 
     flat_frame_order = []
@@ -549,24 +585,38 @@ def parse_key(
 ) -> np.ndarray:
     """ Parse a specific key from the per-frame stats and compute the mean.
 
-    Args:
-        stat_head (str):
-            The key to search for in the stat headers.
-        per_frame_stats (list):
-            scores and other stats per frame (frames x header fields)
-        sel_inv_head_dict (dict):
-            Dictionary mapping selected stat header names to their indices
-        exchange_indices (list):
-            List of boolean values indicating replica exchanges at each frame.
-        n_remove (int):
-            Number of initial frames to discard as burn-in.
-        adjust (bool, optional):
-            Whether to adjust the values based on replica exchanges.
-            Defaults to False.
+    ## Arguments:
 
-    Returns:
-        np.ndarray:
-            Array of mean values for the specified key after burn-in.
+    - **search_string (str | list)**:<br />
+        The key or list of keys to search for in the stat headers. If a string is
+        provided, it will search for headers containing that string. If a list is
+        provided, it will search for exact matches of the headers in the list.
+
+    - **per_frame_stats (list)**:<br />
+        Scores and other stats per frame (frames x header fields).
+
+    - **sel_inv_head_dict (dict)**:<br />
+        Dictionary mapping selected stat header names to their indices.
+
+    - **exchange_indices (list)**:<br />
+        List of boolean values indicating replica exchanges at each frame.
+
+    - **n_remove (int)**:<br />
+        Number of initial frames to discard as burn-in.
+
+    - **adjust (bool, optional):**:<br />
+        Whether to adjust the values based on replica exchanges. Defaults to False.
+
+    - **exact_match (bool, optional):**:<br />
+        Whether to search for exact matches of the headers. Defaults to False.
+
+    - **return_type (str, optional):**:<br />
+        Whether to return the 'mean' or 'sum' of the values. Defaults to "mean".
+
+    ## Returns:
+
+    - **np.ndarray**:<br />
+        Array of mean or sum values for the specified key(s) after burn-in.
     """
 
     if isinstance(search_string, str):
@@ -624,18 +674,23 @@ def correct_mc_cumulative(
     mc_array: list,
     exchange_indices: list,
 ) -> list:
-    """Change the MC acceptance ratios from cumulative to instantaneous (per frame)
+    """ Change the MC acceptance ratios from cumulative to instantaneous (per frame)
 
-    Args:
-        mc_array (list):
-            List of numpy arrays containing cumulative MC acceptance ratios.
-        exchange_indices (list):
-            List of boolean values indicating replica exchanges at each frame.
+    ## Arguments:
 
-    Returns:
-        np.ndarray:
-            Array of instantaneous MC acceptance ratios with NaNs at exchange frames.
+    - **mc_array (list)**:<br />
+        List of numpy arrays containing cumulative MC acceptance ratios.
+
+    - **exchange_indices (list)**:<br />
+        List of boolean values indicating replica exchanges at each frame.
+
+    ## Returns:
+
+    - **list**:<br />
+        List of numpy arrays containing instantaneous MC acceptance ratios with
+        NaNs at exchange frames.
     """
+
     adjusted_mc_array = []
 
     for sub_mc in mc_array:
@@ -669,15 +724,18 @@ def correct_mc_cumulative(
 def prod_run_worker(run_dir: str, burn_in: float=0.8) -> pd.DataFrame:
     """ Worker function to parse a run directory and compute average stats.
 
-    Args:
-        run_dir (str):
-            Path to the directory containing stat and stat_replica files.
-        burn_in (float, optional):
-            Fraction of frames to discard as burn-in. Defaults to 0.8.
+    ## Arguments:
 
-    Returns:
-        pd.DataFrame:
-            DataFrame containing average stats for the run directory.
+    - **run_dir (str)**:<br />
+        Path to the directory containing stat and stat_replica files.
+
+    - **burn_in (float, optional):**:<br />
+        Fraction of frames to discard as burn-in. Defaults to 0.8.
+
+    ## Returns:
+
+    - **pd.DataFrame**:<br />
+        DataFrame containing average stats for the run directory.
     """
 
     (
@@ -702,14 +760,21 @@ def prod_run_worker(run_dir: str, burn_in: float=0.8) -> pd.DataFrame:
 def sort_the_replica_exchanges_all_temp(
     replica_stack_list: list,
     inverted_dict_replica: dict
-):
+) -> np.ndarray:
     """ Sort the replica exchanges based on all temperatures.
-    Args:
-        replica_stack_list (list): _description_
-        inverted_dict_replica (dict): _description_
 
-    Returns:
-        _type_: _description_
+    ## Arguments:
+
+    - **replica_stack_list (list)**:<br />
+        List of numpy arrays, each array corresponds to a stat_replica file.
+
+    - **inverted_dict_replica (dict)**:<br />
+        Dictionary mapping header names to their indices for replica files.
+
+    ## Returns:
+
+    - **np.ndarray**:<br />
+        Array of total exchanges at each step.
     """
 
     x = np.array([0 for i in range(len(replica_stack_list[0]))], dtype=np.int32)
@@ -735,15 +800,21 @@ def sort_the_replica_exchanges_all_temp(
     # Since each exchange is added twice in the two exchanging replicas
     return x / 2
 
-def get_moving_sd(score, frac=0.1):
+def get_moving_sd(score: list, frac: float=0.1) -> list:
     """ Calculate moving window standard deviation.
 
-    Args:
-        score (list): Score values.
-        frac (float, optional): Fraction of total samples for window size. Defaults to 0.1.
+    ## Arguments:
 
-    Returns:
-        list: List of standard deviation values for each position.
+    - **score (list)**:<br />
+        List of score values for each frame.
+
+    - **frac (float, optional):**:<br />
+        Fraction of total samples to use as window size for calculating standard deviation. Defaults to 0.1.
+
+    ## Returns:
+
+    - **list**:<br />
+        List of standard deviation values for each position in the score trajectory.
     """
 
     # moving window sd calculation. each window is frac * all_samples
@@ -757,12 +828,32 @@ def get_moving_sd(score, frac=0.1):
     return sds
 
 def plot_trajectory_score(
-    save_path,
-    per_frame_stats,
-    n_remove,
-    exchange_indices,
-    tot_score,
+    save_path: str,
+    per_frame_stats: list,
+    n_remove: int,
+    exchange_indices: list,
+    tot_score: list,
 ):
+    """ Plot the score for a trajectory.
+
+    ## Arguments:
+
+    - **save_path (str)**:<br />
+        Path to the directory where the plot will be saved.
+
+    - **per_frame_stats (list)**:<br />
+        List of per-frame statistics.
+
+    - **n_remove (int)**:<br />
+        Number of initial frames to discard as burn-in.
+
+    - **exchange_indices (list)**:<br />
+        List of boolean values indicating replica exchanges at each frame.
+
+    - **tot_score (list)**:<br />
+        List of total score values for each frame.
+    """
+
     traj_name = os.path.basename(save_path)
     n = len(per_frame_stats)
     n_keep = n - n_remove
@@ -808,15 +899,20 @@ def plot_trajectory_score(
     plt.savefig(f"{save_path}/equilibriation_total_score.png")
     plt.close("all")
 
-def geyer_equilibriation_test(score):
+def geyer_equilibriation_test(score: list) -> int:
     """ Perform Geyer equilibration test on the given score trajectory.
 
-    Args:
-        score (list): Score values.
+    ## Arguments:
 
-    Returns:
-        int: Equilibration time index.
+    - **score (list)**:<br />
+        List of score values for each frame.
+
+    ## Returns:
+
+    - **int**:<br />
+        Equilibration time index.
     """
+
     try:
         t_eq = detectEquilibration(score, 1, "geyer")[0]
     except ValueError:
@@ -828,15 +924,20 @@ def geyer_equilibriation_test(score):
 
     return t_eq
 
-def multiscale_equilibriation_test(score):
+def multiscale_equilibriation_test(score: list) -> int:
     """ Perform Multiscale equilibration test on the given score trajectory.
 
-    Args:
-        score (list): Score values.
+    ## Arguments:
 
-    Returns:
-        int: Equilibration time index.
+    - **score (list)**:<br />
+        List of score values for each frame.
+
+    ## Returns:
+
+    - **int**:<br />
+        Equilibration time index.
     """
+
     try:
         t_eq = detectEquilibration(score, 1, "multiscale")[0]
     except ValueError:
@@ -849,14 +950,45 @@ def multiscale_equilibriation_test(score):
     return t_eq
 
 def get_restraint_wise_score_trajectory(
-    per_frame_stats,
-    inv_head_dict,
-    n_remove,
-    exchange_indices,
-    n,
-    restraints,
-    eq,
-):
+    per_frame_stats: list,
+    inv_head_dict: dict,
+    n_remove: int,
+    exchange_indices: list,
+    n: int,
+    restraints: list,
+    eq: bool,
+) -> dict:
+    """ Obtain scores for a particular restraint across frames.
+
+    ## Arguments:
+
+    - **per_frame_stats (list)**:<br />
+        List of per-frame statistics.
+
+    - **inv_head_dict (dict)**:<br />
+        Dictionary mapping stat header names to their indices.
+
+    - **n_remove (int)**:<br />
+        Number of initial frames to discard as burn-in.
+
+    - **exchange_indices (list)**:<br />
+        List of boolean values indicating replica exchanges at each frame.
+
+    - **n (int)**:<br />
+        Total number of frames.
+
+    - **restraints (list)**:<br />
+        List of restraint names.
+
+    - **eq (bool)**:<br />
+        Whether to perform equilibration tests.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary mapping restraint names to their corresponding score information.
+    """
+
     all_res_info = dict()
     t_eq = None
     t_eq_2 = None
@@ -892,22 +1024,39 @@ def get_restraint_wise_score_trajectory(
     return all_res_info
 
 def plot_restraint_wise_score_trajectory(
-    savepath,
-    n_remove,
-    n,
-    all_res_info,
+    savepath: str,
+    n_remove: int,
+    n: int,
+    all_res_info: dict,
 ):
+    """ Plot the resrtaint score for a trajectory
+
+    ## Arguments:
+
+    - **savepath (str)**:<br />
+        Path to the directory where the plot will be saved.
+
+    - **n_remove (int)**:<br />
+        Number of initial frames to discard as burn-in.
+
+    - **n (int)**:<br />
+        Total number of frames.
+
+    - **all_res_info (dict)**:<br />
+        Dictionary mapping restraint names to their corresponding score information.
+    """
+
     for resname in all_res_info:
         plt.figure()
         plt.plot(np.arange(n_remove, n), all_res_info[resname][0], color="red", lw=3)
         plt.fill_between(
-                np.arange(n_remove, n),
-                all_res_info[resname][0] + all_res_info[resname][1],
-                all_res_info[resname][0] - all_res_info[resname][1],
-                alpha=0.5,
-                zorder=-10,
-                color="black",
-            )
+            np.arange(n_remove, n),
+            all_res_info[resname][0] + all_res_info[resname][1],
+            all_res_info[resname][0] - all_res_info[resname][1],
+            alpha=0.5,
+            zorder=-10,
+            color="black",
+        )
 
         legend_labels = ["Restraint Score (shifted)", "Moving SD"]
 
@@ -923,13 +1072,13 @@ def plot_restraint_wise_score_trajectory(
 
         if not (all_res_info[resname][3] is None):
             plt.axvline(
-                    n_remove + all_res_info[resname][3],
-                    0,
-                    1,
-                    color="green",
-                    lw=2,
-                    linestyle=":",
-                )
+                n_remove + all_res_info[resname][3],
+                0,
+                1,
+                color="green",
+                lw=2,
+                linestyle=":",
+            )
             legend_labels.append("Multiscale Equilibration Point")
 
         plt.xlabel("Frame Index")
@@ -941,7 +1090,16 @@ def plot_restraint_wise_score_trajectory(
 
 if __name__ == "__main__":
     start_time = time.time()
-    args = ArgumentParser()
+    args = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""
+        This script analyzes IMP trajectory data to compute average statistics
+        and plot score trajectories.
+        It supports both single and multiple trajectory analysis.
+        One can check acceptance rates of MCMC movers, replica exchange rate,
+        and scores for different restraints.
+        """
+    )
     args.add_argument(
         "-i",
         "--input",

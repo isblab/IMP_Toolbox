@@ -1,0 +1,65 @@
+name: IMP_Toolbox_documenation
+
+# build the documentation whenever there are new commits on main
+on:
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main_dev
+  #   paths:
+  #     - IMP_Toolbox/**
+  #     - docs/**
+  #     - .github/workflows/docs.yml
+
+    # Alternative: only build for tags.
+    # tags:
+    #   - '*'
+
+# security: restrict permissions for CI jobs.
+permissions:
+  contents: read
+
+jobs:
+  # Build the documentation and upload the static HTML files as an artifact.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      # ADJUST THIS: install all dependencies (including pdoc)
+      - run: pip install pdoc numpy networkx biopython python-igraph ruamel.yaml PyYAML pandas pyvis requests scipy plotly matplotlib tqdm statsmodels
+      # ADJUST THIS: build your documentation into docs/.
+      # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
+      # - run: python docs/make.py
+      - run: |
+          echo "/home/runner/work/IMP_Toolbox/IMP_Toolbox" >> $GITHUB_PATH
+      - run: |
+          echo $PYTHONPATH
+          echo $HOME
+          pwd
+          pdoc --mermaid ./IMP_Toolbox -o docs/
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/
+
+  # Deploy the artifact to GitHub pages.
+  # This is a separate job so that only actions/deploy-pages has the necessary permissions.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

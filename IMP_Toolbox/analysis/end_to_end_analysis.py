@@ -32,7 +32,7 @@ HDBSCAN_RESTRAINT_HANDLES = [
 TRAJ_DIR_PREFIX = "run_"
 PRISM_PATH = "/home/$USER/IMP_OMG/prism"
 SAMPCON_PATH = "/home/$USER/IMP_OMG/imp-sampcon"
-IMP_TOOLOBX_PATH = "/home/$USER/Omkar/IMP_TOOLBOX/IMP_Toolbox"
+IMP_TOOLOBX_PATH = "/home/$USER/Projects/IMP_TOOLBOX/IMP_Toolbox"
 SYSNAME = "cardiac_desmosome"
 SAMPCON_DENSITY_TXT = f"/data/{_user}/imp_toolbox_test/input/density_sampcon.txt"
 MODEL_CAP = 30000 # for variable filter
@@ -40,17 +40,19 @@ MODEL_CAP = 30000 # for variable filter
 random.seed(47)
 
 def return_major_cluster(hdbscan_log_path: str):
-    """
-    Return the cluster with the maximum number of models from HDBSCAN
+    """ Return the cluster with the maximum number of models from HDBSCAN
     clustering summary file.
 
-    Args:
-        hdbscan_log_path (str): Path to the HDBSCAN clustering summary file.
+    ## Arguments:
 
-    Returns:
+    - **hdbscan_log_path (str)**:<br />
+        Path to the HDBSCAN clustering summary file.
+
+    ## Returns:
+
+    - **tuple**:<br />
         tuple: (major_cluster_idx, number_of_models)
     """
-
     with open (hdbscan_log_path, "r") as f:
         cluster_summary = f.readlines()
 
@@ -114,22 +116,58 @@ def run_analysis_trajectories(
     - Pairwise plots for the restraint scores colored by clusters
     - Distribution of total score and score convergence for each cluster
 
-    Args:
-        script_path (str): Path to the `run_analysis_trajectories.py` script
-        modeling_dir (str): Path to the modeling output directory
-        analysis_dir (str): Path to the pmi_analysis output directory
-        traj_dir_prefix (str): Prefix for trajectory directories (e.g., 'run_')
-        run_start (int): Starting run number
-        run_end (int): Ending run number
-        run_interval (int): Interval between runs (e.g., 1 for every run)
-        nproc (int): Number of cores to use for analysis
-        burn_in_fraction (float): Fraction of data to discard as burn-in
-        nskip (int): Number of consecutive frames to skip
-        hdbscan_restraint_handles (list): List of restraint handles to use for
-            HDBSCAN clustering
-        logger (logging.Logger | None, optional): Logger for logging messages.
-            If None, logging is skipped. Defaults to None.
-        save_log (bool, optional): Whether to save the log file.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `run_analysis_trajectories.py` script.
+
+    - **modeling_dir (str)**:<br />
+        Path to the modeling output directory containing the trajectory folders.
+
+    - **analysis_dir (str)**:<br />
+        Path to the analysis output directory where the results will be stored.
+
+    - **traj_dir_prefix (str)**:<br />
+        Prefix for trajectory directories (e.g., 'run_') in the modeling output directory.
+
+    - **run_start (int)**:<br />
+        Starting run number to analyze (e.g., 1 for 'run_1').
+
+    - **run_end (int)**:<br />
+        Ending run number to analyze (e.g., 50 for 'run_50').
+
+    - **run_interval (int)**:<br />
+        Interval between runs to analyze (e.g., 1 for every run, 2 for every other run).
+
+    - **nproc (int)**:<br />
+        Number of cores to use for analysis.
+
+    - **burn_in_fraction (float)**:<br />
+        Fraction of data to discard as burn-in. These are fraction of frames from the start of the trajectory to discard (e.g., 0.1 for 10% burn-in).
+
+    - **nskip (int)**:<br />
+        Number of consecutive frames to skip for analysis (e.g., 0 for no skipping, 1 to analyze every other frame).
+
+    - **restraint_handles (list)**:<br />
+        List of restraint handles to analyze (e.g., ['GaussianEMRestraint:EM', 'SingleAxisMinGaussianRestraint:SAMGR']).
+
+    - **hdbscan_restraint_handles (list)**:<br />
+        List of restraint handles to use for HDBSCAN clustering (e.g., ['EV_sum', 'EM_sum']).
+
+    - **min_cluster_size (int)**:<br />
+        Minimum number of samples in a cluster for HDBSCAN.
+
+    - **min_samples (int)**:<br />
+        Minimum number of samples in a cluster for HDBSCAN.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
+
+    - **save_log (bool, optional):**:<br />
+        Whether to save the log file.
+
+    - **log_dir (str, optional):**:<br />
+        Directory where the log file is saved.
     """
 
     command = [
@@ -182,17 +220,43 @@ def variable_filter(
       filter models from the major cluster obtained from
       `run_analysis_trajectories.py` in case greater than `model_cap`.
 
-    Args:
-        script_path (str): Path to the `variable_filter.py` script
-        pmi_clust_idx (int): Index of the major cluster from HDBSCAN
-        lowest_cutoff (float): stdev multiplier for the most stringent cutoff
-        highest_cutoff (float): stdev multiplier for the most lenient cutoff
-        step_size (float): step size for the cutoff
-        model_cap (int): Maximum number of models to retain
-        gsmsel_dir (str): directory where pmi_analysis csv files are stored
-        output_dir (str): path to store the output of the script
-        logger (logging.Logger): Logger for logging messages.
-        save_log (bool, optional): Whether to save the log file. Defaults to True.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `variable_filter.py` script.
+
+    - **pmi_clust_idx (int)**:<br />
+        Index of the major cluster from HDBSCAN clustering to filter models from.
+
+    - **lowest_cutoff (float)**:<br />
+        Standard deviation multiplier for the most stringent cutoff. Models with restraint scores above this cutoff will be retained.
+
+    - **highest_cutoff (float)**:<br />
+        Standard deviation multiplier for the most lenient cutoff. Models with restraint scores above this cutoff will be retained.
+
+    - **step_size (float)**:<br />
+        Step size for the cutoff. The script will apply cutoffs starting from `lowest_cutoff` to `highest_cutoff` with this step size until the number of models retained is less than or equal to `model_cap`.
+
+    - **model_cap (int)**:<br />
+        Maximum number of models to retain after filtering. The script will apply the cutoffs iteratively until the number of models retained is less than or equal to this cap.
+
+    - **gsmsel_dir (str)**:<br />
+        Directory where the pmi_analysis csv files are stored. These csv files contain the restraint scores for each model and are used for filtering.
+
+    - **output_dir (str)**:<br />
+        Path to the directory where the output of the script will be stored. The output includes the filtered rmf3 file and a txt file indicating the scores of the retained models.
+
+    - **restraint_handles (list)**:<br />
+        List of restraint handles to consider for filtering. The script will use the scores from these restraint handles for applying the cutoffs.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
+
+    - **save_log (bool, optional):**:<br />
+        Whether to save the log file.
+
+    - **log_dir (str, optional):**:<br />
+        Directory where the log file will be saved.
     """
 
     command = [
@@ -246,22 +310,55 @@ def run_extract_models(
     - The extracted rmf3 and txt files indicating scores per frame are stored
       in `analysis_dir` for sample A and B respectively.
 
-    Args:
-        script_path (str): Path to the `run_extract_models.py` script
-        modeling_dir (str): Path to the modeling output directory
-        analysis_dir (str): Path to the analysis output directory
-        traj_dir_prefix (str): Prefix for trajectory directories (e.g., 'run_')
-        run_start (int): Starting run number
-        run_end (int): Ending run number
-        run_interval (int): Interval between runs (e.g., 1 for every run)
-        nproc (int): Number of cores to use for analysis
-        burn_in_fraction (float): Fraction of data to discard as burn-in
-        nskip (int): Number of consecutive frames to skip
-        cluster_id (int): Cluster ID to extract models from for the major cluster
-            from the HDBSCAN clustering
-        filter_applied (bool): Whether `variable_filter.py` was run or not
-        logger (logging.Logger): Logger for logging messages.
-        save_log (bool, optional): Whether to save the log file.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `run_extract_models.py` script.
+
+    - **modeling_dir (str)**:<br />
+        Path to the modeling output directory containing the trajectory folders.
+
+    - **analysis_dir (str)**:<br />
+        Path to the analysis output directory where the extracted models will be stored.
+
+    - **traj_dir_prefix (str)**:<br />
+        Prefix for trajectory directories (e.g., 'run_')
+
+    - **run_start (int)**:<br />
+        Starting run number
+
+    - **run_end (int)**:<br />
+        Ending run number
+
+    - **run_interval (int)**:<br />
+        Interval between runs (e.g., 1 for every run)
+
+    - **nproc (int)**:<br />
+        Number of cores to use for analysis
+
+    - **burn_in_fraction (float)**:<br />
+        Fraction of data to discard as burn-in
+
+    - **nskip (int)**:<br />
+        Number of consecutive frames to skip (e.g., 0 for no skipping, 1 to analyze every other frame)
+
+    - **cluster_id (int)**:<br />
+        Cluster ID to extract models from for the major cluster from the HDBSCAN clustering. This is used to identify the csv files containing the scores of the models to be extracted.
+
+    - **filter_applied (bool)**:<br />
+        Whether `variable_filter.py` was run or not. This is used to determine whether to look for the csv files from `variable_filter.py` or from `run_analysis_trajectories.py` for extracting the models.
+
+    - **variable_filter_output_dir (str)**:<br />
+        Path to the output directory of `variable_filter.py` if `filter_applied` is True. This is used to identify the csv files containing the scores of the models to be extracted. If `filter_applied` is False, this argument is ignored and the script looks for the csv files from `run_analysis_trajectories.py` in the `analysis_dir`.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
+
+    - **save_log (bool, optional):**:<br />
+        Whether to save the log file.
+
+    - **log_dir (str, optional):**:<br />
+        Path to the directory where log files are saved. If None, a default path is used.
     """
 
     command = [
@@ -330,24 +427,68 @@ def exhaust(
           densities for each cluster
         - prism input `.npz` files for each cluster if `prism` is True
 
-    Args:
-        script_path (str): Path to the `exhaust.py` script
-        pmi_analysis_dir (str): Path to the pmi_analysis output directory
-        sysname (str): System name for the analysis (e.g., 'cardiac_desmosome')
-        scoreA (str): txt file containing scores for sample A
-        scoreB (str): txt file containing scores for sample B
-        rmfA (str): rmf3 file containing models for sample A
-        rmfB (str): rmf3 file containing models for sample B
-        density (str): Path to the density txt file for imp-sampcon
-        gnuplot (bool): whether to generate gnuplot files
-        prism (bool): whether to generate prism input files
-        align (bool): whether to align the models before analysis
-        mode (str): mode for imp-sampcon (e.g., 'cpu_omp')
-        matrix_cores (int): number of cores for rmsd calculation
-        cluster_cores (int): number of cores for clustering
-        gridsize (int): grid size for clustering
-        logger (logging.Logger | None, optional): Logger for logging messages.
-        save_log (bool, optional): Whether to save the log file.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `exhaust.py` script from imp-sampcon.
+
+    - **pmi_analysis_dir (str)**:<br />
+        Path to the pmi_analysis output directory containing the scores and rmf3 files for sample A and B. This is used as input for the exhaustiveness analysis.
+
+    - **sysname (str)**:<br />
+        System name for the analysis (e.g., 'cardiac_desmosome'). This is used as a prefix for the output files generated from the analysis.
+
+    - **scoreA (str)**:<br />
+        txt file containing scores for sample A. This is used as input for the exhaustiveness analysis.
+
+    - **scoreB (str)**:<br />
+        txt file containing scores for sample B. This is used as input for the exhaustiveness analysis.
+
+    - **rmfA (str)**:<br />
+        rmf3 file containing models for sample A. This is used as input for the exhaustiveness analysis.
+
+    - **rmfB (str)**:<br />
+        rmf3 file containing models for sample B. This is used as input for the exhaustiveness analysis.
+
+    - **density (str)**:<br />
+        Path to the density txt file for imp-sampcon. This file contains the density of models in the score space and is used for calculating the localization probability densities.
+
+    - **gnuplot (bool)**:<br />
+        Whether to generate gnuplot files for visualizing the score distributions and convergence.
+
+    - **prism (bool)**:<br />
+        Whether to generate prism input `.npz` files for each cluster. These files can be used for further analysis in prism.
+
+    - **align (bool)**:<br />
+        Whether to align the models before analysis. If True, the models will be aligned to a reference structure before calculating the localization probability densities.
+
+    - **mode (str)**:<br />
+        Mode for imp-sampcon (e.g., 'cpu_omp'). This is used to specify the mode for running the analysis.
+
+    - **matrix_cores (int)**:<br />
+        Number of cores to use for RMSD matrix calculation.
+
+    - **cluster_cores (int)**:<br />
+        Number of cores to use for clustering. Do not set too high, might lead
+        to memory issues.
+
+    - **gridsize (int)**:<br />
+        Grid size for clustering. This is used to specify the grid size for calculating the localization probability densities.
+
+    - **voxel_size (float)**:<br />
+        Voxel size for calculating localization probability densities. This is used to specify the resolution of the density maps generated from the analysis.
+
+    - **selection (str | None, optional):**:<br />
+        Selection string for analyzing a subset of the model (e.g., "chain A and resnum 1-100"). If None, the entire model is analyzed.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
+
+    - **save_log (bool, optional):**:<br />
+        Whether to save the log output to a file.
+
+    - **log_dir (str, optional):**:<br />
+        Directory where the log file is saved. If None, the log is saved in the current working directory.
     """
 
     command = [
@@ -389,7 +530,7 @@ def exhaust(
 
     os.system(" ".join(map(str, command)))
 
-def correlate_cluster_sample_LPDs(
+def correlate_cluster_sample_densities(
     script_path: str,
     sampcon_cluster_path: str,
     mode: str,
@@ -398,6 +539,36 @@ def correlate_cluster_sample_LPDs(
     save_log: bool = True,
     log_dir: str = None,
 ):
+    """ Run the script `correlate_cluster_sample_densities.py` from IMP_Toolbox
+
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `correlate_cluster_sample_densities.py` script.
+
+    - **sampcon_cluster_path (str)**:<br />
+        Path to the directory containing the cluster directories generated from
+        `exhaust.py` in imp-sampcon. Each cluster directory should contain the
+        localization probability density maps for sample A and B.
+
+    - **mode (str)**:<br />
+        Mode for imp-sampcon (e.g., 'cpu_omp'). This is used to specify the mode
+        for running the analysis.
+
+    - **use_combined_map (bool)**:<br />
+        Whether to use the combined map for correlation analysis.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
+
+    - **save_log (bool, optional):**:<br />
+        Whether to save the log output to a file.
+
+    - **log_dir (str, optional):**:<br />
+        Directory where the log file is saved. If None, the log is saved in the
+        current working directory.
+    """
+
     command = [
         "python", script_path,
         "--sampcon_cluster_path", sampcon_cluster_path,
@@ -427,6 +598,29 @@ def fit_pdb_to_ccm(
     output_dir: str,
     logger: logging.Logger | None = None,
 ):
+    """ Run the script `align_pdb_to_ccm.py` from IMP_Toolbox.
+
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `align_pdb_to_ccm.py` script.
+
+    - **ccm_file (str)**:<br />
+        Path to the input CCM file. This file contains the contact information
+        that will be used for fitting the PDB structure.
+
+    - **input_config (str)**:<br />
+        Path to the input configuration file. This file contains the parameters
+        for fitting the PDB structure to the CCM.
+
+    - **output_dir (str)**:<br />
+        Path to the output directory where the fitted PDB structure and related
+        files will be saved.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped.
+    """
+
     command = [
         "python", script_path,
         "--ccm_file", ccm_file,
@@ -462,22 +656,63 @@ def prism_annotate(
 
     - This generates annotations for indicating precision on the bead models
 
-    Args:
-        script_path (str): Path to the `main.py` script from prism
-        input (str): Path to the input file (e.g., .npz file from imp-sampcon)
-        input_type (str): Type of the input file (e.g., 'npz')
-        voxel_size (int): Voxel size in Angstroms
-        return_spread (bool): Whether to return bead spread information
-        output (str): Path to the output file
-        classes (int): Number of classes for annotation (2, or 3)
-        cores (int): Number of cores to use
-        models (float): Fraction of models to use (0-1)
-        n_breaks (int): Number of breaks for jenkspy
-        resolution (int): Resolution as number of residues per bead
-        subunit (str | None): name of the subunit to analyze (None for all)
-        selection (None): selection within the subunit (None for all)
-        logger (logging.Logger): Logger for logging messages.
-        save_log (bool, optional): Whether to save the log file.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `main.py` script from prism.
+
+    - **input (str)**:<br />
+        Path to the input file for annotation. These are ".npz" files generated
+        from `exhaust.py` in imp-sampcon.
+
+    - **input_type (str)**:<br />
+        Type of the input file (e.g., 'npz', 'rmf3'). This is used to specify
+        the type of the input file for annotation.
+
+    - **voxel_size (int)**:<br />
+        Voxel size in Angstroms for calculating the precision. This is used to
+        specify the resolution of the density maps generated for annotation.
+
+    - **return_spread (bool)**:<br />
+        Whether to return bead spread information. If True, the script will
+        return the spread of the beads in addition to the precision annotation.
+
+    - **output (str)**:<br />
+        Path to the output file for the annotations. The output is a rmf3 file
+        containing the bead models with precision annotations.
+
+    - **classes (int)**:<br />
+        Number of classes for annotation.
+
+    - **cores (int)**:<br />
+        Number of cores.
+
+    - **models (float)**:<br />
+        Fraction of models to use for annotation (between 0 and 1). This is used
+        to specify the fraction of models to be used for generating the annotations.
+
+    - **n_breaks (int)**:<br />
+        Number of breaks for jenkspy.
+
+    - **resolution (int)**:<br />
+        Resolution as number of residues per bead. This is used to specify the
+        resolution at which the precision annotation is generated.
+
+    - **subunit (str | None)**:<br />
+        Name of the subunit to analyze. If None, all subunits are analyzed.
+
+    - **selection (None)**:<br />
+        Selection within the subunit. If None, the entire subunit is analyzed.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
+
+    - **save_log (bool, optional):**:<br />
+        Whether to save the log output to a file.
+
+    - **log_dir (str, optional):**:<br />
+        Directory where the log file is saved.
+        If None, the log is saved in the current working directory.
     """
 
     command = [
@@ -527,19 +762,42 @@ def prism_color(
     logger: logging.Logger | None = None,
 ):
     """ Run the script `color_precision.py` from prism
+
     - This colors the bead models based on the annotations generated
     - The output is a rmf3 file with the colored bead models
 
-    Args:
-        script_path (str): Path to the `color_precision.py` script from prism
-        input (str): Path to the input rmf3 file
-        frame_index (int): Frame index of the model to color from the rmf3 file
-        subunit (str | None): name of the subunit to analyze (None for all)
-        resolution (int): Resolution as number of residues per bead
-        selection (None): selection within the subunit (None for all)
-        annotations_file (str): Path to the annotations file from prism
-        output (str): Path to the output rmf3 file
-        logger (logging.Logger): Logger for logging messages.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `color_precision.py` script from prism.
+
+    - **input (str)**:<br />
+        Path to the input rmf3 file containing the bead models to be colored.
+
+    - **frame_index (int)**:<br />
+        Frame index of the model to color from the rmf3 file. This is used to
+        specify which frame of the rmf3 file to use for coloring the models.
+
+    - **subunit (str | None)**:<br />
+        Name of the subunit to analyze. If None, all subunits are analyzed. This is
+        used to specify which subunit's models to color based on the annotations.
+
+    - **resolution (int)**:<br />
+        Resolution as number of residues per bead. This is used to specify the
+        resolution at which the models are colored based on the annotations.
+
+    - **selection (None)**:<br />
+        Selection within the subunit. If None, the entire subunit is analyzed. This
+        is used to specify which part of the subunit's models to color based on the annotations.
+
+    - **annotations_file (str)**:<br />
+        Path to the annotations file generated from the `prism_annotate.py` script.
+
+    - **output (str)**:<br />
+        Path to the output rmf3 file with the colored bead models.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
     """
 
     command = [
@@ -577,15 +835,33 @@ def extract_sampcon(
         `run_extract_models.py`
     - The output is a single rmf3 file containing the extracted models
 
-    Args:
-        script_path (str): Path to the `extract_sampcon.py` script
-        rmf1 (str): path to the rmf3 file for sample A
-        list1 (str): path to the txt file for sample A
-        rmf2 (str): path to the rmf3 file for sample B
-        list2 (str): path to the txt file for sample B
-        rmf_out (str): path to the output rmf3 file
-        logger (logging.Logger | None, optional): Logger for logging messages.
-        save_log (bool, optional): Whether to save the log file. Defaults to True.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `extract_sampcon.py` script from imp-sampcon.
+
+    - **rmf1 (str)**:<br />
+        Path to the rmf3 file for sample A. This file contains the models for
+        sample A and is used as input for extracting the models from the major cluster.
+
+    - **list1 (str)**:<br />
+        Path to the txt file for sample A. This file contains the list of models
+        in the major cluster for sample A.
+
+    - **rmf2 (str)**:<br />
+        Path to the rmf3 file for sample B. This file contains the models for
+        sample B and is used as input for extracting the models from the major cluster.
+
+    - **list2 (str)**:<br />
+        Path to the txt file for sample B. This file contains the list of models
+        in the major cluster for sample B.
+
+    - **rmf_out (str)**:<br />
+        Path to the output rmf3 file. The output is a single rmf3 file containing
+        the extracted models from the major cluster for both sample A and B.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages. If None, logging is skipped. Defaults to None.
     """
 
     command = [
@@ -622,15 +898,33 @@ def rmf_to_xyzr(
     - value: dictionary of fragments with their XYZR data
       (e.g. {"1-10": [[x, y, z, r], ...], "11": [[x, y, z, r], ...]})
 
-    Args:
-        script_path (str): Path to the `rmf_to_xyzr.py` script
-        rmf_path (str): Path to the input rmf3 file
-        output_path (str): Path to the output hdf5 file
-        frame_subset (str | None, optional): Subset of frames to process
-            (e.g., "0-9,17" for first 10 and 16th frame).
-            Defaults to None (all frames).
-        nproc (int, optional): Number of cores to use. Defaults to 24.
-        logger (logging.Logger | None, optional): Logger for logging messages.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `rmf_to_xyzr.py` script.
+
+    - **rmf_path (str)**:<br />
+        Path to the input rmf3 file containing the bead models.
+
+    - **output_path (str)**:<br />
+        Path to the output hdf5 file. The output is a hdf5 file containing the
+        XYZR data for each molecule organized in a dictionary.
+
+    - **frame_subset (str | None, optional):**:<br />
+        Subset of frames to process (e.g., "0-9,17" for first 10 and 16th frame).
+        If None, all frames are processed.
+
+    - **float_dtype (int, optional):**:<br />
+        Floating point precision to use for the XYZR data in the output hdf5 file (e.g., 32 or 64). Defaults to 64.
+
+    - **nproc (int, optional):**:<br />
+        Number of cores to use for processing.
+
+    - **overwrite (bool, optional):**:<br />
+        Whether to overwrite existing output files.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages.
     """
 
     command = [
@@ -671,17 +965,71 @@ def interaction_map(
 ):
     """ Run the script `interaction_map.py` and get pairwise distance/contact maps
 
-    Args:
-        script_path (str): Path to the `interaction_map.py` script
-        xyzr_file (str): Path to the input hdf5 file containing XYZR data
-        nproc (int): Number of cores to use
-        dist_cutoff (float): dist_cutoff distance for contact map (in Angstroms)
-        frac_cutoff (float): Minimum fraction of frames for a contact
-        interaction_map_dir (str): Directory to save interaction map outputs
-        plotting (str): Type of plotting to perform ('matplotlib', 'plotly')
-        merge_copies (bool): Whether to merge maps across copies for protein
-            pairs
-        logger (logging.Logger | None, optional): Logger for logging messages.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `interaction_map.py` script.
+
+    - **xyzr_file (str)**:<br />
+        Path to the input hdf5 file containing XYZR data. This file is generated
+        from the `rmf_to_xyzr.py` script and contains the coordinates and radii of
+        the beads for each molecule in the system.
+
+    - **interaction_map_dir (str)**:<br />
+        Directory to save the outputs from the interaction map analysis.
+        The outputs include the pairwise distance maps and contact maps for each
+        frame.
+
+    - **nproc (int, optional):**:<br />
+        Number of cores to use for parallel processing. Defaults to 24.
+
+    - **dist_cutoff (float, optional):**:<br />
+        Distance cutoff (in Angstroms) for defining contacts in the contact map.
+        Beads that are within this distance cutoff are considered to be in contact.
+        Defaults to 10.0 Angstroms.
+
+    - **frac_cutoff (float, optional):**:<br />
+        Minimum fraction of frames for a contact to be included in the final contact map.
+        For example, if frac_cutoff is 0.25, then only contacts that are
+        present in at least 25% of the frames will be included in the final contact map.
+        Defaults to 0.25.
+
+    - **plotting (str, optional):**:<br />
+        Type of plotting to perform for visualizing the interaction maps.
+        Options include 'matplotlib' for static plots and 'plotly' for interactive plots.
+        Defaults to 'matplotlib'.
+
+    - **merge_copies (bool, optional):**:<br />
+        Whether to merge maps across copies for protein pairs. If True, the script will
+        merge the distance and contact maps across different copies of the same protein
+        pair to generate a single map for each unique protein pair. Defaults to False.
+
+    - **binarize_cmap (bool, optional):**:<br />
+        Whether to binarize the contact maps based on the distance cutoff. If True, the
+        contact maps will be binarized such that contacts within the distance cutoff are
+        assigned a value of 1 and those outside the cutoff are assigned a value of 0.
+        Defaults to False.
+
+    - **binarize_dmap (bool, optional):**:<br />
+        Whether to binarize the distance maps based on the distance cutoff. If True, the
+        distance maps will be binarized such that distances within the cutoff are assigned a
+        value of 1 and those outside the cutoff are assigned a value of 0. Defaults to False.
+
+    - **float_dtype (int, optional):**:<br />
+        Floating point precision to use for the distance maps in the output files (e.g., 32 or 64).
+        Defaults to 64.
+
+    - **int_dtype (int, optional):**:<br />
+        Integer precision to use for the contact maps in the output files (e.g., 32 or 64).
+        Defaults to 32.
+
+    - **overwrite (bool, optional):**:<br />
+        Whether to overwrite existing output files. If False, the script will
+        skip processing if output files already exist.
+        Defaults to False.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages.
     """
 
     command = [
@@ -721,14 +1069,30 @@ def interaction_metapatches(
     plotting: str = "plotly",
     logger: logging.Logger | None = None,
 ):
-    """ Run the script `interacting_metapatches.py` to identify interacting metapatches from interaction map data
+    """ Run the script `interaction_metapatches.py` to identify coarse-level
+    interacting regions from the interaction map data.
 
-    Args:
-        script_path (str): Path to the `interacting_metapatches.py` script
-        interaction_map_dir (str): Directory containing interaction map data
-        threshold (int): Gap threshold (in number of residues) to merge neighboring patches into metapatches
-        plotting (str): Plotting library to use for visualizations ("matplotlib", "plotly", or "no_plot")
-        logger (logging.Logger | None, optional): Logger for logging messages.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `interaction_metapatches.py` script.
+
+    - **interaction_map_dir (str)**:<br />
+        Directory containing the interaction map data generated from the `interaction_map.py` script.
+        This directory should contain the distance and contact maps for each frame.
+
+    - **threshold (int, optional):**:<br />
+        Gap threshold (in number of residues) for merging neighboring patches into metapatches.
+        If the gap between two patches is less than or equal to this threshold, they will be
+        merged into a single metapatch. Defaults to 40 residues.
+
+    - **plotting (str, optional):**:<br />
+        Plotting library to use for visualizations. Options include "matplotlib" for static plots,
+        "plotly" for interactive plots, or "no_plot" to skip plotting. Defaults
+        to "plotly".
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages.
     """
 
     command = [
@@ -756,14 +1120,38 @@ def fit_to_binding_data(
 ):
     """ Run the script `fit_to_binding_data.py` and fit the models to binding data
 
-    Args:
-        script_path (str): Path to the `fit_to_binding_data.py` script
-        xyzr_file (str): Path to the input hdf5 file containing XYZR data
-        input_config (str): Path to the input config file containing binding data
-        output_dir (str): Directory to save outputs
-        nproc (int): Number of cores to use
-        merge_copies (bool): Whether to merge maps across copies for protein pairs
-        logger (logging.Logger | None, optional): Logger for logging messages.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `fit_to_binding_data.py` script.
+
+    - **xyzr_file (str)**:<br />
+        Path to the input hdf5 file containing XYZR data. This file is generated
+        from the `rmf_to_xyzr.py` script and contains the coordinates and radii
+        of the beads for each molecule in the system.
+
+    - **input_config (str)**:<br />
+        Path to the input configuration file containing the binding data and
+        parameters for fitting the models to the binding data. This file should
+        specify the binding data to be used for fitting, as well as any parameters
+        needed for the fitting process.
+
+    - **output_dir (str)**:<br />
+        Directory to save the outputs from the fitting process. The outputs may
+        include the fitted models, fit scores, and any visualizations generated from
+        the fitting process.
+
+    - **nproc (int, optional):**:<br />
+        Number of processors to use for the fitting process.
+
+    - **merge_copies (bool, optional):**:<br />
+        Whether to merge maps across copies for protein pairs.
+
+    - **float_dtype (int, optional):**:<br />
+        Float dtype for calculations (e.g., 32 or 64)
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages.
     """
 
     command = [
@@ -787,24 +1175,47 @@ def fit_to_binding_data(
 def fit_to_immunoem_data(
     script_path: str,
     xyzr_file: str,
-    input_config: str, 
+    input_config: str,
     output_dir: str,
     nproc: int = 24,
     merge_copies: bool = True,
     float_dtype: int = 64,
     logger: logging.Logger | None = None,
 ):
-    """ Run the script `fit_to_immunoem_data.py` and fit the models to immuno-EM data
+    """ Run the script `fit_to_immunoem_data.py` and fit the models to immuno-EM data.
 
-    Args:
-        script_path (str): Path to the `fit_to_immunoem_data.py` script
-        xyzr_file (str): Path to the input hdf5 file containing XYZR data
-        input_config (str): Path to the input config file containing immuno-EM data
-        output_dir (str): Directory to save outputs
-        nproc (int): Number of cores to use
-        merge_copies (bool): Whether to merge maps across copies for protein
-        float_dtype (int): Float dtype for calculations (e.g., 32 or 64)
-        logger (logging.Logger | None, optional): Logger for logging messages.
+    ## Arguments:
+
+    - **script_path (str)**:<br />
+        Path to the `fit_to_immunoem_data.py` script.
+
+    - **xyzr_file (str)**:<br />
+        Path to the input hdf5 file containing XYZR data. This file is generated
+        from the `rmf_to_xyzr.py` script and contains the coordinates and radii
+        of the beads for each molecule in the system.
+
+    - **input_config (str)**:<br />
+        Path to the input configuration file containing the immuno-EM data and
+        parameters for fitting the models to the immuno-EM data. This file should
+        specify the immuno-EM data to be used for fitting, as well as any parameters
+        needed for the fitting process.
+
+    - **output_dir (str)**:<br />
+        Directory to save the outputs from the fitting process. The outputs may
+        include the fitted models, fit scores, and any visualizations generated from
+        the fitting process.
+
+    - **nproc (int, optional):**:<br />
+        Number of processors to use for the fitting process.
+
+    - **merge_copies (bool, optional):**:<br />
+        Whether to merge maps across copies for protein pairs.
+
+    - **float_dtype (int, optional):**:<br />
+        Float dtype for calculations (e.g., 32 or 64)
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages.
     """
 
     command = [
@@ -1113,12 +1524,12 @@ if __name__ == "__main__":
         )
         assert os.path.exists(sampcon_cluster_path), (
             f"""Sampcon cluster path {sampcon_cluster_path} does not exist.
-            Please check if exhaust has been run successfully and 
+            Please check if exhaust has been run successfully and
             cluster.{sampcon_cluster_idx} directory exists. """
         )
 
-        correlate_cluster_sample_LPDs(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/correlate_cluster_sample_LPDs.py",
+        correlate_cluster_sample_densities(
+            script_path=f"{IMP_TOOLOBX_PATH}/analysis/correlate_cluster_sample_densities.py",
             sampcon_cluster_path=sampcon_cluster_path,
             mode="pasani",
             use_combined_map=True,
@@ -1357,7 +1768,7 @@ if __name__ == "__main__":
         )
         assert os.path.exists(input_config), (
             f"""Input config file {input_config} does not exist.
-            Please check if the file exists at the specified path. 
+            Please check if the file exists at the specified path.
             """
         )
         fit_to_binding_data(
@@ -1391,7 +1802,7 @@ if __name__ == "__main__":
         )
         assert os.path.exists(input_config), (
             f"""Input config file {input_config} does not exist.
-            Please check if the file exists at the specified path. 
+            Please check if the file exists at the specified path.
             """
         )
         fit_to_immunoem_data(

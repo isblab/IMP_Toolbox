@@ -91,8 +91,57 @@ def get_pairwise_distances(
 
     return flat_distances
 
-def extract_binding_mol_pairs(input, unique_mols):
+def extract_binding_mol_pairs(input: str, unique_mols: list) -> list:
+    """ Parse binding data info from input JSON file.
 
+    ## Arguments:
+
+    - **input (str)**:<br />
+        Path to the input JSON file specifying binding data. The JSON file should
+        contain a list of data points, where each data point is a dictionary with the
+        following keys:
+        - "molecule1": Name of the first molecule (string).
+        - "molecule2": Name of the second molecule (string).
+        - "residue_range1": Residue range for the first molecule (list of two
+            integers, e.g., [start_residue, end_residue]).
+        - "residue_range2": Residue range for the second molecule (list of two
+            integers, e.g., [start_residue, end_residue]).
+
+        Example JSON structure:
+        ```
+        [{
+            "molecule1": "ProteinA",
+            "molecule2": "ProteinB",
+            "residue_range1": [10, 50],
+            "residue_range2": [20, 60]
+        }, {
+            "molecule1": "ProteinC",
+            "molecule2": "ProteinD",
+            "residue_range1": [5, 30],
+            "residue_range2": [15, 45]
+        }]
+        ```
+
+    - **unique_mols (list)**:<br />
+        List of unique molecule names.
+
+    ## Returns:
+
+    - **list**:<br />
+        List of tuples, where each tuple contains two strings representing the
+        names of the molecules in a binding pair. The molecule names in the
+        tuples will include copy indices and residue range information, formatted as follows:
+        - "MoleculeName_CopyIndex_ResidueRangeStart-ResidueRangeEnd"
+        For example:
+        ```
+        [
+            ("ProteinA_copy1_10-50", "ProteinB_copy1_20-60"),
+            ("ProteinA_copy2_10-50", "ProteinB_copy2_20-60"),
+            ("ProteinC_copy1_5-30", "ProteinD_copy1_15-45"),
+            ("ProteinC_copy2_5-30", "ProteinD_copy2_15-45")
+        ]
+        ```
+    """
     binding_data = read_json(input)
 
     mol_pairs = list(combinations(sorted(unique_mols), 2))
@@ -126,14 +175,61 @@ def extract_binding_mol_pairs(input, unique_mols):
     return mol_pairs
 
 def fetch_pairwise_distance_maps(
-    xyzr_mat,
-    xyzr_keys,
-    mol_pairs,
-    output_dir,
-    nproc,
-    f_dtype,
-    overwrite=False,
-):
+    xyzr_mat: np.ndarray,
+    xyzr_keys: list,
+    mol_pairs: list,
+    output_dir: str,
+    nproc: int,
+    f_dtype: np.dtype,
+    overwrite: bool=False,
+) -> dict:
+    """ Fetch pairwise distance maps from XYZR data.
+
+    ## Arguments:
+
+    - **xyzr_mat (np.ndarray)**:<br />
+        Array of shape (num_beads, num_frames, 4) containing XYZR data for all
+        beads across all frames.
+
+    - **xyzr_keys (list)**:<br />
+        List of strings representing the keys for each bead in the XYZR data.
+        Each key should be formatted as "MoleculeName_CopyIndex_ResidueRangeStart-ResidueRangeEnd".
+
+    - **mol_pairs (list)**:<br />
+        List of tuples, where each tuple contains two strings representing the
+        names of the molecules in a binding pair, including copy indices and residue range information.
+            For example:
+        ```
+        [
+            ("ProteinA_copy1_10-50", "ProteinB_copy1_20-60"),
+            ("ProteinA_copy2_10-50", "ProteinB_copy2_20-60"),
+            ("ProteinC_copy1_5-30", "ProteinD_copy1_15-45"),
+            ("ProteinC_copy2_5-30", "ProteinD_copy2_15-45")
+        ]
+        ```
+
+    - **output_dir (str)**:<br />
+        Directory to save output distance map files. Each pairwise distance map will
+        be saved as a text file named "Molecule1_Molecule2_dmap.txt" in this directory.
+
+    - **nproc (int)**:<br />
+        Number of processes to use for parallel distance map calculations.
+
+    - **f_dtype (np.dtype)**:<br />
+        Float dtype for distance calculations.
+
+    - **overwrite (bool, optional):**:<br />
+        Whether to overwrite existing distance map files. If False and a distance
+        map file already exists for a given pair, the function will load the
+        distance map from the file instead of recalculating it. Defaults to False.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary where keys are pair names formatted as "Molecule1_Molecule2" and
+        values are arrays of shape (num_frames,) containing the minimum distance
+        across all bead pairs for each frame.
+    """
 
     pairwise_dmaps = {}
 
@@ -220,7 +316,34 @@ def fetch_pairwise_distance_maps(
 
     return pairwise_dmaps
 
-def merge_distance_maps_by_copies(f_dtype, pairwise_dmaps, keep_which="min"):
+def merge_distance_maps_by_copies(
+    f_dtype: np.dtype,
+    pairwise_dmaps: dict,
+    keep_which: str = "min",
+) -> dict:
+    """ Merge distance maps across pairs of same protein copies.
+
+    ## Arguments:
+
+    - **f_dtype (np.dtype)**:<br />
+        Float dtype for distance calculations.
+
+    - **pairwise_dmaps (dict)**:<br />
+        Dictionary where keys are pair names formatted as "Molecule1_Molecule2" and
+        values are arrays of shape (num_frames,) containing the minimum distance
+        across all bead pairs for each frame.
+
+    - **keep_which (str, optional):**:<br />
+        Method to merge distance maps across copies. Options are "min", "max", or "mean".
+        Defaults to "min", which is appropriate for MPDBR implementation where we consider
+        a pair to be in contact if the minimum distance across copies is less than the threshold.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary where keys are pair names formatted as "Molecule1_Molecule2" (without copy indices)
+        and values are arrays of shape (num_frames,) containing the merged distance maps across copies.
+    """
 
     m_pairwise_dmaps = {}
 
@@ -260,7 +383,23 @@ def merge_distance_maps_by_copies(f_dtype, pairwise_dmaps, keep_which="min"):
 
     return pairwise_dmaps
 
-def plot_pairwise_distances(output_dir, pairwise_dmaps):
+def plot_pairwise_distances(
+    output_dir: str,
+    pairwise_dmaps: dict
+):
+    """ Plot pairwise distance maps.
+
+    ## Arguments:
+
+    - **output_dir (str)**:<br />
+        Directory to save output plots.
+
+    - **pairwise_dmaps (dict)**:<br />
+        Dictionary where keys are pair names formatted as "Molecule1_Molecule2" and
+        values are arrays of shape (num_frames,) containing the minimum distance
+        across all bead pairs for each frame.
+    """
+
     all_data = list(pairwise_dmaps.values())
 
     print("Pairwise distance data calculated for all pairs. Now plotting...\n")

@@ -3,13 +3,17 @@ import requests.adapters
 import json
 
 def request_session(max_retries: int=3) -> requests.sessions.Session:
-    """Create a request session with set max retries
+    """ Create a request session with set max retries
 
-    Args:
-        max_retries (int, optional): Defaults to 3.
+    ## Arguments:
 
-    Returns:
-        req_sess (requests.sessions.Session): request session
+    - **max_retries (int, optional):**:<br />
+        Number of times to retry a request in case of failure. Defaults to 3.
+
+    ## Returns:
+
+    - **requests.sessions.Session**:<br />
+        A request session with the specified max retries.
     """
 
     req_sess = requests.Session()
@@ -25,13 +29,23 @@ def request_result(
     identifier: str | None=None,
     ignore_error: bool=False
 ) -> dict | bytes | None:
-    """Get the result of a `get_request`
+    """ Get the result of a `get_request` and return it as a dict, bytes or None if an error occurred.
 
-    Args:
-        get_request (requests.models.Response): `get_request`
-        identifier (str): valid entrypoint id
-        ignore_error (bool, optional): Defaults to False.
+    ## Arguments:
 
+    - **get_request (requests.models.Response)**:<br />
+        The response object returned by a requests.get() call.
+
+    - **identifier (str | None, optional):**:<br />
+        The identifier of the request, used for error reporting.
+
+    - **ignore_error (bool, optional):**:<br />
+        Whether to ignore errors and not print error messages. Defaults to False.
+
+    ## Returns:
+
+    - **dict | bytes | None**:<br />
+        The result of the request as a dict if successful, bytes if not JSON, or None if an error occurred.
     """
 
     if get_request.status_code == 200:

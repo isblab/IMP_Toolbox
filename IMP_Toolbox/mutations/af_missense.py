@@ -4,6 +4,7 @@ import yaml
 import warnings
 import argparse
 import pandas as pd
+from collections.abc import Generator
 from io import StringIO
 from pprint import pprint
 from IMP_Toolbox.utils.file_helpers import read_fasta
@@ -37,17 +38,35 @@ def get_af_missense_data_online(
     return_type: str = "csv",
     ignore_error: bool = False,
     max_retries: int = 3,
-):
+) -> Any:
     """ Fetch alpha missense variants for a given Uniprot ID from the
     AlphaMissense database.
 
-    Args:
-        uniprot_id (str): Valid Uniprot ID to fetch variants for.
-        ignore_error (bool, optional): Defaults to False.
-        max_retries (int, optional): Defaults to 3.
+    ## Arguments:
 
-    Returns:
-        list: List of alpha missense variants for the given Uniprot ID if found
+    - **uniprot_id (str)**:<br />
+        Valid Uniprot ID to fetch variants for.
+
+    - **api_url (str)**:<br />
+        URL of the AlphaMissense API endpoint.
+
+    - **api_parameters (dict, optional):**:<br />
+        Parameters to be passed to the AlphaMissense API.
+
+    - **return_type (str, optional):**:<br />
+        Format to return the data in. Supported values are "json" and "csv".
+        Defaults to "csv".
+
+    - **ignore_error (bool, optional):**:<br />
+        Whether to ignore errors and return None if the API call fails.
+
+    - **max_retries (int, optional):**:<br />
+        Maximum number of retries for failed API calls.
+
+    ## Returns:
+
+    - **Any**:<br />
+        The fetched AlphaMissense data in the requested format.
     """
 
     for key, value in api_parameters.items():
@@ -80,7 +99,23 @@ def get_af_missense_data_online(
 def get_af_missense_data_offline(
     uniprot_ids: list,
     tsv_path: str,
-):
+) -> dict:
+    """ Obtaine AF-missense data from the downloaded tsv file.
+
+    ## Arguments:
+
+    - **uniprot_ids (list)**:<br />
+        List of UniProt IDs to fetch AF-missense data for.
+
+    - **tsv_path (str)**:<br />
+        Path to the downloaded AlphaMissense aa substitutions TSV file.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary of dataframes containing AF-missense data for each UniProt ID.
+    """
+
     try:
         import duckdb
     except ImportError:
@@ -120,29 +155,30 @@ def fetch_af_missense_data(
 ):
     """ Fetch AlphaMissense data for a list of UniProt IDs.
 
-    Args:
+    ## Arguments:
 
-        alpha_missense_dir (str):
-            Directory to save AlphaMissense CSV files.
+    - **alpha_missense_dir (str)**:<br />
+        Directory to save AlphaMissense CSV files.
 
-        uniprot_bases (list):
-            List of UniProt base IDs (without isoform suffix).
+    - **uniprot_bases (list)**:<br />
+        List of UniProt base IDs (without isoform suffix).
 
-        mode (str, optional):
-            Mode to fetch data: 'online' or 'offline'.
+    - **mode (str, optional)**:<br />
+        Mode to fetch data: 'online' or 'offline'.
 
-        overwrite (bool, optional):
-            Whether to overwrite existing files. Defaults to False.
+    - **overwrite (bool, optional)**:<br />
+        Whether to overwrite existing files. Defaults to False.
 
-    Kwargs:
+    ## Kwargs:
 
-        af_missense_tsv (str, optional):
-            Path to AlphaMissense aa substitutions TSV file for offline mode.
+    - **af_missense_tsv (str, optional)**:<br />
+        Path to AlphaMissense aa substitutions TSV file for offline mode.
 
-    Yields:
-        tuple:
-            pd.DataFrame: AlphaMissense dataframe for the UniProt ID.
-            str: UniProt base ID.
+    ## Yields:
+
+    - **tuple**:<br />
+        - pd.DataFrame: AlphaMissense dataframe for the UniProt ID.
+        - str: UniProt base ID.
     """
 
     os.makedirs(alpha_missense_dir, exist_ok=True)
@@ -223,20 +259,21 @@ def get_remainder_uniprot_bases(
 ):
     """ Get the list of UniProt bases for which AlphaMissense data
 
-    Args:
+    ## Arguments:
 
-        alpha_missense_dir (str):
-            Directory to save AlphaMissense CSV files.
+    - **alpha_missense_dir (str)**:<br />
+        Directory to save AlphaMissense CSV files.
 
-        uniprot_bases (list):
-            List of UniProt base IDs (without isoform suffix).
+    - **uniprot_bases (list)**:<br />
+        List of UniProt base IDs (without isoform suffix).
 
-        overwrite (bool, optional):
-            Whether to overwrite existing files. Defaults to False.
+    - **overwrite (bool, optional)**:<br />
+        Whether to overwrite existing files. Defaults to False.
 
-    Returns:
-        list:
-            List of UniProt bases for which AlphaMissense data needs to be fetched.
+    ## Returns:
+
+    - **list**:<br />
+        List of UniProt bases for which AlphaMissense data needs to be fetched.
     """
 
     remainder_bases = []
@@ -265,24 +302,25 @@ def get_af_missense_attribute(
     """ Get a specific attribute for a given protein mutation from
     the AlphaMissense variants dictionary.
 
-    Args:
+    ## Arguments:
 
-        af_missense_dict (dict):
-            AlphaMissense variants dictionary
+    - **af_missense_dict (dict)**:<br />
+        AlphaMissense variants dictionary
 
-        attribute (str):
-            Attribute to retrieve (e.g., "patho_score", "v_pathogenicity")
+    - **attribute (str)**:<br />
+        Attribute to retrieve (e.g., "patho_score", "v_pathogenicity")
 
-        p_name (str):
-            Protein name
+    - **p_name (str)**:<br />
+        Protein name
 
-        p_mutation (str):
-            Protein mutation in the format "Arg123Cys"
+    - **p_mutation (str)**:<br />
+        Protein mutation in the format "Arg123Cys"
 
-    Returns:
-        Any:
-            Value of the requested attribute for the given protein mutation,
-            or None if not found.
+    ## Returns:
+
+    - **Any**:<br />
+        Value of the requested attribute for the given protein mutation,
+        or None if not found.
     """
 
     if p_name not in af_missense_dict:
@@ -324,27 +362,37 @@ def af_missense_df_to_dict(
     Additionally, if pairwise alignment map is provided, the residue
     numbers are mapped to the modeled (query) sequence residue numbers.
 
-    Args:
-        p_name (str): Protein name
-        af_missense_df (pd.DataFrame): AlphaMissense dataframe
-        af_missense_dict (dict, optional): AlphaMissense variants dictionary
-        afm_psa_map (dict): Residue mapping of query and subject sequences from
-            pairwise alignment
+    ## Arguments:
 
-    Returns:
-        dict: Updated dictionary of AlphaMissense variants
+    - **p_name (str)**:<br />
+        Protein name
 
-    Example:
-        >>> df = pd.DataFrame(
-        ... [{"protein_variant": "M1A", "am_pathogenicity": 0.5, "am_class": "LPath"}]
-        ... )
-        >>> af_missense_dict = af_missense_df_to_dict("PKP2", df)
-        >>> pprint(af_missense_dict)
-        {'PKP2': {'Met1Ala': {'mut_aa': 'Ala',
-                              'patho_score': np.float64(0.5),
-                              'res_num': 1,
-                              'v_pathogenicity': 'Likely pathogenic',
-                              'wt_aa': 'Met'}}}
+    - **af_missense_df (pd.DataFrame)**:<br />
+        AlphaMissense dataframe
+
+    - **af_missense_dict (dict, optional)**:<br />
+        AlphaMissense variants dictionary
+
+    - **afm_psa_map (dict)**:<br />
+        Residue mapping of query and subject sequences from pairwise alignment
+
+    ## Returns:
+
+    - **dict**:<br />
+        Updated dictionary of AlphaMissense variants with data from the given dataframe.
+
+    ## Examples:
+
+    >>> df = pd.DataFrame(
+    ... [{"protein_variant": "M1A", "am_pathogenicity": 0.5, "am_class": "LPath"}]
+    ... )
+    >>> af_missense_dict = af_missense_df_to_dict("PKP2", df)
+    >>> pprint(af_missense_dict)
+    {'PKP2': {'Met1Ala': {'mut_aa': 'Ala',
+                            'patho_score': np.float64(0.5),
+                            'res_num': 1,
+                            'v_pathogenicity': 'Likely pathogenic',
+                            'wt_aa': 'Met'}}}
     """
 
     if p_name not in af_missense_dict:
@@ -403,14 +451,15 @@ def af_missense_df_to_dict(
 def get_fasta_dict_for_af_missense(protein_uniprot_map: dict):
     """ Fetch FASTA sequences for AlphaMissense reference sequences.
 
-    Args:
+    ## Arguments:
 
-        protein_uniprot_map (dict):
-            Mapping of protein names to UniProt IDs.
+    - **protein_uniprot_map (dict)**:<br />
+        Mapping of protein names to UniProt IDs.
 
-    Returns:
-        dict:
-            Dictionary of FASTA sequences for AlphaMissense reference sequences.
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary of FASTA sequences for AlphaMissense reference sequences.
     """
 
     # For AF-missense, the reference sequence is the Uniprot sequence
@@ -428,7 +477,26 @@ def fetch_fasta_dict_for_af_missense(
     savepath: str,
     protein_uniprot_map: dict,
     overwrite: bool = False,
-):
+) -> dict:
+    """ Fetch protein sequence dictionary for AF-missense.
+
+    ## Arguments:
+
+    - **savepath (str)**:<br />
+        Path to save the FASTA file containing AF-missense reference sequences.
+
+    - **protein_uniprot_map (dict)**:<br />
+        Mapping of protein names to UniProt IDs.
+
+    - **overwrite (bool, optional):**:<br />
+        Whether to overwrite existing FASTA file. Defaults to False.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary of FASTA sequences for AF-missense reference sequences.
+    """
+
     if os.path.exists(savepath) and not overwrite:
         print(f"FASTA file {savepath} already exists. Loading...")
         fasta_dict = read_fasta(savepath)
@@ -446,22 +514,22 @@ def fetch_fasta_dict_for_af_missense(
 
 def export_af_missense_data(
     alpha_missense_dir: str,
-    af_missense_df_gen: iter,
+    af_missense_df_gen: Generator[tuple[pd.DataFrame, str]],
     overwrite: bool = False,
 ):
     """ Export AlphaMissense dataframes to CSV files.
 
-    Args:
+    ## Arguments:
 
-        alpha_missense_dir (str):
-            Directory to save AlphaMissense CSV files.
+    - **alpha_missense_dir (str)**:<br />
+        Directory to save AlphaMissense CSV files.
 
-        af_missense_df_gen (iter):
-            Generator yielding tuples of AlphaMissense dataframe and
-            UniProt base ID.
+    - **af_missense_df_gen (Generator)**:<br />
+        Generator yielding tuples of AlphaMissense dataframe and
+        UniProt base ID.
 
-        overwrite (bool, optional):
-            Whether to overwrite existing files. Defaults to False.
+    - **overwrite (bool, optional)**:<br />
+        Whether to overwrite existing files. Defaults to False.
     """
 
     for af_missense_df, uniprot_base in af_missense_df_gen:

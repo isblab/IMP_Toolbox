@@ -28,14 +28,20 @@ _user = getpass.getuser()
 
 def get_bead_name(p: IMP.Particle) -> str:
     """ Get bead name in the format:
-    `molName_copyIndex_resStart-resEnd` or `molName_copyIndex_resNum`
+    `molName_copyIndex_resStart-resEnd` or `molName_copyIndex_resNum`<br />
     e.g. "ProteinA_0_1-10" or "ProteinA_0_11"
 
-    Args:
-        p (IMP.Particle): Particle object.
+    ## Arguments:
 
-    Returns:
-        str: Bead name.
+    - **p (IMP.Particle)**:<br />
+        Particle object for which to get the bead name.
+
+    ## Returns:
+
+    - **str**:<br />
+        Bead name in the format:
+        `molName_copyIndex_resStart-resEnd` or `molName_copyIndex_resNum`<br />
+        e.g. "ProteinA_0_1-10" or "ProteinA_0_11"
     """
 
     mol_name = IMP.atom.get_molecule_name(IMP.atom.Hierarchy(p))
@@ -123,14 +129,17 @@ def batch_worker(
     - value: dictionary of fragments with their XYZR data
       (e.g. {"1-10": [[x, y, z, r], ...], "11": [[x, y, z, r], ...]})
 
-    Args:
-        frame_batch (np.ndarray):
-            Array of frame indices to process.
-        rmf_path (str):
-            Path to the RMF file.
+    ## Arguments:
 
-    Returns:
-        Dict[str, Dict[str, list]]:
+    - **frame_batch (np.ndarray)**:<br />
+        Array of frame indices to process in this batch.
+
+    - **rmf_path (str)**:<br />
+        Path to the RMF file.
+
+    ## Returns:
+
+    - **dict**:<br />
         Dictionary of moleculewise XYZR data for the processed frames.
         key: molecule name with copy index (e.g. "mol1_0_1-10" or "mol1_0_11")
         value: list of [x, y, z, r] for each bead in the molecule across all processed frames.

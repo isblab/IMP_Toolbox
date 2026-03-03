@@ -46,25 +46,44 @@ def get_best_gmm(
     metric: str = GMMParams.correlation_metric,
     chimerax_run_cmd: str = CHIMERAX_RUN_CMD,
     threshold: float = GMMParams.threshold,
-):
+) -> str:
     """ For a given reference map and candidate model maps corresponding to
     different GMMs, get the candidate model that best fits the reference map
     (correlation >= 0.95) while having the least number of Gaussians.
 
-    Args:
-        data_file (str): Description of the layer pattern to match GMM files.
-        centers_list (list): List of centers for the GMMs.
-        gmm_dir (str): Directory containing GMM files.
-        log_dir (str): Directory to save the ChimeraX log file.
-        data_sd_level (float): Standard deviation level for the data volume.
-        sd_level (float): Standard deviation level for the GMM volumes.
-        metric (str): Metric to use for fitting. Default is "cam".
-        chimerax_run_cmd (str): Command to run ChimeraX. Default is for the
-            flatpak installation. Change this to the appropriate command to run
-            ChimeraX on your system.
+    ## Arguments:
 
-    Returns:
-        commands_run (list): Updated list of commands run in ChimeraX.
+    - **data_file (str)**:<br />
+        Path to the reference map file.
+
+    - **centers_list (list)**:<br />
+        List of centers for the GMMs.
+
+    - **gmm_dir (str)**:<br />
+        Directory containing GMM files.
+
+    - **log_dir (str)**:<br />
+        Directory to save the ChimeraX log file.
+
+    - **data_sd_level (float)**:<br />
+        Standard deviation level for the data volume.
+
+    - **sd_level (float)**:<br />
+        Standard deviation level for the GMM volumes.
+
+    - **metric (str, optional):**:<br />
+        Metric to use for fitting. Defaults to "cam".
+
+    - **chimerax_run_cmd (str, optional):**:<br />
+        Command to run ChimeraX. Defaults to the command for the flatpak
+
+    - **threshold (float, optional):**:<br />
+        Correlation threshold for selecting the best GMM. Defaults to 0.95.
+
+    ## Returns:
+
+    - **str**:<br />
+        Base name of the best GMM file without the extension.
     """
 
     commands_run = [
@@ -132,7 +151,7 @@ def compare_gmms(
     chimerax_log: str,
     metric: str = GMMParams.correlation_metric,
     threshold: float = GMMParams.threshold,
-):
+) -> tuple[str, list]:
     """ Get the best GMM based on the correlation metrics from the
     ChimeraX log file.
 
@@ -196,6 +215,22 @@ def compare_gmms(
 
     return best_gmm, correlation_list
 
-def highlight_greater_than(val, threshold=GMMParams.threshold):
+def highlight_greater_than(val: float, threshold: float=GMMParams.threshold) -> str:
+    """ Highlight values if greater than threshold.
+
+    ## Arguments:
+
+    - **val (float)**:<br />
+        Value to compare against the threshold.
+
+    - **threshold (float, optional):**:<br />
+        Threshold to compare the value against. Defaults to 0.95.
+
+    ## Returns:
+
+    - **str**:<br />
+        CSS style string for highlighting the value if it is greater than the threshold.
+    """
+
     color = 'yellow' if float(val) > threshold else ''
     return f'background-color: {color}'

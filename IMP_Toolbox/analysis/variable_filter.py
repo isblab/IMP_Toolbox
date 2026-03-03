@@ -29,7 +29,6 @@ from scipy.stats import ks_2samp
 from matplotlib import pyplot as plt
 
 _user = getpass.getuser()
-start_t = time.time()
 
 def variable_filter(
     std_multiplier: float,
@@ -37,23 +36,38 @@ def variable_filter(
     score_list: list,
     df_mean: pd.Series,
     df_std: pd.Series,
-):
+) -> pd.DataFrame:
     """ Apply a variable filter based on standard deviation multipliers.
 
     Take the individual dataframes and compare them with the
     mean-multiplier * stdev of common dataframe and output the dataframe of the
     models that satisfy the filter
 
-    Args:
-        std_multiplier (float): Multiplier for standard deviation.
-        df (pd.DataFrame): DataFrame to filter.
-        score_list (list): List of score columns to consider.
-        df_mean (pd.Series): Mean values for each score column in combined df.
-        df_std (pd.Series): Standard deviation values for each score column in
-            combined df.
+    ## Arguments:
 
-    Returns:
-        pd.DataFrame: Filtered DataFrame.
+    - **std_multiplier (float)**:<br />
+        Multiplier for standard deviation to determine the cutoff for filtering.
+
+    - **df (pd.DataFrame)**:<br />
+        DataFrame containing the models and their scores to be filtered.
+
+    - **score_list (list)**:<br />
+        List of score columns to consider for filtering. Each column will be
+        compared against its corresponding mean and standard deviation from the
+        combined DataFrame.
+
+    - **df_mean (pd.Series)**:<br />
+        Mean values for each score column in the combined DataFrame. This will
+        be used to calculate the cutoff for filtering based on the standard
+        deviation multiplier.
+
+    - **df_std (pd.Series)**:<br />
+        Standard deviation values for each score column in the combined DataFrame.
+
+    ## Returns:
+
+    - **pd.DataFrame**:<br />
+        Filtered DataFrame containing only the models that satisfy the filtering criteria.
     """
 
     temp = None
@@ -71,7 +85,7 @@ def variable_filter(
 
 
 if __name__ == '__main__':
-
+    start_t = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-c",

@@ -24,16 +24,31 @@ def get_uniprot_variants(
     api_parameters: dict = {},
     ignore_error: bool = False,
     max_retries: int = 3,
-):
-    """ Fetch variants for a given Uniprot ID from the UniProt database.
+) -> dict | None:
+    """ Fetch variants for a given UniProt ID from the UniProt database.
 
-    Args:
-        uniprot_id (str): Valid Uniprot ID to fetch variants for.
-        ignore_error (bool, optional): Defaults to False.
-        max_retries (int, optional): Defaults to 3.
+    ## Arguments:
 
-    Returns:
-        list: List of variants for the given Uniprot ID if found
+    - **uniprot_id (str)**:<br />
+        The UniProt ID to fetch variants for.
+
+    - **api_url (str)**:<br />
+        #TODO: shouldn't be passed as an argument
+        The API URL to fetch variants from.
+
+    - **api_parameters (dict, optional):**:<br />
+        A dictionary of parameters to replace in the API URL.
+
+    - **ignore_error (bool, optional):**:<br />
+        Whether to ignore errors and return None instead of raising an exception.
+
+    - **max_retries (int, optional):**:<br />
+        The maximum number of retries for the API request in case of failure.
+
+    ## Returns:
+
+    - **dict | None**:<br />
+        The response from the API request, or None if ignore_error is True and an error occurs.
     """
 
     for key, value in api_parameters.items():
@@ -51,16 +66,32 @@ def fetch_nuccore_ref_seq_from_id(
     ignore_error: bool = False,
     max_retries: int = 3,
 ) -> str:
-    """ Fetch the nucleotide sequence for a given RefSeq ID from the NCBI
-    nuccore database.
+    """ Fetch the nucleotide sequence for a given RefSeq ID from the NCBI nuccore
+    database.
 
-    Args:
-        ref_seq_id (str):
-            The RefSeq ID to fetch the nucleotide sequence for.
+    ## Arguments:
 
-    Returns:
-        str:
-            The nucleotide sequence for the given RefSeq ID.
+    - **ref_seq_id (str)**:<br />
+        The RefSeq ID to fetch the nucleotide sequence for.
+
+    - **api_url (str)**:<br />
+        #TODO: shouldn't be passed as an argument
+        The API URL to fetch the nucleotide sequence from.
+
+    - **api_parameters (dict, optional):**:<br />
+        A dictionary of parameters to replace in the API URL.
+
+    - **ignore_error (bool, optional):**:<br />
+        Whether to ignore errors and return None instead of raising an exception.
+
+    - **max_retries (int, optional):**:<br />
+        The maximum number of retries for the API request in case of failure.
+
+    ## Returns:
+
+    - **str**:<br />
+        The nucleotide sequence for the given RefSeq ID, or None if
+        `ignore_error` is True and an error occurs.
     """
 
     req_sess = request_session(max_retries=max_retries)
@@ -84,14 +115,6 @@ def fetch_nuccore_ref_seq_from_id(
 
     return {ref_seq_id: p_sequence}
 
-def get_lovd_variants_for_gene(
-    gene_name: str,
-    api_url: str,
-    api_parameters: dict = {},
-    ignore_error: bool = False,
-    max_retries: int = 3,
-    format="json"
-):
     """ Fetch variants for a given gene name from the LOVD.
 
     Args:
@@ -105,6 +128,42 @@ def get_lovd_variants_for_gene(
     Returns:
         list:
             List of variants for the given gene name if found.
+    """
+def get_lovd_variants_for_gene(
+    gene_name: str,
+    api_url: str,
+    api_parameters: dict = {},
+    ignore_error: bool = False,
+    max_retries: int = 3,
+    format="json"
+) -> list | str | None:
+    """ Fetch variants for a given gene name from LOVD.
+
+    ## Arguments:
+
+    - **gene_name (str)**:<br />
+        Valid gene name to fetch variants for.
+
+    - **api_url (str)**:<br />
+        The API URL to fetch variants from.
+
+    - **api_parameters (dict, optional):**:<br />
+        A dictionary of parameters to replace in the API URL.
+
+    - **ignore_error (bool, optional):**:<br />
+        Whether to ignore errors and return None instead of raising an exception.
+
+    - **max_retries (int, optional):**:<br />
+        The maximum number of retries for the API request in case of failure.
+
+    - **format (str, optional):**:<br />
+        The format to return the variants in. Can be "json" or "txt". Defaults to "json".
+
+    ## Returns:
+
+    - **list | str | None**:<br />
+        List of variants for the given gene name if found, or a string if `format`
+        is "txt", or None if `ignore_error` is True and an error occurs.
     """
 
     for key, value in api_parameters.items():
@@ -138,13 +197,20 @@ def is_missense_mutation(
     p_mutation: str | None,
     allow_truncation: bool = False,
 ) -> bool:
-    """ Check if a given protein mutation string represents a missense mutation.
+    """ Check if a protein mutation string represents a missense mutation
 
-    Args:
-        p_mutation (str): Protein mutation string in the format "p.(Ala123Val)".
+    ## Arguments:
 
-    Returns:
-        bool: True if the mutation is a missense mutation, False otherwise.
+    - **p_mutation (str | None)**:<br />
+        Protein mutation string in the format "p.(Ala123Val)".
+
+    - **allow_truncation (bool, optional):**:<br />
+        Whether to allow truncation mutations (e.g. p.Arg150Ter) to be considered
+
+    ## Returns:
+
+    - **bool**:<br />
+        True if the mutation is a missense mutation, False otherwise.
     """
 
     if p_mutation is None:
@@ -193,31 +259,31 @@ def split_missense_mutation(
     this function extracts the wild-type amino acid, residue number,
     and mutant amino acid.
 
-    Args:
+    ## Arguments:
 
-        p_mutation (str):
-            mutation string (e.g. Arg150Trp)
+    - **p_mutation (str)**:<br />
+        Mutation string (e.g. Arg150Trp).
 
-        return_type (str, optional):
-            Type of information to return:
-            - "all": return (wt_aa, res_num, mut_aa)
-            - "wt_aa": return wild-type amino acid
-            - "res_num": return residue number
-            - "mut_aa": return mutant amino acid
-            Defaults to "all".
+    - **return_type (str, optional):**:<br />
+        Type of information to return:
+        - "all": return (wt_aa, res_num, mut_aa)
+        - "wt_aa": return wild-type amino acid
+        - "res_num": return residue number
+        - "mut_aa": return mutant amino acid
+        Defaults to "all".
 
-        ignore_warnings (bool, optional):
-            Whether to ignore warnings.
+    - **ignore_warnings (bool, optional):**:<br />
+        Whether to ignore warnings.
 
-    Returns:
+    ## Returns:
 
-        tuple | str | int | None:
-            Depending on `return_type`, returns:
-            - (wt_aa, res_num, mut_aa) if `return_type` is "all"
-            - wild-type amino acid if `return_type` is "wt_aa"
-            - residue number (int) if `return_type` is "res_num"
-            - mutant amino acid if `return_type` is "mut_aa"
-            - None if the mutation string could not be parsed
+    - **tuple | str | int | None**:<br />
+        Depending on `return_type`, returns:
+        - (wt_aa, res_num, mut_aa) if `return_type` is "all"
+        - wild-type amino acid if `return_type` is "wt_aa"
+        - residue number (int) if `return_type` is "res_num"
+        - mutant amino acid if `return_type` is "mut_aa"
+        - None if the mutation string could not be parsed
     """
 
     pattern = None
@@ -257,15 +323,22 @@ def split_missense_mutation(
 def get_ncbi_ref_seq(
     ncbi_ref_seq_id: str,
     ref_seq_file: str
-):
+) -> str:
     """ Handle fetching and parsing of reference sequence from NCBI.
 
-    Args:
-        ncbi_ref_seq_id (str): NCBI RefSeq ID
-        ref_seq_file (str): Path to save the RefSeq XML file
+    ## Arguments:
 
-    Returns:
-        str: Protein sequence
+    - **ncbi_ref_seq_id (str)**:<br />
+        NCBI RefSeq ID to fetch the reference sequence for.
+
+    - **ref_seq_file (str)**:<br />
+        Path to save the RefSeq XML file. If the file already exists, it will be
+        read instead of fetching from NCBI again.
+
+    ## Returns:
+
+    - **str**:<br />
+        Protein sequence as a string.
     """
 
     if not os.path.exists(ref_seq_file):
@@ -293,11 +366,15 @@ def get_ncbi_ref_seq(
 def get_protein_sequence_from_hgmd_cdna_html(hgmd_cdna_html_path:str) -> str:
     """ Extracts the amino acid sequence from an HGMD cDNA HTML file.
 
-    Args:
-        hgmd_cdna_html_path (str): Path to the HGMD cDNA HTML file.
+    ## Arguments:
 
-    Returns:
-        str: Amino acid sequence as a string.
+    - **hgmd_cdna_html_path (str)**:<br />
+        Path to the HGMD cDNA HTML file.
+
+    ## Returns:
+
+    - **str**:<br />
+        Amino acid sequence as a string.
     """
 
     aa_sequence = []

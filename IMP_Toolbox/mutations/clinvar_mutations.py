@@ -55,26 +55,26 @@ def get_variant_ids_from_clinvar(
 ) -> list:
     """ Fetch variant IDs from ClinVar for a given gene name.
 
-    TODO: Error handling is messed up here, fix it.
+    #TODO: Error handling is messed up here, fix it.
 
-    Args:
+    ## Arguments:
 
-        gene_name (str):
-            The gene name to search for.
+    - **gene_name (str)**:<br />
+        The gene name to search for.
 
-        api_parameters (dict):
-            API parameters for the request.
+    - **api_parameters (dict)**:<br />
+        API parameters for the request.
 
-        ignore_error (bool, optional):
-            Whether to ignore errors. Defaults to False.
+    - **ignore_error (bool, optional)**:<br />
+        Whether to ignore errors. Defaults to False.
 
-        max_retries (int, optional):
-            Maximum number of retries for the request. Defaults to 3.
+    - **max_retries (int, optional)**:<br />
+        Maximum number of retries for the request. Defaults to 3.
 
-    Returns:
+    ## Returns:
 
-        list:
-            List of ClinVar variant IDs.
+    - **list**:<br />
+        List of ClinVar variant IDs.
     """
 
     req_sess = request_session(max_retries=max_retries)
@@ -126,27 +126,30 @@ def get_variant_details_from_clinvar(
     max_retries: int = 3,
 ) -> dict:
     """ Fetch variant details from ClinVar for a list of variant IDs.
-    Note: If you parallelize it, make sure to not exceed API's rate limits.
+
     We get info in XML format from the API, which we convert and store as JSON.
 
-    Args:
+    > [!CAUTION]
+    > If you parallelize it, make sure to not exceed API's rate limits.
 
-        variant_ids (list):
-            List of ClinVar variant IDs.
+    ## Arguments:
 
-        api_parameters (dict):
-            API parameters for the request.
+    - **variant_ids (list)**:<br />
+        List of ClinVar variant IDs.
 
-        ignore_error (bool, optional):
-            Whether to ignore errors. Defaults to False.
+    - **api_parameters (dict)**:<br />
+        API parameters for the request.
 
-        max_retries (int, optional):
-            Maximum number of retries for the request. Defaults to 3.
+    - **ignore_error (bool, optional)**:<br />
+        Whether to ignore errors. Defaults to False.
 
-    Returns:
+    - **max_retries (int, optional)**:<br />
+        Maximum number of retries for the request. Defaults to 3.
 
-        dict:
-            Dictionary with variant IDs as keys and their details as values.
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary with variant IDs as keys and their details as values.
     """
 
     variant_id_batches = [
@@ -195,29 +198,30 @@ def fetch_clinvar_variant_data(
 
     Uses `get_variant_ids_from_clinvar` or `get_variant_details_from_clinvar`.
 
-    Args:
+    ## Arguments:
 
-        save_path (str):
-            Path to save the fetched variant data.
+    - **save_path (str)**:<br />
+        Path to save the fetched variant data.
 
-        input_data (str | list):
-            Gene name (str) or list of variant IDs (list).
+    - **input_data (str | list)**:<br />
+        Gene name (str) or list of variant IDs (list).
 
-        api_parameters (dict, optional):
-            API parameters for the request. Defaults to {}.
+    - **api_parameters (dict, optional)**:<br />
+        API parameters for the request. Defaults to {}.
 
-        ignore_error (bool, optional):
-            Whether to ignore errors. Defaults to False.
+    - **ignore_error (bool, optional)**:<br />
+        Whether to ignore errors. Defaults to False.
 
-        max_retries (int, optional):
-            Maximum number of retries for the request. Defaults to 3.
+    - **max_retries (int, optional)**:<br />
+        Maximum number of retries for the request. Defaults to 3.
 
-        overwrite (bool, optional):
-            Whether to overwrite existing data at save_path. Defaults to False.
+    - **overwrite (bool, optional)**:<br />
+        Whether to overwrite existing data at save_path. Defaults to False.
 
-    Returns:
-        dict | list:
-            Fetched variant data.
+    ## Returns:
+
+    - **dict | list**:<br />
+        Fetched variant data.
     """
 
     data_type_dict = {str: "ids", list: "details"}
@@ -249,8 +253,48 @@ def fetch_clinvar_variant_data(
     return variant_data
 
 class VariantInfo:
+    """ Class to analyze ClinVar variant information."""
 
     setter_dict: dict = {dict: lambda x: [x], list: lambda x: x}
+
+    p_name: str
+    """ Protein name. """
+
+    g_name: str
+    """ Gene name. """
+
+    variant_id: str
+    """ ClinVar variant ID. """
+
+    variant_archive: dict
+    """ ClinVar variant archive information. """
+
+    ncbi_ref_seq_id: str | None
+    """ NCBI RefSeq ID for the variant. """
+
+    molecular_consequence_list: list
+    """ List of molecular consequences for the variant. """
+
+    mutation_descs: list
+    """ List of mutation descriptors for the variant. """
+
+    p_mutation: str | None
+    """ Protein mutation descriptor for the variant. """
+
+    ncbi_g_name: str | None
+    """ NCBI gene name for the variant. """
+
+    traits: list
+    """ List of traits associated with the variant. """
+
+    clinical_assertions: list
+    """ List of clinical assertions for the variant. """
+
+    all_significances: list
+    """ List of all clinical significances from the assertions. """
+
+    all_assertion_comments: list
+    """ List of all assertion comments from the assertions. """
 
     def __init__(
         self,
@@ -287,32 +331,37 @@ class VariantInfo:
 
     def set_variant_name(self):
         """ Set the variant name from the variant archive.
+
         The varient name of our relevance is in the format:
-        NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)
-        RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
+        - RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
+        - e.g. NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)
         """
         self.variant_name = self.variant_archive.get("@VariationName", "")
 
     def set_variant_type(self):
         """ Set the variant type from the variant archive.
+
         The variant type of our relevance is "single nucleotide variant"
         """
         self.variant_type = self.variant_archive.get("@VariationType", "")
 
     def set_classified_record(self) -> dict:
         """ Set the classified record from the variant archive.
+
         This has the germline classification information.
         """
         self.classified_record = self.variant_archive.get("ClassifiedRecord", {})
 
     def set_hgvs_list(self) -> dict:
         """ Set the HGVS list from the classified record.
+
         The HGVS list contains the molecular consequence information.
         """
         self.hgvs_list = self.classified_record.get("SimpleAllele", {}).get("HGVSlist", {})
 
     def set_germline_classification(self) -> dict:
         """ Set the germline classification from the classified record.
+
         This has the aggregate clinical significance information.
         """
         self.germline_classification = self.classified_record.get(
@@ -321,8 +370,10 @@ class VariantInfo:
 
     def set_agg_significance(self) -> str:
         """ Set the aggregate clinical significance.
+
         This is the overall clinical significance for the variant provided by
         ClinVar based on all contributing submissions.
+
         Of our relevance are "Pathogenic" and "Likely pathogenic" and
         potentially "VUS" depending on user input.
         """
@@ -332,19 +383,21 @@ class VariantInfo:
 
     def get_ncbi_ref_seq_id(self, ignore_warnings: bool = True) -> str | None:
         """ Get the NCBI RefSeq ID from the variant name.
+
         Essentially points to which isoform the variant is described for.
         assumes format "NM_001943.5(DSG2):c.137G>T (p.Arg46Leu)"
+
         i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
 
-        Args:
+        ## Arguments:
 
-            ignore_warnings (bool, optional):
-                Whether to ignore warnings. Defaults to True.
+        - **ignore_warnings (bool, optional)**:<br />
+            Whether to ignore warnings. Defaults to True.
 
-        Returns:
+        ## Returns:
 
-            str | None:
-                The NCBI RefSeq ID.
+        - **str | None**:<br />
+            The NCBI RefSeq ID.
         """
 
         ncbi_ref_seq_id = None
@@ -369,15 +422,15 @@ class VariantInfo:
 
         At least one molecular consequence should be "missense variant".
 
-        Args:
+        ## Arguments:
 
-            missense_only (bool, optional):
-                Whether to filter for missense variants only. Defaults to True.
+        - **missense_only (bool, optional)**:<br />
+            Whether to filter for missense variants only. Defaults to True.
 
-        Returns:
+        ## Returns:
 
-            list:
-                List of molecular consequences.
+        - **list**:<br />
+            List of molecular consequences.
         """
 
         def check_mc_type(mc: str) -> bool:
@@ -439,15 +492,15 @@ class VariantInfo:
         i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
         then, DNAChange and ProteinChange are the mutation descriptors.
 
-        Args:
+        ## Arguments:
 
-            ignore_warnings (bool, optional):
-                Whether to ignore warnings. Defaults to True.
+        - **ignore_warnings (bool, optional)**:<br />
+            Whether to ignore warnings. Defaults to True.
 
-        Returns:
+        ## Returns:
 
-            list:
-                List of mutation descriptors.
+        - **list**:<br />
+            List of mutation descriptors.
         """
 
         mutation_descs = []
@@ -474,15 +527,15 @@ class VariantInfo:
         i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
         then, the gene name is GeneName.
 
-        Args:
+        ## Arguments:
 
-            ignore_warnings (bool, optional):
-                Whether to ignore warnings. Defaults to True.
+        - **ignore_warnings (bool, optional)**:<br />
+            Whether to ignore warnings. Defaults to True.
 
-        Returns:
+        ## Returns:
 
-            str:
-                The NCBI gene name.
+        - **str**:<br />
+            The NCBI gene name.
         """
 
         ncbi_g_name = None
@@ -505,10 +558,10 @@ class VariantInfo:
         i.e. RefSeqID(GeneName):c.DNAChange (p.ProteinChange)
         The protein mutation is Arg46Leu in this case.
 
-        Returns:
+        ## Returns:
 
-            str:
-                The protein mutation.
+        - **str**:<br />
+            The protein mutation.
         """
 
         p_mutation = None
@@ -540,15 +593,15 @@ class VariantInfo:
     def is_contributing_disease_trait(trait_dict: dict) -> bool:
         """ Check if a trait is a disease and contributes to agg. classification.
 
-        Args:
+        ## Arguments:
 
-            trait_dict (dict):
-                Trait dictionary from ClinVar variant information.
+        - **trait_dict (dict)**:<br />
+            Trait dictionary from ClinVar variant information.
 
-        Returns:
+        ## Returns:
 
-            bool:
-                True if the trait is a disease and contributes to agg.
+        - **bool**:<br />
+            True if the trait is a disease and contributes to agg.
         """
 
         _t_type = trait_dict.get("@Type", "")
@@ -562,15 +615,15 @@ class VariantInfo:
     def is_preferred_trait_name(trait_name: dict) -> bool:
         """ Check if a trait name is preferred.
 
-        Args:
+        ## Arguments:
 
-            trait_name (dict):
-                Trait name dictionary from ClinVar variant information.
+        - **trait_name (dict)**:<br />
+            Trait name dictionary from ClinVar variant information.
 
-        Returns:
+        ## Returns:
 
-            bool:
-                True if the trait name is preferred, False otherwise.
+        - **bool**:<br />
+            True if the trait name is preferred, False otherwise.
         """
 
         return (
@@ -582,15 +635,15 @@ class VariantInfo:
     def extract_preferred_trait_names(trait_dict: dict) -> list:
         """ Extract preferred trait names from a trait dictionary.
 
-        Args:
+        ## Arguments:
 
-            trait_dict (dict):
-                Trait dictionary from ClinVar variant information.
+        - **trait_dict (dict)**:<br />
+            Trait dictionary from ClinVar variant information.
 
-        Returns:
+        ## Returns:
 
-            list:
-                List of preferred trait names.
+        - **list**:<br />
+            List of preferred trait names.
         """
 
         preferred_trait_names = []
@@ -631,13 +684,15 @@ class VariantInfo:
     def get_variant_associated_traits(self) -> list:
         """ Get the associated traits for a given germline classification.
 
-        Args:
-            germline_classification (dict):
-                Germline classification from ClinVar variant information.
+        ## Arguments:
 
-        Returns:
-            list:
-                List of associated traits.
+        - **germline_classification (dict)**:<br />
+            Germline classification from ClinVar variant information.
+
+        ## Returns:
+
+        - **list**:<br />
+            List of associated traits.
         """
 
         traits = []
@@ -696,18 +751,18 @@ class VariantInfo:
         Look through all the assertions that contributed to aggregate clinical
         significance
 
-        Args:
+        ## Arguments:
 
-            sort_by_date (bool, optional):
-                Whether to sort the assertions by date. Defaults to True.
+        - **sort_by_date (bool, optional)**:<br />
+            Whether to sort the assertions by date. Defaults to True.
 
-            date_format (str, optional):
-                Date format for parsing dates. Defaults to DATE_FORMAT.
+        - **date_format (str, optional)**:<br />
+            Date format for parsing dates. Defaults to DATE_FORMAT.
 
-        Returns:
+        ## Returns:
 
-            list:
-                List of clinical assertions.
+        - **list**:<br />
+            List of clinical assertions.
         """
 
         clinical_assertions = []
@@ -755,10 +810,10 @@ class VariantInfo:
     def get_all_significances(self) -> list:
         """ Get all clinical significances from the clinical assertions.
 
-        Returns:
+        ## Returns:
 
-            list:
-                List of clinical significances from all studies.
+        - **list**:<br />
+            List of clinical significances from all studies.
         """
 
         all_significances = [""]
@@ -775,10 +830,10 @@ class VariantInfo:
     def get_all_assertion_comments(self) -> list:
         """ Get all assertion comments from the clinical assertions.
 
-        Returns:
+        ## Returns:
 
-            list:
-                List of assertion comments provided for all studies.
+        - **list**:<br />
+            List of assertion comments provided for all studies.
         """
 
         all_comments = [""]
@@ -811,10 +866,10 @@ class VariantInfo:
         - If agg. significance is "Conflicting classifications of pathogenicity",
             the most recent significance is not in allowed list.
 
-        Returns:
+        ## Returns:
 
-            bool:
-                True if the variant is invalid, False otherwise.
+        - **bool**:<br />
+            True if the variant is invalid, False otherwise.
         """
 
         condition_val = (
@@ -844,24 +899,24 @@ class VariantInfo:
         The modeled sequence might differ due to different isoforms, this
         function updates the residue number in the protein mutation accordingly.
 
-        Args:
+        ## Arguments:
 
-            modeled_seq (str):
-                Sequence of the modeled protein.
+        - **modeled_seq (str)**:<br />
+            Sequence of the modeled protein.
 
-            ref_seq_file (str):
-                Path to the NCBI reference sequence JSON file.
+        - **ref_seq_file (str)**:<br />
+            Path to the NCBI reference sequence JSON file.
 
-            pairwise_alignment_file (str):
-                Path to the pairwise alignment file.
+        - **pairwise_alignment_file (str)**:<br />
+            Path to the pairwise alignment file.
 
-            ignore_warnings (bool, optional):
-                Whether to ignore warnings. Defaults to True.
+        - **ignore_warnings (bool, optional)**:<br />
+            Whether to ignore warnings. Defaults to True.
 
-        Returns:
+        ## Returns:
 
-            str | None:
-                Updated protein mutation or None if p_mutation is None.
+        - **str | None**:<br />
+            Updated protein mutation or None if p_mutation is None.
         """
 
         if self.p_mutation is None:
@@ -962,17 +1017,17 @@ class VariantInfo:
     ):
         """ Add a key-value pair to the variant dictionary.
 
-        Args:
+        ## Arguments:
 
-            key (str):
-                The key to add to the variant dictionary.
+        - **key (str)**:<br />
+            The key to add to the variant dictionary.
 
-            value (Any):
-                The value to add to the variant dictionary.
+        - **value (Any)**:<br />
+            The value to add to the variant dictionary.
 
-            overwrite (bool, optional):
-                Whether to overwrite the existing key in the variant dictionary.
-                Defaults to True.
+        - **overwrite (bool, optional)**:<br />
+            Whether to overwrite the existing key in the variant dictionary.
+            Defaults to True.
         """
 
         warn_msg = ""

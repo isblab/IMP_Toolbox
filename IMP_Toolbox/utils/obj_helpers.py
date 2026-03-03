@@ -3,17 +3,24 @@ from collections import Counter
 import numpy as np
 
 def symmetrize_matrix(matrix: np.ndarray) -> np.ndarray:
-    """Symmetrize a matrix by averaging it with its transpose
+    """ Symmetrize a matrix by averaging it with its transpose.
 
-    Args:
-        matrix (np.ndarray): input matrix
+    ## Arguments:
 
-    Returns:
-        sym_matrix (np.ndarray): symmetrized matrix
+    - **matrix (np.ndarray)**:<br />
+        Input matrix to be symmetrized.
 
-    Example:
-    matrix = np.array([[1, 2], [3, 4]]) \n
-    symmetrize_matrix(matrix) -> np.array([[1, 2.5], [2.5, 4]])
+    ## Returns:
+
+    - **np.ndarray**:<br />
+        Symmetrized matrix.
+
+    ## Examples:
+
+    >>> matrix = np.array([[1, 2], [3, 4]])
+    >>> symmetrize_matrix(matrix)
+    array([[1., 2.5],
+           [2.5, 4.]])
     """
 
     assert isinstance(matrix, np.ndarray), "Input must be a numpy array"
@@ -23,19 +30,23 @@ def symmetrize_matrix(matrix: np.ndarray) -> np.ndarray:
 
     return sym_matrix
 
-
 def fill_up_the_blanks(li: list) -> list:
-    """Fill up the blanks in a list
+    """ Fill up the blanks in a list by adding missing integers between the minimum and maximum values.
 
-    Example:
-        fill_up_the_blanks([1, 2, 4, 5]) -> [1, 2, 3, 4, 5]
+    ## Arguments:
 
-    Args:
-        li (list): list with missing numbers
+    - **li (list)**:<br />
+        List of integers with missing values.
 
-    Returns:
-        new_li (list): list with all the missing numbers filled 
-            up between the minimum and maximum values
+    ## Returns:
+
+    - **list**:<br />
+        List of integers with missing values filled in.
+
+    ## Examples:
+
+    >>> fill_up_the_blanks([1, 2, 4, 5])
+    [1, 2, 3, 4, 5]
     """
 
     min_li_val = min(li)
@@ -45,22 +56,31 @@ def fill_up_the_blanks(li: list) -> list:
 
     return new_li
 
-
 def get_key_from_res_range(
     res_range: list,
     as_list=False
 ) -> str | list:
-    """Returns a residue range string from a list of residue numbers.
+    """ Return a residue range string from a list of residue numbers.
 
-    Args:
-        res_range (list): List of residue numbers, e.g., [1, 2, 3, 5, 6, 7]
+    ## Arguments:
 
-    Returns:
-        str: Residue range string, e.g., "1-3,5-7"
+    - **res_range (list)**:<br />
+        List of residue numbers.
 
-    Example:
-    get_key_from_res_range([1, 2, 3, 5, 6, 7]) -> "1-3,5-7" \n
-    get_key_from_res_range([1, 2, 3, 5, 6, 7], as_list=True) -> ["1-3", "5-7"]
+    - **as_list (bool, optional):**:<br />
+        Whether to return a list of strings or single string.
+
+    ## Returns:
+
+    - **str | list**:<br />
+        Residue range string or list of residue range strings.
+
+    ## Examples:
+
+    >>> get_key_from_res_range([1, 2, 3, 5, 6, 7])
+    '1-3,5-7'
+    >>> get_key_from_res_range([1, 2, 3, 5, 6, 7], as_list=True)
+    ['1-3', '5-7']
     """
 
     if not res_range:
@@ -89,18 +109,31 @@ def get_key_from_res_range(
     else:
         return ",".join(ranges)
 
+def get_res_range_from_key(
+    res_range: str,
+    return_type: str = "list"
+) -> list | set:
+    """ Convert a residue range string to alist of residue numbers.
 
-def get_res_range_from_key(res_range: str, return_type: str = "list") -> list | set:
-    """Convert a residue range string to a list of residue numbers
+    ## Arguments:
 
-    Args:
-        res_range (str): residue range string
+    - **res_range (str)**:<br />
+        Residue range string, e.g. "1-3,5-7".
 
-    Returns:
-        res_range_list (list): list of residue numbers
+    - **return_type (str, optional):**:<br />
+        Whether to return a list or a set of residue numbers. Defaults to "list".
 
-    Example:
-    get_res_range_from_key("1-3,5-7") -> [1, 2, 3, 5, 6, 7]
+    ## Returns:
+
+    - **list | set**:<br />
+        List or set of residue numbers.
+
+    ## Examples:
+
+    >>> get_res_range_from_key("1-3,5-7")
+    [1, 2, 3, 5, 6, 7]
+    >>> get_res_range_from_key("1-3,5-7", return_type="set")
+    {1, 2, 3, 5, 6, 7}
     """
 
     res_range_list = []
@@ -119,16 +152,28 @@ def get_res_range_from_key(res_range: str, return_type: str = "list") -> list | 
 
     return res_range_list
 
-def convert_false_to_true(arr: np.ndarray | list, threshold:int=5):
-    """ Convert False values in a binary array to True if the patch length is less than or equal to a threshold
-        a patch is defined as a sequence of consecutive False values
+def convert_false_to_true(arr: np.ndarray | list, threshold:int=5) -> np.ndarray:
+    """ Convert False values to True in a binary True-False array if
+    consecutive False values (a patch) are less than or equal to a specified threshold.
 
-    Args:
-        arr (list): binary array with False values
-        threshold (int, optional): _description_. Defaults to 5.
+    ## Arguments:
 
-    Returns:
-        _type_: _description_
+    - **arr (np.ndarray | list)**:<br />
+        Binary array (list or numpy array) containing True and False values.
+
+    - **threshold (int, optional):**:<br />
+        Maximum length of consecutive False values (patch) to be converted to True. Defaults to 5.
+
+    ## Returns:
+
+    - **np.ndarray**:<br />
+        Binary array with False values converted to True if they are part of a patch of length <= threshold.
+
+    ## Examples:
+
+    >>> arr = [True, False, False, True, False, False, False, True]
+    >>> convert_false_to_true(arr, threshold=2)
+    array([ True,  True,  True,  True, False, False, False,  True])
     """
 
     if isinstance(arr, list):
@@ -156,20 +201,34 @@ def get_duplicate_indices(
     my_li: list,
     return_type: str = "list",
     keep_which: None | int = 0,
-):
+) -> list | dict:
     """ Get the indices of duplicate elements in a list.
 
-    Args:
-        my_li (list): List of elements to check for duplicates.
-        return_type (str, optional): Output type, either "list" or "dict".
-        keep_which (None | int, optional): If specified, the index of the element to keep in case of duplicates.
-            If None, all duplicates are returned. Defaults to 0.
+    ## Arguments:
 
-    Returns:
-        list: List of indices of duplicate elements if return_type is "list".
-        dict: Dictionary with residue IDs as keys and a tuple of first and last indices as values if return_type is "dict".
+    - **my_li (list)**:<br />
+        List of elements to check for duplicates.
 
-    Example:
+    - **return_type (str, optional):**:<br />
+        Output type, either "list" or "dict". Defaults to "list".
+
+    - **keep_which (None | int, optional):**:<br />
+        If specified, the index of the element to keep in case of duplicates.
+        If None, all duplicates are returned. Defaults to 0.
+
+    ## Returns:
+
+    - **list | dict**:<br />
+        List of indices of duplicate elements if return_type is "list".
+        Dictionary with residue IDs as keys and a tuple of first and last
+        indices as values if return_type is "dict".
+
+    ## Examples:
+
+    >>> get_duplicate_indices(['A', 'B', 'C', 'A', 'D'], return_type='list')
+    [0, 3]
+    >>> get_duplicate_indices(['A', 'B', 'C', 'A', 'D'], return_type='dict')
+    {'A': (0, 3)}
     """
 
     token_counts = Counter(my_li)

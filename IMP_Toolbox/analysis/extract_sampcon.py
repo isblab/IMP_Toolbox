@@ -1,5 +1,6 @@
 import IMP
 import IMP.rmf
+import IMP.atom
 import RMF
 import tqdm
 import argparse
@@ -8,20 +9,30 @@ import getpass
 _user = getpass.getuser()
 
 def add_frames(
-    out_rmf,
-    out_hier,
-    in_rmf,
-    frame_list,
-    offset=0
+    out_rmf: str,
+    out_hier: IMP.atom.Hierarchy,
+    in_rmf: str,
+    frame_list: str,
+    offset: int = 0,
 ):
     """ Load frames from an RMF file and save them to another RMF file.
 
-    Args:
-        out_rmf : output RMF file to save the frames.
-        out_hier : hierarchy to which the frames belong.
-        in_rmf (_type_): input RMF file from which frames are loaded.
-        frame_list (list): list of frame IDs to be loaded from input RMF file.
-        offset (int, optional): offset to be applied to frame IDs in the list.
+    ## Arguments:
+
+    - **out_rmf (str)**:<br />
+        Output RMF file to save the extracted frames.
+
+    - **out_hier (IMP.atom.Hierarchy)**:<br />
+        Hierarchy to which the frames belong in the output RMF file.
+
+    - **in_rmf (str)**:<br />
+        Input RMF file from which frames are loaded.
+
+    - **frame_list (str)**:<br />
+        List of frame IDs to be loaded from input RMF file.
+
+    - **offset (int, optional):**:<br />
+        Offset to be applied to frame IDs in the list. Default is 0.
     """
 
     with open(frame_list) as f:

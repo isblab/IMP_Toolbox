@@ -13,10 +13,11 @@ from IMP_Toolbox.utils.obj_helpers import (
 
 _user = getpass.getuser()
 
-def parse_patch_csv_filename(csv: str):
+def parse_patch_csv_filename(csv: str) -> tuple:
     """ Parse the patch CSV filename to extract the protein names and residue ranges for both proteins.
-    The expected filename format is: patches_{p1_name}:{p1_start}-{p1_end}_{p2_name}:{p2_start}-{p2_end}.csv
-    or patches_{p1_name}:{p1_start}_{p2_name}:{p2_start}.csv
+    The expected filename format is:
+    - patches_{p1_name}:{p1_start}-{p1_end}_{p2_name}:{p2_start}-{p2_end}.csv
+    - patches_{p1_name}:{p1_start}_{p2_name}:{p2_start}.csv
 
     e.g.: patches_PKP2a:1-837_DSC2a:720-901.csv, patches_PKP2a:1-837_DSC2a:901.csv
 
@@ -48,7 +49,7 @@ def parse_patch_csv_filename(csv: str):
 
     return p1_name, p1_range_full, p2_name, p2_range_full
 
-def extract_interacting_patches_info(csv: str):
+def extract_interacting_patches_info(csv: str) -> tuple:
     """ Extract the following information from the patches csv file.
     - protein names
     - residues ranges (start, end)
@@ -100,7 +101,7 @@ def extract_interacting_patches_info(csv: str):
 
     return df, info_dict
 
-def extract_metapatches(p1_res: set, p2_res: set, xy_data: pd.DataFrame):
+def extract_metapatches(p1_res: set, p2_res: set, xy_data: pd.DataFrame) -> list:
     """ Extract interacting metapatches.
 
     ## Arguments:
@@ -161,7 +162,7 @@ def fill_gaps(
     threshold: int,
     p_gaps: list,
     p_res: set,
-):
+) -> set:
     """ Fill gaps within the list of residues based on threshold.
 
     ## Arguments:
@@ -192,7 +193,7 @@ def identify_gaps(
     p_start: int,
     p_end: int,
     p1_res: set
-):
+) -> list:
     """ Identify the gaps within a set of residues.
 
     ## Arguments:
@@ -216,11 +217,16 @@ def identify_gaps(
     p_gaps = get_key_from_res_range(list(p_gaps), as_list=True)
 
     # remove start and end gaps
-    p_gaps = [gap for gap in p_gaps if not (min(get_res_range_from_key(gap)) == p_start or max(get_res_range_from_key(gap)) == p_end)]
+    p_gaps = [
+        gap for gap in p_gaps if not (
+            min(get_res_range_from_key(gap)) == p_start or
+            max(get_res_range_from_key(gap)) == p_end
+        )
+    ]
 
     return p_gaps
 
-def get_p1_p2_patch_residues(patches_df: pd.DataFrame):
+def get_p1_p2_patch_residues(patches_df: pd.DataFrame) -> tuple:
     """ Extract interacting residues from both proteins from patches dataframe.
 
     ## Arguments:
@@ -251,7 +257,7 @@ def get_p1_p2_patch_residues(patches_df: pd.DataFrame):
 
     return p1_res, p2_res
 
-def get_interacting_residue_pairs(patches_df: pd.DataFrame):
+def get_interacting_residue_pairs(patches_df: pd.DataFrame) -> pd.DataFrame:
     """ Extract interacting residue pairs from patches dataframe.
 
     ## Arguments:

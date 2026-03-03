@@ -39,24 +39,24 @@ def get_interactions(
 ) -> pd.DataFrame:
     """ Combine interactions from contacts, ri, and ari dataframes.
 
-    Args:
+    ## Arguments:
 
-        ri_df (pd.DataFrame | None, optional):
-            Ring-ring interactions dataframe.
+    - **ri_df (pd.DataFrame | None, optional):**:<br />
+        Ring-ring interactions dataframe.
 
-        contacts_df (pd.DataFrame | None, optional):
-            Atomic interactions dataframe.
+    - **contacts_df (pd.DataFrame | None, optional):**:<br />
+        Atomic interactions dataframe.
 
-        ari_df (pd.DataFrame | None, optional):
-            Atom-ring interactions dataframe.
+    - **ari_df (pd.DataFrame | None, optional):**:<br />
+        Atom-ring interactions dataframe.
 
-        contact_level (str, optional):
-            Contact level: "atom" or "residue".
+    - **contact_level (str, optional):**:<br />
+        Contact level: "atom" or "residue". Determines the columns included in the output dataframe and how interactions are categorized. Must be one of "atom" or "residue".
 
-    Returns:
+    ## Returns:
 
-        pd.DataFrame:
-            DataFrame containing combined interactions.
+    - **pd.DataFrame**:<br />
+        DataFrame containing combined interactions. The columns included depend on the specified contact level. Interactions from the input dataframes are combined and categorized based on the specified contact level.
     """
 
     assert contact_level in INTERACTION_DF_COLS, (
@@ -121,25 +121,14 @@ def get_interactions(
 
     return combined_df
 
-def run_arpeggio_docker(
-    docker_base_command: Template,
-    processed_struct_path: str,
-    docker_result_dir: str,
-    result_head: str,
-    result_metadata: dict,
-    dry_run: bool=False,
-    overwrite: bool=False,
-):
-    """ Run Arpeggio analysis inside a Docker container.
+    """
 
-    Note: Assumes that at least a subset of the selections are in the
-    structure. If no part of the selection is in the structure, it will
-    raise an error.
+
 
     Args:
 
         docker_base_command (Template):
-            Template for the Docker command to run Arpeggio.
+
 
         processed_struct_path (str):
             Path to the processed structure file on the host machine.
@@ -158,6 +147,44 @@ def run_arpeggio_docker(
 
         overwrite (bool, optional):
             If True, overwrite existing results.
+    """
+def run_arpeggio_docker(
+    docker_base_command: Template,
+    processed_struct_path: str,
+    docker_result_dir: str,
+    result_head: str,
+    result_metadata: dict,
+    dry_run: bool=False,
+    overwrite: bool=False,
+) -> None:
+    """ Run Arpeggio analysis inside a Docker container.
+
+    Note: Assumes that at least a subset of the selections are in the
+    structure. If no part of the selection is in the structure, it will
+    raise an error.
+
+    ## Arguments:
+
+    - **docker_base_command (Template)**:<br />
+        Template for the Docker command to run Arpeggio.
+
+    - **processed_struct_path (str)**:<br />
+        Path to the processed structure file on the host machine. This file will be copied to the Docker mount path for analysis.
+
+    - **docker_result_dir (str)**:<br />
+        Path on the host machine where Docker results will be stored. The processed structure file will be copied here, and Arpeggio results will be saved in this directory.
+
+    - **result_head (str)**:<br />
+        Identifier for the result set. This will be used to name the processed structure file in the Docker mount path and to organize Arpeggio results.
+
+    - **result_metadata (dict)**:<br />
+        Metadata for the result set, including selections.
+
+    - **dry_run (bool, optional):**:<br />
+        If True, only print the Docker command without executing it.
+
+    - **overwrite (bool, optional):**:<br />
+        If True, overwrite existing results. If False and results already exist for the given result_head, the function will skip execution and print a warning.
     """
 
     path_to_mount = os.path.join(docker_result_dir, result_head)
@@ -214,6 +241,25 @@ def run_arpeggio_docker(
 
 
 class ArpeggioParser:
+    """ Class to parse Arpeggio result files (.contacts, .rings, .ri, .ari). """
+
+    result_dir: str
+    """ Directory containing Arpeggio result files for a given structure. Expected to contain .contacts, .rings, .ri, and .ari files. """
+
+    result_head: str
+    """ Identifier for the result set, typically derived from the result directory name. Used to construct paths to Arpeggio result files. """
+
+    contacts_path: str
+    """ Path to the .contacts file containing pairwise atomic contact information. """
+
+    rings_path: str
+    """ Path to the .rings file containing information about aromatic rings identified in the structure. """
+
+    ri_path: str
+    """ Path to the .ri file containing information about ring-ring interactions. """
+
+    ari_path: str
+    """ Path to the .ari file containing information about atom-ring interactions. """
 
     def __init__(self, result_dir: str):
         self.result_dir = result_dir
@@ -229,19 +275,29 @@ class ArpeggioParser:
     ) -> pd.DataFrame | None:
         """ Parses the .contacts file generated by Arpeggio and returns a dataframe.
 
-        NOTE:
-        The atoms in the .contacts file are represented as:
-            `chain/res_num/atom`
-        This function splits these into three separate columns depending on the
-        value of `split_atom_col`.
+        > [!NOTE]
+        > The atoms in the .contacts file are represented as:
+        >    `chain/res_num/atom`
+        >
+        > This function splits these into three separate columns depending on the
+        > value of `split_atom_col`.
+        >
+        > If True, the function will split the `atom_1` and `atom_2` columns into
+        > `chain_1`, `res_1`, `atom_1` and `chain_2`, `res_2`, `atom_2`.
+        >
+        > If False, the original `atom_1` and `atom_2` columns will be retained
+        > without splitting.
 
-        Args:
-            file_path (str): Path to the .contacts file.
-            split_atom_col (bool, optional): Whether to split the atom columns into
-                chain, res, and atom.
+        ## Arguments:
 
-        Returns:
-            pd.DataFrame: DataFrame containing the parsed contact information.
+        - **split_atom_col (bool, optional):**:<br />
+            Whether to split the atom columns into chain, res, and atom.
+
+        ## Returns:
+
+        - **pd.DataFrame | None**:<br />
+            DataFrame containing the parsed contact information. If the .contacts
+            file is empty, returns None.
         """
 
         with open(self.contacts_path, 'r') as f:
@@ -276,6 +332,26 @@ class ArpeggioParser:
         split_residue_col: bool=True,
         add_marker_id: bool=True
     ) -> pd.DataFrame | None:
+        """ Parse ring-ring interactions from .ri file.
+
+        ## Arguments:
+
+        - **split_residue_col (bool, optional):**:<br />
+            Whether to split the `ring1_residue` and `ring2_residue` columns into
+            `chain_1`, `res_1` and `chain_2`, `res_2` respectively.
+
+        - **add_marker_id (bool, optional):**:<br />
+            Whether to add marker IDs for the interacting rings.
+            If True, the function will parse the .rings file to create a mapping
+            from ring_id to marker_id and add `marker_id_1` and `marker_id_2` columns
+            to the output dataframe corresponding to `ring1_id` and `ring2_id` respectively.
+
+        ## Returns:
+
+        - **pd.DataFrame | None**:<br />
+            DataFrame containing the parsed ring interaction information. If the .ri
+            file is empty, returns None.
+        """
 
         with open(self.ri_path, 'r') as f:
             lines = f.readlines()
@@ -333,13 +409,20 @@ class ArpeggioParser:
         add_marker_id: bool=True,
         split_residue_col: bool=True
     ) -> pd.DataFrame | None:
-        """ Parses the .rings file generated by Arpeggio and returns a dataframe.
+        """ Parses the .rings file.
 
-        Args:
-            file_path (str): Path to the .rings file.
+        ## Arguments:
 
-        Returns:
-            pd.DataFrame: DataFrame containing the parsed ring information.
+        - **add_marker_id (bool, optional):**:<br />
+            Whether to add marker IDs to the output dataframe.
+
+        - **split_residue_col (bool, optional):**:<br />
+            Whether to split the `ring_residue` column into `chain`, `res`, and `_` columns.
+
+        ## Returns:
+
+        - **pd.DataFrame | None**:<br />
+            DataFrame containing the parsed ring information. If the .rings file is empty, returns None.
         """
 
         with open(self.rings_path, 'r') as f:
@@ -381,15 +464,24 @@ class ArpeggioParser:
         split_residue_col: bool=True,
         add_marker_id: bool=True,
     ) -> pd.DataFrame | None:
-        """ Parses the .ari file generated by Arpeggio and returns a dataframe.
+        """ Parse the atom-ring interactions from .ari file.
 
-        Args:
-            file_path (str): Path to the .ari file.
-            split_atom_col (bool, optional): Whether to split the atom columns into
-                chain, res, and atom.
+        ## Arguments:
 
-        Returns:
-            pd.DataFrame | None: DataFrame containing the parsed contact information.
+        - **split_atom_col (bool, optional):**:<br />
+            Whether to split ``atom`` column into `chain_1`, `res_1`, and `atom_1` columns.
+
+        - **split_residue_col (bool, optional):**:<br />
+            Whether to split `residue` column into `chain_2` and `res_2` columns.
+
+        - **add_marker_id (bool, optional):**:<br />
+            Whether to add marker IDs for the interacting rings.
+
+        ## Returns:
+
+        - **pd.DataFrame | None**:<br />
+            DataFrame containing the parsed atom-ring interaction information. If the .ari
+            file is empty, returns None.
         """
 
         with open(self.ari_path, 'r') as f:
@@ -444,6 +536,7 @@ class ArpeggioParser:
 
 
 class ArpeggioChimeraX:
+    """ Class to generate ChimeraX commands for visualizing Arpeggio interactions. """
 
     def __init__(self):
         pass
@@ -455,13 +548,13 @@ class ArpeggioChimeraX:
     ) -> None:
         """ Save a list of ChimeraX commands to a file.
 
-        Args:
+        ## Arguments:
 
-            save_path (str):
-                Path to save the commands.
+        - **save_path (str)**:<br />
+            Path to save the commands.
 
-            commands (list[str]):
-                List of ChimeraX commands to save.
+        - **commands (list[str])**:<br />
+            List of ChimeraX commands to save.
         """
 
         if not os.path.exists(os.path.dirname(save_path)):
@@ -480,24 +573,24 @@ class ArpeggioChimeraX:
         contacts_df: pd.DataFrame | None = None,
         save_path: str | None = None,
         add_selections: bool = True,
-    ):
+    ) -> list[str]:
         """ Generate ChimeraX commands to add pseudobonds for atomic contacts.
 
-        Args:
+        ## Arguments:
 
-            contacts_df (pd.DataFrame):
-                DataFrame containing inter-atomic contact information.
+        - **contacts_df (pd.DataFrame | None, optional):**:<br />
+            DataFrame containing inter-atomic contact information.
 
-            save_path (str | None, optional):
-                Path to save the commands. If None, returns the commands as a list.
+        - **save_path (str | None, optional):**:<br />
+            Path to save the commands. If None, returns the commands as a list.
 
-            add_selections (bool, optional):
-                Whether to add selection commands for the interacting residues.
+        - **add_selections (bool, optional):**:<br />
+            Whether to add selection commands for the interacting residues.
 
-        Returns:
+        ## Returns:
 
-            list[str] | None:
-                List of ChimeraX commands if save_path is None, else None.
+        - **list**:<br />
+            List of ChimeraX commands.
         """
 
         if contacts_df is None or contacts_df.empty:
@@ -567,24 +660,24 @@ class ArpeggioChimeraX:
         rings_df: pd.DataFrame | None = None,
         save_path: str | None = None,
         add_selections: bool = True,
-    ) -> list[str] | None:
+    ) -> list[str]:
         """ Generate ChimeraX commands to add markers at ring centroids.
 
-        Args:
+        ## Arguments:
 
-            rings_df (pd.DataFrame):
-                DataFrame containing ring information.
+        - **rings_df (pd.DataFrame | None, optional):**:<br />
+            DataFrame containing ring information, including ring centroids and residue information.
 
-            save_path (str | None, optional):
-                Path to save the commands. If None, returns the commands as a list.
+        - **save_path (str | None, optional):**:<br />
+            Path to save the commands. If None, returns the commands as a list.
 
-            add_selections (bool, optional):
-                Whether to add selection commands aromatic residues.
+        - **add_selections (bool, optional):**:<br />
+            Whether to add selection commands for the aromatic residues corresponding to the rings.
 
-        Returns:
+        ## Returns:
 
-            list[str] | None:
-                List of ChimeraX commands if save_path is None, else None.
+        - **list**:<br />
+            List of ChimeraX commands to add markers for rings and optionally add selections for the corresponding aromatic residues.
         """
 
         if rings_df is None or rings_df.empty:
@@ -627,24 +720,26 @@ class ArpeggioChimeraX:
         ri_df: pd.DataFrame | None = None,
         save_path: str | None = None,
         add_selections: bool = True,
-    ) -> list[str] | None:
-        """ Generate ChimeraX commands to add pseudobonds for ring interactions.
+    ) -> list[str]:
+        """ rate ChimeraX commands to add pseudobonds for ring interactions.
 
-        Args:
+        ## Arguments:
 
-            ri_df (pd.DataFrame):
-                DataFrame containing ring interaction information.
+        - **ri_df (pd.DataFrame | None, optional):**:<br />
+            DataFrame containing ring-ring interaction information, including marker
+            IDs for the interacting rings and residue information.
 
-            save_path (str | None, optional):
-                Path to save the commands. If None, returns the commands as a list.
+        - **save_path (str | None, optional):**:<br />
+            Path to save the commands. If None, returns the commands as a list.
 
-            add_selections (bool, optional):
-                Whether to add selection commands for the interacting residues.
+        - **add_selections (bool, optional):**:<br />
+            Whether to add selection commands for the interacting residues
+            corresponding to the rings involved in the interactions.
 
-        Returns:
+        ## Returns:
 
-            list[str] | None:
-                List of ChimeraX commands if save_path is None, else None.
+        - **list**:<br />
+            List of ChimeraX commands to add pseudobonds for ring interactions.
         """
 
         if ri_df is None or ri_df.empty:
@@ -716,21 +811,21 @@ class ArpeggioChimeraX:
     ):
         """ Generate ChimeraX commands to add pseudobonds for atom-ring interactions.
 
-        Args:
+        ## Arguments:
 
-            ari_df (pd.DataFrame):
-                DataFrame containing atom-ring interaction information.
+        - **ari_df (pd.DataFrame | None, optional):**:<br />
+            Frame containing atom-ring interaction information.
 
-            save_path (str | None, optional):
-                Path to save the commands. If None, returns the commands as a list.
+        - **save_path (str | None, optional):**:<br />
+            Path to save the commands. If None, returns the commands as a list.
 
-            add_selections (bool, optional):
-                Whether to add selection commands for the interacting residues.
+        - **add_selections (bool, optional):**:<br />
+            Whether to add selection commands for the interacting residues.
 
-        Returns:
+        ## Returns:
 
-            list[str] | None:
-                List of ChimeraX commands if save_path is None, else None.
+        - **_type_**:<br />
+            List of ChimeraX commands if save_path is None, else None.
         """
 
         if ari_df is None or ari_df.empty:

@@ -1,29 +1,37 @@
 import json
 import os
+from typing import Any
 
 def write_json(
     file_path: str,
     data
 ):
-    """Write data to a json file
+    """ Write data to a JSON file.
 
-    Args:
-        file_path (str): path to json file
-        data (dict): data to write
+    ## Arguments:
+
+    - **file_path (str)**:<br />
+        The path to the JSON file to write.
+
+    - **Any**:<br />
+        The data to write to the JSON file.
     """
 
     with open(file_path, "w") as f:
         json.dump(data, f)
 
+def read_json(file_path: str) -> Any:
+    """ Load content from a JSON file
 
-def read_json(file_path: str):
-    """Load a json file
+    ## Arguments:
 
-    Args:
-        file_path (str): path to json file
+    - **file_path (str)**:<br />
+        The path to the JSON file to read.
 
-    Returns:
-        data: data from json file
+    ## Returns:
+
+    - **Any**:<br />
+        The content of the JSON file.
     """
 
     with open(file_path, "r") as f:
@@ -31,16 +39,18 @@ def read_json(file_path: str):
 
     return data
 
-
 def read_fasta(fasta_file: str) -> dict:
-    """
-    Read a fasta file and return a dictionary of sequences
+    """ Read contents from a fasta file and return in dictionary format.
 
-    Args:
-        fasta_file (str): Path to fasta file
+    ## Arguments:
 
-    Returns:
-        all_sequences (dict): dictionary in the format {sequence_header: sequence}
+    - **fasta_file (str)**:<br />
+        The path to the fasta file to read.
+
+    ## Returns:
+
+    - **dict**:<br />
+        A dictionary in the format {sequence_header: sequence}.
     """
 
     if not os.path.exists(fasta_file):

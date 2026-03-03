@@ -1,9 +1,4 @@
-"""
-modeling
-===========
-
-- Assisting with the IMP modeling, sampling sanity checks -
-  - Checking acceptance rates of MCMC movers, replica exchange rate, etc.
+# Scripts to check sampling quality
 
 ### housekeeping
 Run the script as follows:
@@ -23,9 +18,9 @@ Additional arguments:
 - `-c` : num_proc i.e. number of processes to use (default: 4)
 - `--restraints`: list of restraints to plot the score trajectories for (e.g. ["ExcludedVolumeSphere:EVR", "GaussianEMRestraint:EMR"])
 - `--detect_equilibration`: whether to detect score equilibration
-- `-h` or `--help`: show help message and exit
 
 ### MCMC acceptance rates
-`test_acceptance_ball_mover.py` and `test_acceptance_mover`.
+Modify `test_acceptance_ball_mover.py` .
 
-"""
+### Seeing swap rates, score equilibration for different restraints, getting auto-correlation time
+Modify `housekeeping.py`

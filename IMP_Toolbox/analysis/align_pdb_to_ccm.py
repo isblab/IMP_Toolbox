@@ -22,34 +22,33 @@ def extract_coordinates(
     copy_index: int,
     selection_range: str,
 ):
-    """ Extract coordinates from CCM and PDB for given selection.
+    """ Extract coordinates from the cluster center model and PDB for given
+    selection of a protein.
 
-    Args:
+    ## Arguments:
 
-        ccm_file (str):
-            Path to the cluster center model RMF file.
+    - **ccm_file (str)**:<br />
+        Path to the cluster center model RMF file.
 
-        pdb_file (str):
-            Path to the reference PDB file.
+    - **pdb_file (str)**:<br />
+        Path to the reference PDB file.
 
-        pdb_chain_id (str):
-            Chain ID in the PDB file to select.
+    - **pdb_chain_id (str)**:<br />
+        Chain ID in the PDB file to select.
 
-        protein_name (str):
-            Protein name in the cluster center model to select.
+    - **protein_name (str)**:<br />
+        Protein name in the cluster center model to select.
 
-        copy_index (int):
-            Copy index of the protein in the cluster center model to select.
+    - **copy_index (int)**:<br />
+        Copy index of the protein in the cluster center model to select.
 
-        selection_range (str):
-            Residue range to select (e.g., "10-50" or "10-20,30-40").
+    - **selection_range (str)**:<br />
+        Residue range to select (e.g., "10-50" or "10-20,30-40").
 
-    Returns:
-        tuple:
-        - coords_ccm (list):
-            List of coordinates from the CCM model.
-        - coords_pdb (list):
-            List of coordinates from the PDB model.
+    ## Returns:
+
+    - **tuple**:<br />
+        A tuple of two lists: coordinates from the CCM model and coordinates from the PDB model.
     """
 
     residue_indices = get_res_range_from_key(selection_range)
@@ -126,24 +125,25 @@ def find_transform_and_save(
     pdb_file: str,
     pdb_chain_selector: IMP.atom.PDBSelector,
 ):
-    """ Find transformation between query and template and save the transformed PDB.
+    """ Find transformation between query and template and save the transformed
+    PDB.
 
-    Args:
+    ## Arguments:
 
-        query (dict):
-            Query coordinates dictionary with chain IDs as keys.
+    - **query (dict)**:<br />
+        Query coordinates dictionary with chain IDs as keys. Each value should be a list of coordinate tuples.
 
-        template (dict):
-            Template coordinates dictionary with chain IDs as keys.
+    - **template (dict)**:<br />
+        Template coordinates dictionary with chain IDs as keys. Each value should be a list of coordinate tuples.
 
-        output_name (str):
-            Output PDB file name.
+    - **output_name (str)**:<br />
+        Output PDB file name for the aligned structure.
 
-        pdb_file (str):
-            Path to the PDB file to be transformed.
+    - **pdb_file (str)**:<br />
+        Path to the PDB file to be transformed.
 
-        pdb_chain_selector (IMP.atom.PDBSelector):
-            PDB selector for selecting chains in the PDB file.
+    - **pdb_chain_selector (IMP.atom.PDBSelector)**:<br />
+        PDB selector for selecting chains in the PDB file.
     """
 
     assert isinstance(query, dict), "Query must be a dictionary"
@@ -161,19 +161,24 @@ def fit_pdb_to_ccm(
     fits_to_perform: list,
     output_dir: str,
 ):
-    """ Fit PDB models to the cluster center model (CCM).
+    """ Fit the PDB structures to the cluster center model.
 
-    Args:
+    ## Arguments:
 
-        ccm_file (str):
-            Path to the RMF file containing the cluster center model.
+    - **ccm_file (str)**:<br />
+        Path to the RMF file containing the cluster center model.
 
-        fits_to_perform (list):
-            List of fit configurations specifying PDB files, chain IDs, molecules,
-            selection ranges, and copy indices.
+    - **fits_to_perform (list)**:<br />
+        List of fit configurations specifying PDB files, chain IDs, molecules,
+        selection ranges, and copy indices. Each item in the list should be a dictionary with the following keys:
+        - **pdb_file (str)**: Path to the PDB file to be aligned
+        - **pdb_chain_ids (list)**: List of chain IDs in the PDB file corresponding to the molecules
+        - **molecules (list)**: List of molecule names in the cluster center model to select
+        - **selection_ranges (list)**: List of residue selection ranges (e.g., "10-50") for each molecule
+        - **copy_indices (list)**: List of copy indices for each molecule in the cluster center model
 
-        output_dir (str):
-            Path to save the aligned PDB files.
+    - **output_dir (str)**:<br />
+        Path to save the aligned PDB files.
     """
 
     for fit in fits_to_perform:

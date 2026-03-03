@@ -23,17 +23,19 @@ def chain_id_gen():
 
     TODO: Extend to more than 52 chains if needed
 
-    Yields:
-        `i (str)`: Chain ID
+    ## Yields:
 
-    Example:
+    - **str**:<br />
+        Chain ID
 
-        >>> gen = chain_id_gen()
-        >>> _chains= []
-        >>> for _ in range(52):
-        ...     _chains.append(next(gen))
-        >>> print("".join(_chains))
-        ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+    ## Examples:
+
+    >>> gen = chain_id_gen()
+    >>> _chains= []
+    >>> for _ in range(52):
+    ...     _chains.append(next(gen))
+    >>> print("".join(_chains))
+    ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
     """
 
     for i in (list(string.ascii_uppercase)):
@@ -41,7 +43,22 @@ def chain_id_gen():
     for i in (list(string.ascii_lowercase)):
         yield i
 
-def get_chain_map(topology_file):
+def get_chain_map(topology_file: str) -> dict:
+    """ Get molecule-chain map from the IMP topology file.
+
+    A molecule is the molecule name and copy index (e.g. Pkp2a.0)
+
+    ## Arguments:
+
+    - **topology_file (str)**:<br />
+        Path to the input topology file used for the IMP.
+
+    ## Returns:
+
+    - **dict**:<br />
+        A dictionary mapping molecule names to chain IDs.
+    """
+
     with open(topology_file, "r") as f:
         lines = f.readlines()
 
@@ -68,7 +85,25 @@ def get_chain_map(topology_file):
 
     return chain_map
 
-def get_rmf_to_residue_map(all_bead_keys, chain_map):
+def get_rmf_to_residue_map(all_bead_keys: list, chain_map: dict) -> dict:
+    """ Get a mapping between molecules, chains and residues.
+
+    ## Arguments:
+
+    - **all_bead_keys (list)**:<br />
+        List of all bead keys in the format "Molecule_CopyIndex_ResRange"
+        (e.g. Pkp2a_0_1-10)
+
+    - **chain_map (dict)**:<br />
+        A dictionary mapping molecule names to chain IDs.
+
+    ## Returns:
+
+    - **dict**:<br />
+        A dictionary mapping molecule-chain-residue combinations to their
+        corresponding chain ID and residue number.
+    """
+
     rmf_to_residue_map = {}
     for molecule, ch_id in chain_map.items():
         particles = [key for key in all_bead_keys if key.startswith(molecule)]

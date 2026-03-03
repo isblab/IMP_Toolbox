@@ -20,6 +20,31 @@ from IMP_Toolbox.constants.mutation_constants import (
     AMINO_ACID_MAP,
 )
 
+"""
+
+Args:
+
+    processed_struct_path (str):
+        Path to processed structure file (PDB) to analyze.
+
+    docker_result_dir (str):
+        Directory where COCOMAP results will be stored.
+
+    result_head (str):
+        Unique identifier for the result (used for naming output directory).
+
+    result_metadata (dict):
+        Metadata dictionary containing information about the result,
+
+    docker_base_command (Template, optional):
+        Docker command template to run COCOMAP.
+
+    dry_run (bool, optional):
+        If True, only print the docker command without executing it.
+
+    overwrite (bool, optional):
+        If True, overwrite existing results.
+"""
 def run_cocomap_docker(
     processed_struct_path: str,
     docker_result_dir: str,
@@ -29,30 +54,31 @@ def run_cocomap_docker(
     dry_run: bool = False,
     overwrite: bool = False,
 ):
-    """ Run COCOMAP analysis using its docker image.
+    """ Run COCOMAPS 2 analysis using its docker image.
 
-    Args:
+    ## Arguments:
 
-        processed_struct_path (str):
-            Path to processed structure file (PDB) to analyze.
+    - **processed_struct_path (str)**:<br />
+        Path to processed structure file (PDB) to analyze.
 
-        docker_result_dir (str):
-            Directory where COCOMAP results will be stored.
+    - **docker_result_dir (str)**:<br />
+        Directory where COCOMAP results will be stored.
 
-        result_head (str):
-            Unique identifier for the result (used for naming output directory).
+    - **result_head (str)**:<br />
+        Unique identifier for the result (used for naming output directory).
 
-        result_metadata (dict):
-            Metadata dictionary containing information about the result,
+    - **result_metadata (dict)**:<br />
+        Metadata dictionary containing information about the result, including:
 
-        docker_base_command (Template, optional):
-            Docker command template to run COCOMAP.
+    - **docker_base_command (Template, optional):**:<br />
+        Docker command template to run COCOMAP. Defaults to DOCKER_BASE_COMMAND.
 
-        dry_run (bool, optional):
-            If True, only print the docker command without executing it.
+    - **dry_run (bool, optional):**:<br />
+        If True, only print the docker command without executing it. Defaults to False.
 
-        overwrite (bool, optional):
-            If True, overwrite existing results.
+    - **overwrite (bool, optional):**:<br />
+        If True, overwrite existing results. If False and results already exist
+        for the given result_head, the function will skip execution and print a warning.
     """
 
     cocomap_output_dir = os.path.join(docker_result_dir, result_head)
@@ -113,17 +139,17 @@ def postprocess_cocomap_results(
 ):
     """ Rename COCOMAP CSVs columns by protein names & explode by interaction types.
 
-    Args:
+    ## Arguments:
 
-        result_metadata (dict):
-            Metadata dictionary containing information about the result,
-            includes 'proteins' key with list of protein names for chain1 & 2.
+    - **result_metadata (dict)**:<br />
+        Metadata dictionary containing information about the result, including
+        'proteins' key with list of protein names for chain1 & 2.
 
-        docker_results_dir (str):
-            Directory where COCOMAP results are stored.
+    - **docker_results_dir (str)**:<br />
+        Directory where COCOMAP results are stored.
 
-        result_head (str):
-            Unique identifier for the result (used for naming output directory).
+    - **result_head (str)**:<br />
+        Unique identifier for the result (used for naming output directory).
     """
 
     cocomap_output_dir = os.path.join(docker_results_dir, result_head)
@@ -175,18 +201,37 @@ def get_mutation_annotated_df(
 ) -> pd.DataFrame:
     """ Add mutation annotations to COCOMAP dataframe.
 
-    mutations1_df, mutations2_df are dataframes containing mutation information
-    in the output format of clinvar_mutations1.py
+    ## Arguments:
 
-    NOTE: This is temporary, CHANGE!.
+    - **cocomap_df (pd.DataFrame)**:<br />
+        DataFrame containing COCOMAP interaction data.
 
-    Args:
-        cocomap_df (pd.DataFrame): _description_
-        mutation1_df (pd.DataFrame): _description_
-        mutation2_df (pd.DataFrame): _description_
+    - **mutation1_df (pd.DataFrame)**:<br />
+        DataFrame containing mutation information for protein 1 in the output
+        format of clinvar_mutations.py
 
-    Returns:
-        pd.DataFrame: _description_
+    - **mutation2_df (pd.DataFrame)**:<br />
+        DataFrame containing mutation information for protein 2 in the output
+        format of clinvar_mutations.py
+
+    - **af_missense_dict1 (dict)**:<br />
+        Dictionary containing AlphaFold missense mutation information for protein 1,
+        in the output format of af_missense_mutations.py
+
+    - **af_missense_dict2 (dict)**:<br />
+        Dictionary containing AlphaFold missense mutation information for protein 2,
+        in the output format of af_missense_mutations.py
+
+    - **p_name1 (str)**:<br />
+        Name of protein 1 (used as key to access af_missense_dict1).
+
+    - **p_name2 (str)**:<br />
+        Name of protein 2 (used as key to access af_missense_dict2).
+
+    ## Returns:
+
+    - **pd.DataFrame**:<br />
+        COCOMAP DataFrame with added columns for mutated residues and AlphaFold missense scores.
     """
 
     df_res_1 = list(cocomap_df["Res. Number 1"].unique())
@@ -278,20 +323,9 @@ def get_mutation_annotated_df(
 
     return cocomap_df
 
-def add_af_metrics(
-    result_metadata: dict,
-    cocomap_output_dir: str,
-    af_metadata: dict,
-    rep_atom_dict: dict = {},
-    average_token_pae: bool = False,
-    average_token_plddt: bool = False,
-    metric_level: str = "per_token",
-    mark_clashes: bool = False,
-):
-    """ Add and save COCOMAP results with AlphaFold metrics (PAE, pLDDT) columns.
+    """
 
-    #TODO: Throw error if csv files not found in cocomap_output_dir
-    
+
     Args:
 
         result_metadata (dict):
@@ -324,6 +358,59 @@ def add_af_metrics(
             the interacting atoms is less than the sum of their Van der Waals radii.
             BUG: Currently, not matching to the final_file.csv clashes
 
+    """
+def add_af_metrics(
+    result_metadata: dict,
+    cocomap_output_dir: str,
+    af_metadata: dict,
+    rep_atom_dict: dict = {},
+    average_token_pae: bool = False,
+    average_token_plddt: bool = False,
+    metric_level: str = "per_token",
+    mark_clashes: bool = False,
+):
+    """ Add and save COCOMAP results with AlphaFold metrics (PAE, pLDDT) columns.
+
+    #TODO: Throw error if csv files not found in cocomap_output_dir
+
+    ## Arguments:
+
+    - **result_metadata (dict)**:<br />
+        Metadata dictionary containing information about the result, including
+        'proteins' key with list of protein names for chain1 & 2, and 'structure_path'
+        key with path to the structure file used for COCOMAP analysis.
+
+    - **cocomap_output_dir (str)**:<br />
+        Directory where COCOMAP results are stored.
+
+    - **af_metadata (dict)**:<br />
+        Metadata dictionary containing information about the AlphaFold result, including:
+        - 'structure_path': Path to the AlphaFold-predicted structure file (PDB).
+        - 'data_path': Path to the AlphaFold output data file (pickle or npz) containing PAE and pLDDT values.
+        - 'af_offset' (optional): Dictionary specifying residue numbering offsets for each chain,
+           if the numbering in the structure file does not start at 1 or has gaps.
+
+    - **rep_atom_dict (dict, optional):**:<br />
+        Dictionary mapping residue names to representative atom names.
+        This is used to determine which atom's pLDDT to use for a given residue.
+        If not provided, the code will attempt to use standard representative atoms
+        (e.g., CB/CA for amino acids) or fall back to the first atom in the residue.
+
+    - **average_token_pae (bool, optional):**:<br />
+        If True, use the average PAE over all tokens corresponding to a residue for that residue's PAE value.
+
+    - **average_token_plddt (bool, optional):**:<br />
+        If True, use the average pLDDT over all tokens corresponding to a residue for that residue's pLDDT value.
+
+    - **metric_level (str, optional):**:<br />
+        Level at which to compute metrics: 'per_token' or 'representative_token'.
+
+    - **mark_clashes (bool, optional):**:<br />
+        If True, mark interactions that are clashes as defined by COCOMAPS2.
+        COCOMAPS2 annotates interaction types with "*" if the distance between
+        the interacting atoms is less than the sum of their Van der Waals radii.
+        Note: There is currently a bug where clashes are not being correctly marked
+        in the final_file.csv, so this may not work as expected.
     """
 
     try:
@@ -482,20 +569,23 @@ def extract_af3_metrics(
 ):
     """ Extract AlphaFold 3 metrics for interacting atoms.
 
-    Args:
+    ## Arguments:
 
-        rep_atom_dict (dict):
-            Dictionary mapping residue names to representative atom names.
+    - **rep_atom_dict (dict)**:<br />
+        Dictionary mapping residue names to representative atom names. Used to determine
+        which atom's pLDDT to use for a given residue.
 
-        initializer (af_pipeline.initialize.Initialize):
-            Initialized AlphaFold parser object.
+    - **initializer (af_pipeline.initialize.Initialize)**:<br />
+        Initialized AlphaFold parser object containing the structure and data needed to
+        extract metrics.
 
-        zipped_cra (zip):
-            Zipped chain, residue, atom information for interacting pairs.
+    - **zipped_cra (zip)**:<br />
+        Zipped chain, residue, atom information for interacting pairs.
 
-    Returns:
-        dict:
-            Dictionary containing extracted AF3 metrics.
+    ## Returns:
+
+    - **_type_**:<br />
+        Dictionary containing extracted AF3 metrics, including:
     """
 
     atom1_idxs = []
@@ -582,29 +672,31 @@ def get_atom_plddt(
     chain: str,
     res: int,
     atom: str,
-):
+) -> tuple:
     """ Get pLDDT score for a specific atom.
 
-    Args:
+    ## Arguments:
 
-        rep_atom_dict (dict):
-            Dictionary mapping residue names to representative atom names.
+    - **rep_atom_dict (dict)**:<br />
+        Dictionary mapping residue names to representative atom names.
 
-        initializer (af_pipeline.initialize.Initialize):
-            Initialized AlphaFold parser object.
+    - **initializer (af_pipeline.initialize.Initialize)**:<br />
+        Initialized AlphaFold parser object containing the structure and data needed to
+        extract metrics.
 
-        chain (str):
-            Chain identifier.
+    - **chain (str)**:<br />
+        Chain identifier.
 
-        res (int):
-            Residue number.
+    - **res (int)**:<br />
+        Residue number.
 
-        atom (str):
-            Atom name.
+    - **atom (str)**:<br />
+        Atom name.
 
-    Returns:
-        tuple:
-            pLDDT score and metric atom name.
+    ## Returns:
+
+    - **tuple**:<br />
+        pLDDT score and metric atom name.
     """
 
     try:
@@ -669,23 +761,24 @@ def get_atom_idx(
 ) -> list:
     """ Get atom index/indices from num_to_idx mapping.
 
-    Args:
+    ## Arguments:
 
-        num_to_idx (dict):
-            Residue number to residue index mapping.
+    - **num_to_idx (dict)**:<br />
+        Residue number to residue index mapping.
 
-        chain (str):
-            Chain identifier.
+    - **chain (str)**:<br />
+        Chain identifier.
 
-        res (int):
-            Residue number.
+    - **res (int)**:<br />
+        Residue number.
 
-        atom (str):
-            Atom name.
+    - **atom (str)**:<br />
+        Atom name.
 
-    Returns:
-        list:
-            List of atom indices corresponding to the specified atom.
+    ## Returns:
+
+    - **list**:<br />
+        List of atom indices corresponding to the specified atom.
     """
 
     assert chain in num_to_idx, f"Chain {chain} not found in num_to_idx."
@@ -704,20 +797,21 @@ def get_atom_idx(
 def get_interacting_atoms(
     df: pd.DataFrame,
     csv_identifier: str,
-):
+) -> tuple:
     """ Get interacting atoms from COCOMAP DataFrame based on CSV identifier.
 
-    Args:
+    ## Arguments:
 
-        df (pd.DataFrame):
-            DataFrame containing COCOMAP interaction data.
+    - **df (pd.DataFrame)**:<br />
+        DataFrame containing COCOMAP interaction data.
 
-        csv_identifier (str):
-            Identifier for the type of interaction (used to determine atom columns).
+    - **csv_identifier (str)**:<br />
+        Identifier for the type of interaction (used to determine atom columns).
 
-    Returns:
-        tuple:
-            Two lists containing interacting atoms for the two residues.
+    ## Returns:
+
+    - **tuple**:<br />
+        Two lists containing interacting atoms for the two residues.
     """
 
     atom_col_names = ATOM_COL_NAMES.get(csv_identifier, [])
@@ -762,20 +856,21 @@ def get_interacting_atoms(
 def mark_clashes_in_interaction_types(
     df: pd.DataFrame,
     interaction_type: str,
-):
+) -> list:
     """ Mark clashes in interaction types based on distance column.
 
-    Args:
+    ## Arguments:
 
-        df (pd.DataFrame):
-            DataFrame containing COCOMAP interaction data.
+    - **df (pd.DataFrame)**:<br />
+        DataFrame containing COCOMAP interaction data.
 
-        df_interaction_types (list):
-            List of interaction types corresponding to each row in the DataFrame.
+    - **interaction_type (str)**:<br />
+        List of interaction types corresponding to each row in the DataFrame.
 
-    Returns:
-        list:
-            List of interaction types with clashes marked by '*'.
+    ## Returns:
+
+    - **list**:<br />
+        List of interaction types with clashes marked by '*'.
     """
 
     df_interaction_types_w_clash = [] # to mark clashes with '*'
@@ -801,20 +896,24 @@ def mark_clashes_in_interaction_types(
 def group_csv_files_by_chain_pairs(
     result_metadata: dict,
     cocomap_output_dir: str,
-):
+) -> dict:
     """ Group COCOMAP CSV files by chain pairs.
 
-    Args:
+    ## Arguments:
 
-        result_metadata (dict):
-            Metadata dictionary containing information about the result.
+    - **result_metadata (dict)**:<br />
+        Metadata dictionary containing information about the result, including
+        'chains_set_1' and 'chains_set_2' keys with lists of chain identifiers
+        for the two sets of chains analyzed in COCOMAP.
 
-        cocomap_output_dir (str):
-            Directory where COCOMAP results are stored.
+    - **cocomap_output_dir (str)**:<br />
+        Directory where COCOMAP results are stored, used to locate the CSV files
+        generated by COCOMAP for the given result.
 
-    Returns:
-        dict:
-            Dictionary mapping chain pairs to lists of corresponding CSV files.
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary mapping chain pairs to lists of corresponding CSV files.
     """
 
     chains_set_1 = result_metadata["chains_set_1"]
