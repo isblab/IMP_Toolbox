@@ -13,13 +13,20 @@ from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map import (
+from IMP_Toolbox.analysis.rmf_to_xyzr import (
     parse_xyzr_h5_file,
-    get_residue_selections,
+    get_unique_mols,
+    get_molwise_residues,
+    get_molwise_xyzr_keys,
+)
+from IMP_Toolbox.constants.analysis_constants import (
     PAIR_SEP,
     RES_RANGE_SEP,
     MOL_RANGE_SEP,
     MOL_COPY_SEP,
+)
+from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map import (
+    get_residue_selections,
 )
 from IMP_Toolbox.analysis.rmf_to_xyzr import (
     filter_xyzr_data,
@@ -494,9 +501,11 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
     ############################################################################
     # Load and parse the XYZR data from the HDF5 file
-    xyzr_data, all_bead_keys, unique_mols, mol_res_dict = parse_xyzr_h5_file(
-        xyzr_file=xyzr_file,
-    )
+    xyzr_data = parse_xyzr_h5_file(xyzr_file=xyzr_file)
+    xyzr_keys = list(xyzr_data.keys())
+    unique_mols = get_unique_mols(xyzr_keys)
+    molwise_residues = get_molwise_residues(xyzr_keys)
+    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys)
     ############################################################################
     # Load the binding data from the JSON file to determine molecule pairs
     # and residue ranges
@@ -506,16 +515,16 @@ if __name__ == "__main__":
     )
     ############################################################################
     # Select the residues for each molecule as specified
-    sel_mol_res_dict = get_residue_selections(
+    sel_molwise_residues = get_residue_selections(
         mol_pairs=mol_pairs,
-        mol_res_dict=mol_res_dict,
+        molwise_residues=molwise_residues,
     )
-    unique_mols = set(sel_mol_res_dict.keys())
+    unique_mols = set(sel_molwise_residues.keys())
     ############################################################################
     # Only keep the beads corresponding to the selected residues
     xyzr_data = filter_xyzr_data(
         xyzr_data=xyzr_data,
-        sel_mol_res_dict=sel_mol_res_dict
+        sel_molwise_residues=sel_molwise_residues
     )
     xyzr_data = sort_xyzr_data(xyzr_data=xyzr_data)
 

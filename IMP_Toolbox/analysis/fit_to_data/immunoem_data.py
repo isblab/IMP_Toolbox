@@ -13,15 +13,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from itertools import combinations
 from scipy.spatial.distance import cdist
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from IMP_Toolbox.utils.file_helpers import read_json
 from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map import (
+from IMP_Toolbox.analysis.rmf_to_xyzr import (
     parse_xyzr_h5_file,
-    # get_unique_selections,
+    get_unique_mols,
+    get_molwise_residues,
 )
 from IMP_Toolbox.analysis.rmf_to_xyzr import (
     filter_xyzr_data,
@@ -57,7 +58,7 @@ def get_difference(
 
     return diffs
 
-def get_unique_selections1(molecules: list, mol_res_dict: dict) -> tuple:
+def get_unique_selections1(molecules: list, molwise_residues: dict) -> tuple:
     """ Get unique residue selections for each molecule in the provided pairs.
 
     ## Arguments:
@@ -65,7 +66,7 @@ def get_unique_selections1(molecules: list, mol_res_dict: dict) -> tuple:
     - **molecules (list)**:<br />
         List of tuples containing molecule pairs.
 
-    - **mol_res_dict (dict)**:<br />
+    - **molwise_residues (dict)**:<br />
         Dictionary mapping molecule names to lists of all residues in that molecule.
 
     ## Returns:
@@ -77,13 +78,13 @@ def get_unique_selections1(molecules: list, mol_res_dict: dict) -> tuple:
 
     ## Examples:
 
-    >>> mol_res_dict = {
+    >>> molwise_residues = {
     ...     'MOL1': list(range(1, 101)),
     ...     'MOL2': list(range(1, 51)),
     ...     'MOL3': list(range(1, 10)),
     ... }
     >>> molecules = ['MOL1|1-10', 'MOL2|5-15', 'MOL1|8-20', 'MOL3']
-    >>> unique_sels, unique_mols = get_unique_selections1(molecules, mol_res_dict)
+    >>> unique_sels, unique_mols = get_unique_selections1(molecules, molwise_residues)
     >>> print(unique_sels)
     {
         'MOL1': {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20},
@@ -94,7 +95,7 @@ def get_unique_selections1(molecules: list, mol_res_dict: dict) -> tuple:
     {'MOL1', 'MOL2', 'MOL3'}
     """
 
-    unique_sels = {mol: set() for mol in mol_res_dict.keys()}
+    unique_sels = {mol: set() for mol in molwise_residues.keys()}
     unique_mols = set()
 
     for _mol in molecules:
@@ -105,9 +106,9 @@ def get_unique_selections1(molecules: list, mol_res_dict: dict) -> tuple:
 
         if sel1 is not None:
             res_nums1 = get_res_range_from_key(sel1)
-            res_nums1 = [r for r in res_nums1 if r in mol_res_dict[m1]]
+            res_nums1 = [r for r in res_nums1 if r in molwise_residues[m1]]
         else:
-            res_nums1 = mol_res_dict[m1]
+            res_nums1 = molwise_residues[m1]
 
         unique_sels[m1].update(res_nums1)
 
@@ -175,9 +176,11 @@ if __name__ == "__main__":
     immunoem_data = read_json(args.input)
 
     print("reading", xyzr_file)
-    xyzr_data, all_bead_keys, unique_mols, mol_res_dict = parse_xyzr_h5_file(
-        xyzr_file=xyzr_file,
-    )
+
+    xyzr_data = parse_xyzr_h5_file(xyzr_file=xyzr_file)
+    xyzr_keys = list(xyzr_data.keys())
+    unique_mols = get_unique_mols(xyzr_keys)
+    molwise_residues = get_molwise_residues(xyzr_keys)
 
     print("done reading\n")
 
@@ -197,7 +200,7 @@ if __name__ == "__main__":
 
     unique_sels, unique_mols = get_unique_selections1(
         molecules=molecules,
-        mol_res_dict=mol_res_dict,
+        molwise_residues=molwise_residues,
     )
 
     print("Unique mols in pairs:", unique_mols)
@@ -233,7 +236,7 @@ if __name__ == "__main__":
             continue
 
         mol_name, sel = mol.split("|") if "|" in mol else (mol, None)
-        res_range = get_res_range_from_key(sel) if sel is not None else mol_res_dict[mol_name]
+        res_range = get_res_range_from_key(sel) if sel is not None else molwise_residues[mol_name]
         idxs = [i for i, k in enumerate(xyzr_keys) if (
             k.startswith(mol_name) and any(
                 r in res_range
@@ -246,7 +249,7 @@ if __name__ == "__main__":
             xyzr[:, f_btach, :].astype(f_dtype) for f_btach in frame_batches
         ]
 
-        with ThreadPoolExecutor(max_workers=nproc) as executor:
+        with ProcessPoolExecutor(max_workers=nproc) as executor:
             futures = [
                 executor.submit(
                     get_difference,

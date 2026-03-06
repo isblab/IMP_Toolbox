@@ -11,10 +11,13 @@ import numpy.typing as npt
 import matplotlib
 matplotlib.use('Agg') # Use non-interactive backend for matplotlib
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
 from scipy.spatial.distance import cdist
 from itertools import product, combinations_with_replacement
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    as_completed,
+)
 from IMP_Toolbox.utils.file_helpers import read_json
 from IMP_Toolbox.utils.special_helpers import MatrixPatches
 from IMP_Toolbox.utils.viz_helpers import save_map
@@ -23,6 +26,7 @@ from IMP_Toolbox.utils.obj_helpers import (
     get_res_range_from_key
 )
 from IMP_Toolbox.analysis.rmf_to_xyzr import (
+    get_molwise_xyzr_keys,
     parse_xyzr_h5_file,
     get_unique_mols,
     get_molwise_residues,
@@ -723,7 +727,7 @@ def fetch_pairwise_maps(
             xyzr2[:, f_batch, :].astype(f_dtype) for f_batch in frame_batches
         ]
 
-        with ThreadPoolExecutor(max_workers=nproc) as executor:
+        with ProcessPoolExecutor(max_workers=nproc) as executor:
             futures = [
                 executor.submit(
                     get_pairwise_map,
@@ -1441,13 +1445,12 @@ if __name__ == "__main__":
     os.makedirs(interaction_map_dir, exist_ok=True)
     ############################################################################
     # Load and parse the XYZR data from the HDF5 file
-    (
-        xyzr_mat,
-        xyzr_keys,
-        unique_mols,
-        molwise_residues,
-        molwise_xyzr_keys
-    ) = parse_xyzr_h5_file(xyzr_file=xyzr_file)
+    xyzr_data = parse_xyzr_h5_file(xyzr_file=xyzr_file)
+    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
+    xyzr_keys = list(xyzr_data.keys())
+    unique_mols = get_unique_mols(xyzr_keys=xyzr_keys)
+    molwise_residues = get_molwise_residues(xyzr_keys=xyzr_keys)
+    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys=xyzr_keys)
 
     num_frames = xyzr_mat.shape[1]
     print("Got xyzr_mat of shape: ", xyzr_mat.shape, " (num_beads, num_frames, 4)")
@@ -1615,42 +1618,33 @@ if __name__ == "__main__":
 
     ############################################################################
     # Plot the distance and contact maps for each molecule pair
-    with Pool(processes=nproc) as pool:
 
-        pool.starmap(
+    executor = ThreadPoolExecutor(max_workers=nproc)
+
+    for pair_name in pairwise_dmaps.keys():
+        executor.submit(
             plot_map,
-            tqdm.tqdm([
-                (
-                    pairwise_dmaps[pair_name],
-                    pair_name,
-                    interaction_map_dir,
-                    "dmap",
-                    cutoff1,
-                    molwise_residues,
-                    map_slices[pair_name],
-                    plotting_lib,
-                    binarize_dmap,
-                )
-                for pair_name in pairwise_dmaps.keys()
-            ], total=len(pairwise_dmaps.keys()))
+            pairwise_dmaps[pair_name],
+            pair_name,
+            interaction_map_dir,
+            "dmap",
+            cutoff1,
+            molwise_residues,
+            map_slices[pair_name],
+            plotting_lib,
+            binarize_dmap,
         )
-
-        pool.starmap(
+        executor.submit(
             plot_map,
-            tqdm.tqdm([
-                (
-                    pairwise_cmaps[pair_name],
-                    pair_name,
-                    interaction_map_dir,
-                    "cmap",
-                    cutoff2,
-                    molwise_residues,
-                    map_slices[pair_name],
-                    plotting_lib,
-                    binarize_cmap,
-                )
-                for pair_name in pairwise_cmaps.keys()
-            ], total=len(pairwise_cmaps.keys()))
+            pairwise_cmaps[pair_name],
+            pair_name,
+            interaction_map_dir,
+            "cmap",
+            cutoff2,
+            molwise_residues,
+            map_slices[pair_name],
+            plotting_lib,
+            binarize_cmap,
         )
 
     ############################################################################
@@ -1666,20 +1660,15 @@ if __name__ == "__main__":
             for pair_name in pairwise_cmaps.keys()
         }
 
-    with Pool(processes=nproc) as pool:
-
-        pool.starmap(
+    for pair_name in pairwise_cmaps.keys():
+        executor.submit(
             matrix_patches_worker,
-            tqdm.tqdm([
-                (
-                    pairwise_cmaps[pair_name].astype(f_dtype),
-                    pair_name,
-                    interaction_map_dir,
-                )
-                for pair_name in pairwise_cmaps.keys()
-            ], total=len(pairwise_cmaps.keys()))
+            pairwise_cmaps[pair_name].astype(i_dtype),
+            pair_name,
+            interaction_map_dir,
         )
 
+    executor.shutdown(wait=False)
     print(f"Saved interaction maps to {interaction_map_dir}")
 
     end_t = time.perf_counter()

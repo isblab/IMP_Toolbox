@@ -7,8 +7,11 @@ from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map import (
+from IMP_Toolbox.analysis.rmf_to_xyzr import (
     parse_xyzr_h5_file,
+    get_unique_mols,
+    get_molwise_residues,
+    get_molwise_xyzr_keys,
 )
 from IMP_Toolbox.utils.mutation_utils import (
     split_missense_mutation,
@@ -156,9 +159,14 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
 
     print("reading", xyzr_file)
-    xyzr_data, all_bead_keys, unique_mols, mol_res_dict = parse_xyzr_h5_file(
-        xyzr_file=xyzr_file,
-    )
+    # xyzr_data, all_bead_keys, unique_mols, mol_res_dict = parse_xyzr_h5_file(
+    #     xyzr_file=xyzr_file,
+    # )
+    xyzr_data = parse_xyzr_h5_file(xyzr_file=xyzr_file)
+    xyzr_keys = list(xyzr_data.keys())
+    unique_mols = get_unique_mols(xyzr_keys)
+    molwise_residues = get_molwise_residues(xyzr_keys)
+    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys)
     print("done reading\n")
     # print(all_bead_keys)
     # print(unique_mols)
@@ -168,7 +176,7 @@ if __name__ == "__main__":
 
     print("chain map:", chain_map)
 
-    rmf_to_residue_map = get_rmf_to_residue_map(all_bead_keys, chain_map)
+    rmf_to_residue_map = get_rmf_to_residue_map(xyzr_keys, chain_map)
 
     # print("rmf_to_residue_map:", rmf_to_residue_map)
     # out_file = os.path.join(output_dir, "rmf_to_residue_map.json")

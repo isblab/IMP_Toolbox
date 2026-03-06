@@ -467,16 +467,10 @@ def parse_xyzr_h5_file(xyzr_file: str) -> tuple:
 
     ## Returns:
 
-    - **tuple**:<br />
-        A tuple containing:
-        1. A dictionary where keys are molecule identifiers
-            in format MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM
-            and values are numpy arrays of shape (num_frames, 4).
-        2. A list of all bead keys in the file. Keys are in the format
-            MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM.
-        3. A set of unique molecule identifiers (MOL_COPYIDX).
-        4. A dictionary mapping each unique molecule (MOL_COPYIDX) to a sorted
-            list of all residues represented.
+    - **dict**:<br />
+        A dictionary where keys are molecule identifiers
+        in format MOL_COPYIDX_RESSTART-RESEND or MOL_COPYIDX_RESNUM
+        and values are numpy arrays of shape (num_frames, 4).
     """
 
     xyzr_data = {}
@@ -487,20 +481,7 @@ def parse_xyzr_h5_file(xyzr_file: str) -> tuple:
 
     xyzr_data = sort_xyzr_data(xyzr_data=xyzr_data)
 
-    xyzr_keys = list(xyzr_data.keys())
-    unique_mols = get_unique_mols(xyzr_keys)
-    molwise_residues = get_molwise_residues(xyzr_keys)
-    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys)
-
-    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
-
-    return (
-        xyzr_mat,
-        xyzr_keys,
-        unique_mols,
-        molwise_residues,
-        molwise_xyzr_keys
-    )
+    return xyzr_data
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
