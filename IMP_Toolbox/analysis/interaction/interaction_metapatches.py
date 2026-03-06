@@ -10,14 +10,19 @@ from IMP_Toolbox.utils.obj_helpers import (
     get_res_range_from_key,
     get_key_from_res_range
 )
+from IMP_Toolbox.constants.analysis_constants import (
+    PAIR_SEP,
+    RES_RANGE_SEP,
+    MOL_RANGE_SEP,
+)
 
 _user = getpass.getuser()
 
 def parse_patch_csv_filename(csv: str) -> tuple:
     """ Parse the patch CSV filename to extract the protein names and residue ranges for both proteins.
     The expected filename format is:
-    - patches_{p1_name}:{p1_start}-{p1_end}_{p2_name}:{p2_start}-{p2_end}.csv
-    - patches_{p1_name}:{p1_start}_{p2_name}:{p2_start}.csv
+    - patches_{p1_name}:{p1_start}-{p1_end}|{p2_name}:{p2_start}-{p2_end}.csv
+    - patches_{p1_name}:{p1_start}|{p2_name}:{p2_start}.csv
 
     e.g.: patches_PKP2a:1-837_DSC2a:720-901.csv, patches_PKP2a:1-837_DSC2a:901.csv
 
@@ -34,11 +39,13 @@ def parse_patch_csv_filename(csv: str) -> tuple:
     """
 
     groups = re.match(
-        r"patches_(\w+):([\d\-]+)_(\w+):([\d\-]+)\.csv",
+        rf"patches_(\w+){MOL_RANGE_SEP}([\d\{RES_RANGE_SEP}]+)" +
+        rf"\{PAIR_SEP}" +
+        rf"(\w+){MOL_RANGE_SEP}([\d\{RES_RANGE_SEP}]+)\.csv",
         os.path.basename(csv)
     ).groups()
 
-    if not groups or len(groups) != 4:
+    if not groups or len(groups) != 4 or any(g is None for g in groups):
         raise ValueError(f"Filename {csv} does not match the expected format.")
 
     p1_name = groups[0]
@@ -329,7 +336,12 @@ def plot_metapatches(
     p2_start = info_dict["p2_start"]
     p2_end = info_dict["p2_end"]
 
-    file_name = f"metapatches_{p1_name}:{p1_start}-{p1_end}_{p2_name}:{p2_start}-{p2_end}"
+    file_name = (
+        f"metapatches_" +
+        f"{p1_name}{MOL_RANGE_SEP}{p1_start}{RES_RANGE_SEP}{p1_end}" +
+        f"{PAIR_SEP}" +
+        f"{p2_name}{MOL_RANGE_SEP}{p2_start}{RES_RANGE_SEP}{p2_end}"
+    )
 
     if plotting_library == "matplotlib":
 
