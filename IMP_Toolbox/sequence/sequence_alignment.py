@@ -7,6 +7,7 @@ from IMP_Toolbox.constants.sequence_constants import (
     PSAProgram,
     PSAAttribute,
     PSATerm,
+    MolType,
 )
 from IMP_Toolbox.constants.imp_toolbox_constants import (
     FileFormat,
@@ -28,13 +29,17 @@ class PairwiseSequenceAlignment:
     program: PSAProgram
     """ Program to use for pairwise sequence alignment. """
 
+    moltype: str = MolType.PROT.value
+    """ Molecule type for alignment. Default is "protein". """
+
     pairwise_alignment: psa.PairwiseAlignment | None
     """ Pairwise alignment object. """
 
-    def __init__(self, seq1: str, seq2: str):
+    def __init__(self, seq1: str, seq2: str, moltype: str = MolType.PROT.value):
         self.seq1 = seq1
         self.seq2 = seq2
         self.program = PSAProgram.STRETCHER
+        self.moltype = moltype
         self.pairwise_alignment = None
 
     def perform_alignment(self):
@@ -48,6 +53,7 @@ class PairwiseSequenceAlignment:
 
         self.pairwise_alignment = psa.align(
             program=self.program,
+            moltype=self.moltype,
             qseq=self.seq1,
             sseq=self.seq2,
         )
@@ -167,7 +173,7 @@ class PairwiseSequenceAlignment:
             Whether to overwrite the file if it already exists. Defaults to False.
         """
 
-        ext = os.path.splitext(save_path)[1]
+        ext = os.path.splitext(save_path)[1].lstrip('.')
         assert ext in [FileFormat.FASTA, FileFormat.FA], (
             f"Expected file extension to be .fasta or .fa, but got {ext}"
         )
@@ -390,7 +396,7 @@ class PairwiseSequenceAlignment:
 
         else:
             raise ValueError(
-                f"which must be one of {MiscStrEnum.LOWER, MiscStrEnum.UPPER}, but got {which}"
+                f"which must be one of {MiscStrEnum.LOWER.value, MiscStrEnum.UPPER.value}, but got {which}"
             )
 
         return closest_residue

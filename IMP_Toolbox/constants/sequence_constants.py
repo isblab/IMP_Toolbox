@@ -3,6 +3,10 @@ from enum import StrEnum, auto
 
 UNIPROT_ISOFORM_SEPARATOR = "-"
 
+class MolType(StrEnum):
+    PROT = auto()
+    NUCL = auto()
+
 class PSATerm(StrEnum):
     QSEQ = auto()
     SSEQ = auto()
