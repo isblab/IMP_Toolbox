@@ -36,7 +36,8 @@ bash install_imp_conda.sh imp_omg /path/$USER/IMP_OMG 16 tarball 2.24.0
 
 - If custom module is being used, you will prompted to provide it's path. Currently only supports installing one custom module.
 
-## License
-[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
-This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
-International License.  
+## Additional Information
+
+**License:** GPLv3
+
+**Testable:** Yes
