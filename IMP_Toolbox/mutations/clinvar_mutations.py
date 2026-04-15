@@ -1053,134 +1053,43 @@ class VariantInfo:
 
         self.variant_dict[key] = value
 
-if __name__ == "__main__":
+def process_clinvar_variant_data(
+    protein_uniprot_map: dict,
+    protein_gene_map: dict,
+    protein_sequences: dict,
+    clinvar_output_dir: str,
+    pairwise_alignments_dir: str,
+    include_AF_missense: bool = True,
+    include_VUS: bool = False,
+    alpha_missense_dir: str = "",
+) -> pd.DataFrame:
 
-    parser = argparse.ArgumentParser(
-        description="Fetch missense variants from ClinVar."
-    )
-    parser.add_argument(
-        "--config_file",
-        type=str,
-        default="/home/omkar/Projects/cardiac_desmosome/input/config.yaml",
-        # default=config_file,
-        help="Path to the configuration YAML file.",
-    )
-    parser.add_argument(
-        "--include_VUS",
-        action="store_true",
-        default=False,
-        help="Include variants of uncertain significance (VUS).",
-    )
-    parser.add_argument(
-        "--clinvar_output_dir",
-        type=str,
-        default="/home/omkar/Projects/cardiac_desmosome/data/literature_parsing/mutations/clinvar",
-        # default=clinvar_output_dir,
-        help="Directory to save ClinVar variant information.",
-    )
-    parser.add_argument(
-        "--alpha_missense_dir",
-        type=str,
-        default="/home/omkar/Projects/cardiac_desmosome/data/literature_parsing/mutations/alpha_missense",
-        # default=alpha_missense_dir,
-        help="Directory to save AlphaMissense variant information.",
-    )
-    parser.add_argument(
-        "--pairwise_alignments_dir",
-        type=str,
-        default="/home/omkar/Projects/cardiac_desmosome/data/sequence_alignments/pairwise_alignments",
-        # default=pairwise_alignments_dir,
-        help="Directory to save pairwise alignments.",
-    )
-    parser.add_argument(
-        "--include_AF_missense",
-        action="store_true",
-        default=False,
-        help="Include AlphaMissense pathogenicity scores.",
-    )
-    parser.add_argument(
-        "--af_missense_mode",
-        type=str,
-        choices=["online", "offline"],
-        default="offline",
-        help="Mode to fetch AlphaMissense data.",
-    )
-    parser.add_argument(
-        "--af_missense_tsv",
-        type=str,
-        required=False,
-        default=AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
-        help="Path to AlphaMissense aa substitutions TSV file for offline mode.",
-    )
-    parser.add_argument(
-        "--odp_sequences_fasta",
-        type=str,
-        default="/home/omkar/Projects/cardiac_desmosome/data/sequences/odp_protein_sequences.fasta",
-        # default=odp_sequences_fasta,
-        help="Fasta file containing modeled protein sequences.",
-    )
-    args = parser.parse_args()
-
-    config_yaml = yaml.load(open(args.config_file, "r"), Loader=yaml.FullLoader)
-    protein_uniprot_map = config_yaml["cardiac_odp_protein_uniprot_map"]
-    protein_gene_map = config_yaml["cardiac_odp_protein_gene_map"]
-    odp_sequences = read_fasta(args.odp_sequences_fasta)
-
-    if args.include_VUS:
+    if include_VUS:
         CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE.append("Uncertain significance")
 
-    os.makedirs(args.clinvar_output_dir, exist_ok=True)
-
-    df_rows = []
     fasta_dict = fetch_fasta_dict_for_af_missense(
-        os.path.join(args.alpha_missense_dir, "af_missense_sequences.fasta"),
+        os.path.join(alpha_missense_dir, "af_missense_sequences.fasta"),
         protein_uniprot_map,
     )
-    uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
 
-    #######################################################################
-    # Fetch AlphaMissense data
-    #######################################################################
-    if args.include_AF_missense:
-
-        af_missense_df_gen = fetch_af_missense_data(
-            args.alpha_missense_dir,
-            uniprot_bases,
-            mode=args.af_missense_mode,
-            overwrite=False,
-            af_missense_tsv=args.af_missense_tsv,
-        )
-
-        export_af_missense_data(
-            args.alpha_missense_dir,
-            af_missense_df_gen,
-            overwrite=False,
-        )
-
+    df_rows = []
     for p_name, uniprot_id in protein_uniprot_map.items():
-
         print(f"Processing {p_name}...")
 
         uniprot_base = uniprot_id.split("-")[0]
         g_name = protein_gene_map[p_name]
 
-        AF_MISSENSE_CSV = os.path.join(
-            args.alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
-        )
-        AF_MISSENSE_PAIR_ALN_FASTA = os.path.join(
-            args.pairwise_alignments_dir, f"{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta"
-        )
         CLINVAR_VARIANTS_JSON = os.path.join(
-            args.clinvar_output_dir, f"{g_name}_clinvar_variants1.json"
+            clinvar_output_dir, f"{g_name}_clinvar_variants1.json"
         )
         CLINVAR_VARIANT_IDS_JSON = os.path.join(
-            args.clinvar_output_dir, f"{g_name}_clinvar_variant_ids.json"
+            clinvar_output_dir, f"{g_name}_clinvar_variant_ids.json"
         )
         CLINVAR_PAIR_ALN_FASTA = os.path.join(
-            args.pairwise_alignments_dir, f"{p_name}_clinvar_vs_modeled.fasta"
+            pairwise_alignments_dir, f"{p_name}_clinvar_vs_modeled.fasta"
         )
 
-        modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)
+        modeled_seq = protein_sequences.get(protein_uniprot_map[p_name], None)
         if modeled_seq is None:
             warnings.warn(f"Sequence not found for {p_name} ({uniprot_id}).")
             continue
@@ -1188,8 +1097,15 @@ if __name__ == "__main__":
         #######################################################################
         # Get AlphaMissense scores for variants in the protein
         #######################################################################
-        if args.include_AF_missense:
+        if include_AF_missense:
 
+            assert alpha_missense_dir != "", "AlphaMissense directory not provided."
+            AF_MISSENSE_CSV = os.path.join(
+                alpha_missense_dir, f"{uniprot_base}{AF_MISSENSE_CSV_SUFFIX}.csv"
+            )
+            AF_MISSENSE_PAIR_ALN_FASTA = os.path.join(
+                pairwise_alignments_dir, f"{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta"
+            )
             af_missense_ref_seq = fasta_dict.get(uniprot_base, None)
             if af_missense_ref_seq is None:
                 warnings.warn(f"Sequence not found for {p_name} ({uniprot_base}).")
@@ -1271,7 +1187,6 @@ if __name__ == "__main__":
         #######################################################################
         ncbi_ref_seq_ids = set()
         for variant_id, variant_info in clinvar_variants.items():
-
             vi = VariantInfo(
                 p_name=p_name,
                 g_name=g_name,
@@ -1280,7 +1195,7 @@ if __name__ == "__main__":
             )
 
             REF_SEQ_JSON = os.path.join(
-                args.clinvar_output_dir, f"{g_name}_{vi.ncbi_ref_seq_id}_nuccore.json"
+                clinvar_output_dir, f"{g_name}_{vi.ncbi_ref_seq_id}_nuccore.json"
             )
 
             vi.update_p_mutation(
@@ -1295,7 +1210,7 @@ if __name__ == "__main__":
 
             vi.make_variant_dict()
             vi.add_to_variant_dict("uniprot_id", uniprot_id)
-            if args.include_AF_missense:
+            if include_AF_missense:
                 afm_patho_score = get_af_missense_attribute(
                     af_missense_dict=af_missense_dict,
                     attribute="patho_score",
@@ -1324,20 +1239,127 @@ if __name__ == "__main__":
             )
 
     cols_to_add = CLINVAR_DF_COLUMNS
-    if args.include_AF_missense:
+    if include_AF_missense:
         cols_to_add.update(AF_MISSENSE_COLUMNS)
 
     df = pd.DataFrame(df_rows)
     df = df.rename(columns=cols_to_add)
+
+    return df
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        description="Fetch missense variants from ClinVar."
+    )
+    parser.add_argument(
+        "--protein_uniprot_map",
+        type=str,
+        default="/home/omg/Projects/cardiac_desmosome/input/cardiac_odp_protein_uniprot_map.json",
+        help="Path to JSON file mapping protein names to UniProt IDs.",
+    )
+    parser.add_argument(
+        "--protein_gene_map",
+        type=str,
+        default="/home/omg/Projects/cardiac_desmosome/input/cardiac_odp_protein_gene_map.json",
+        help="Path to JSON file mapping protein names to gene names.",
+    )
+    parser.add_argument(
+        "--odp_sequences_fasta",
+        type=str,
+        default="/home/omg/Projects/cardiac_desmosome/derived_data/sequences/odp_protein_sequences.fasta",
+        help="Fasta file containing modeled protein sequences.",
+    )
+    parser.add_argument(
+        "--include_VUS",
+        action="store_true",
+        default=False,
+        help="Include variants of uncertain significance (VUS).",
+    )
+    parser.add_argument(
+        "--include_AF_missense",
+        action="store_true",
+        default=False,
+        help="Include AlphaMissense pathogenicity scores.",
+    )
+    parser.add_argument(
+        "--clinvar_output_dir",
+        type=str,
+        default="/home/omg/Projects/cardiac_desmosome/data/literature_parsing/mutations/clinvar",
+        help="Directory to save ClinVar variant information.",
+    )
+    parser.add_argument(
+        "--alpha_missense_dir",
+        type=str,
+        default="/home/omg/Projects/cardiac_desmosome/data/literature_parsing/mutations/alpha_missense",
+        help="Directory to save AlphaMissense variant information.",
+    )
+    parser.add_argument(
+        "--pairwise_alignments_dir",
+        type=str,
+        default="/home/omg/Projects/cardiac_desmosome/data/sequence_alignments/pairwise_alignments",
+        help="Directory to save pairwise alignments.",
+    )
+    parser.add_argument(
+        "--af_missense_mode",
+        type=str,
+        choices=["online", "offline"],
+        default="offline",
+        help="Mode to fetch AlphaMissense data.",
+    )
+    parser.add_argument(
+        "--af_missense_tsv",
+        type=str,
+        required=False,
+        default=AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
+        help="Path to AlphaMissense aa substitutions TSV file for offline mode.",
+    )
+    args = parser.parse_args()
+
+    protein_uniprot_map = read_json(args.protein_uniprot_map)
+    protein_gene_map = read_json(args.protein_gene_map)
+    protein_sequences = read_fasta(args.odp_sequences_fasta)
+
+    os.makedirs(args.clinvar_output_dir, exist_ok=True)
+    uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
+
+    #######################################################################
+    # Fetch AlphaMissense data
+    #######################################################################
+    if args.include_AF_missense:
+
+        af_missense_df_gen = fetch_af_missense_data(
+            args.alpha_missense_dir,
+            uniprot_bases,
+            mode=args.af_missense_mode,
+            overwrite=False,
+            af_missense_tsv=args.af_missense_tsv,
+        )
+
+        export_af_missense_data(
+            args.alpha_missense_dir,
+            af_missense_df_gen,
+            overwrite=False,
+        )
+
+    df = process_clinvar_variant_data(
+        protein_uniprot_map=protein_uniprot_map,
+        protein_gene_map=protein_gene_map,
+        protein_sequences=protein_sequences,
+        clinvar_output_dir=args.clinvar_output_dir,
+        pairwise_alignments_dir=args.pairwise_alignments_dir,
+        include_AF_missense=args.include_AF_missense,
+        include_VUS=args.include_VUS,
+        alpha_missense_dir=args.alpha_missense_dir,
+    )
+
     # print(df.head())
 
     out_name = "clinvar_missense_variants"
     if args.include_VUS:
         out_name += "_with_VUS"
 
-    df_file = os.path.join(
-        args.clinvar_output_dir, f"{out_name}.xlsx"
-    )
+    df_file = os.path.join(args.clinvar_output_dir, f"{out_name}.xlsx")
     df.to_excel(df_file, index=False)
 
     print(f"ClinVar missense variants saved to {df_file}")

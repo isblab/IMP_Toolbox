@@ -10,3 +10,4 @@ networkx==3.4.2
 python-igraph==0.11.8
 tqdm==4.67.1
 statsmodels==0.14.5
+pairwise-sequence-alignment==1.0.3
