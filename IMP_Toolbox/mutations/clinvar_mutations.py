@@ -1,4 +1,5 @@
 import os
+import re
 from string import Template
 from typing import Any
 import xmltodict
@@ -45,6 +46,7 @@ from IMP_Toolbox.constants.mutation_constants import (
     CLINVAR_TEMPLATE_QUERY_ID,
     DATE_FORMAT,
     API_URLS,
+    NCBI_REF_SEQ_REGEX,
 )
 
 def get_variant_ids_from_clinvar(
@@ -403,8 +405,14 @@ class VariantInfo:
         ncbi_ref_seq_id = None
         ncbi_ref_seq = self.variant_name.split(":")
 
-        if self.g_name in ncbi_ref_seq[0]:
-            ncbi_ref_seq_id = ncbi_ref_seq[0].replace(f"({self.g_name})", "")
+        if f"({self.g_name})" in ncbi_ref_seq[0]:
+            match = re.search(NCBI_REF_SEQ_REGEX, ncbi_ref_seq[0])
+            if match:
+                ncbi_ref_seq_id = match.group(1)
+            else:
+                warnings.warn(
+                    f"Could not extract RefSeq ID from {ncbi_ref_seq[0]}"
+                )
 
         elif ignore_warnings is False:
             warnings.warn(

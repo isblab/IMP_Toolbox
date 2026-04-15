@@ -102,6 +102,7 @@ TRUNCATION_NOTATIONS = ["*", "Ter", "X", "Term"]
 
 ALLOWED_AA = set(AMINO_ACID_MAP.keys()).union(set(TRUNCATION_NOTATIONS))
 
+NCBI_REF_SEQ_REGEX = r"^([A-Z]{2}_[0-9]{6,}(?:\.[0-9]+)?)\("
 MISSENSE_REGEX = {
     "three_letter": {
         "regex": r"^([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2}|\*|Term|Ter|X)$",
