@@ -17,7 +17,10 @@ export PYTHONPATH=/path/to/IMP_Toolbox:$PYTHONPATH
 conda install --file requirements.txt
 ```
 
-**May the light of Durin's day shine upon those who choose this path.**
+- If you plan to use `sequence` module, you need to install `EMBOSS` package as follows:
+```bash
+sudo dnf install EMBOSS
+```
 
 ## Installation
 
