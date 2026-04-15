@@ -1,5 +1,7 @@
-import json
 import os
+import json
+import tqdm
+import requests
 from typing import Any
 
 def write_json(
@@ -73,3 +75,34 @@ def read_fasta(fasta_file: str) -> dict:
             )
 
     return all_sequences
+
+def download(url: str, filename: str, chunksize: int = 10240000):
+    """ Download a large file from a given url in chunks
+
+    ## Arguments:
+
+    - **url (str)**:<br />
+        The URL to download the file from.
+
+    - **filename (str)**:<br />
+        The path to save the downloaded file.
+
+    - **chunksize (int, optional)**:<br />
+        The size of each chunk to download in bytes. Default is 10MB.
+    """
+
+    with open(filename, 'wb') as f:
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            total = int(r.headers.get('content-length', 0))
+            tqdm_params = {
+                'desc': f"Downloading {os.path.basename(filename)}",
+                'total': total,
+                'unit': 'B',
+                'unit_scale': True,
+                'unit_divisor': 1024,
+            }
+            with tqdm.tqdm(**tqdm_params) as pb:
+                for chunk in r.iter_content(chunk_size=chunksize):
+                    pb.update(len(chunk))
+                    f.write(chunk)

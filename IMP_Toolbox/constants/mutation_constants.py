@@ -1,5 +1,7 @@
 import re
 import os
+import getpass
+_user = getpass.getuser()
 
 DATE_FORMAT = r"%Y-%m-%d"
 
@@ -79,6 +81,7 @@ API_URLS = {
     "uniprot_variant": "https://www.ebi.ac.uk/proteins/api/variation/uniprot_id",
     "af_missense_csv": "https://alphafold.ebi.ac.uk/files/AF-uniprot_id-F1-aa-substitutions.csv",
     # "af_missense_json": "https://alphafold.ebi.ac.uk/api/annotations/uniprot_id.json?type=MUTAGEN",
+    "af_missense_tsv": "https://storage.googleapis.com/dm_alphamissense/AlphaMissense_aa_substitutions.tsv.gz",
     "af_missense_res": "https://alphamissense.hegelab.org/hotspotapi?uid=uniprot_id&resi=res_num",
     "ncbi_esearch": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?",
     "ncbi_efetch": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?",
@@ -144,7 +147,7 @@ AF_MISSENSE_CSV_SUFFIX = "_alpha_missense_variants"
 AF_MISSENSE_PAIR_ALN_SUFFIX = "_afm_vs_modeled"
 
 # from https://console.cloud.google.com/storage/browser/dm_alphamissense
-AF_MISSENSE_AA_SUBSTITUTIONS_TSV = f"/data/{os.getlogin()}/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
+AF_MISSENSE_AA_SUBSTITUTIONS_TSV = f"/data/{_user}/Projects/IMP_Toolbox/AlphaMissense_aa_substitutions.tsv.gz"
 
 CLINVAR_PAIR_ALN_SUFFIX = "_clinvar_vs_modeled"
 CLINVAR_VARIANTS_SUFFIX = "_clinvar_variants"

@@ -125,6 +125,14 @@ def get_af_missense_data_offline(
             "'pip install duckdb' or 'conda install -c conda-forge duckdb'."
         )
 
+    if not os.path.exists(tsv_path):
+        print(f"Downloading AlphaMissense aa substitutions TSV file from cloud storage...")
+        from IMP_Toolbox.utils.file_helpers import download
+        download(
+            url=API_URLS["af_missense_tsv"],
+            filename=tsv_path,
+        )
+
     assert os.path.exists(tsv_path), (
         f"AlphaMissense aa substitutions TSV file not found at {tsv_path}."
     )
