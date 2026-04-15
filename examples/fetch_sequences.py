@@ -2,12 +2,12 @@
 # input: json file with protein names and uniprot ids ({protein_name: uniprot_id})
 # output: fasta file with all the sequences
 
-import sys
+# import sys
 import os
-from set_up import IMP_TOOLBOX, PRE_PROCESSING
-sys.path.append(IMP_TOOLBOX)
-sys.path.append(PRE_PROCESSING)
-from utils_ import read_json
+# from set_up import IMP_TOOLBOX, PRE_PROCESSING
+# sys.path.append(IMP_TOOLBOX)
+# sys.path.append(PRE_PROCESSING)
+from IMP_Toolbox.utils.file_helpers import read_json
 from argparse import ArgumentParser
 from IMP_Toolbox.sequence.sequence import (
     query_uniprot_api_for_sequences,
@@ -45,6 +45,7 @@ if __name__ == "__main__":
 
     fasta = query_uniprot_api_for_sequences(uniprot_ids=uniprot_ids)
     fasta = only_uniprot_id_as_header(fasta_str=fasta)
+    print(fasta)
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
