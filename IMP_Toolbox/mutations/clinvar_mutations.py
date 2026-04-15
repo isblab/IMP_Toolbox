@@ -1251,6 +1251,12 @@ def process_clinvar_variant_data(
         cols_to_add.update(AF_MISSENSE_COLUMNS)
 
     df = pd.DataFrame(df_rows)
+    df["residue_number"] = df["p_mutation"].apply(
+        split_missense_mutation, return_type="res_num"
+    )
+    df = df.sort_values(by=["gene", "residue_number", "p_mutation"])
+    df = df.drop_duplicates(subset=["gene", "p_mutation"]).reset_index(drop=True)
+    df = df.drop(columns=["residue_number"])
     df = df.rename(columns=cols_to_add)
 
     return df
