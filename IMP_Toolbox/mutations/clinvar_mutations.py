@@ -1,16 +1,14 @@
 import os
 import re
-from string import Template
-from typing import Any
 import xmltodict
-import yaml
-import pprint
 import warnings
 import argparse
 import pandas as pd
-from tqdm import tqdm
-from datetime import datetime
 import xml.etree.ElementTree as ET
+from typing import Any
+from tqdm import tqdm
+from string import Template
+from datetime import datetime
 from IMP_Toolbox.sequence.sequence_alignment import (
     PairwiseSequenceAlignment,
 )
@@ -133,6 +131,9 @@ def get_variant_details_from_clinvar(
 
     > [!CAUTION]
     > If you parallelize it, make sure to not exceed API's rate limits.
+    > Currently, we batch the requests in batches of 100 variant IDs. i.e.
+    > if there are 1000 variant IDs, one call to `get_variant_details_from_clinvar`
+    > will make 10 API calls, each with 100 variant IDs.
 
     ## Arguments:
 
@@ -241,7 +242,14 @@ def fetch_clinvar_variant_data(
         variant_data = read_json(save_path)
         return variant_data
 
-    get_func = eval(f"get_variant_{data_type}_from_clinvar")
+    func_getter_ = {
+        "ids": get_variant_ids_from_clinvar,
+        "details": get_variant_details_from_clinvar,
+    }
+
+    get_func = func_getter_.get(data_type)
+
+    assert callable(get_func), f"{get_func} is not callable."
 
     variant_data = get_func(
         input_data,
@@ -255,7 +263,7 @@ def fetch_clinvar_variant_data(
     return variant_data
 
 class VariantInfo:
-    """ Class to analyze ClinVar variant information."""
+    """ Class to analyze ClinVar variant information for a single variant."""
 
     setter_dict: dict = {dict: lambda x: [x], list: lambda x: x}
 
@@ -889,7 +897,7 @@ class VariantInfo:
             or (self.agg_significance
                 == "Conflicting classifications of pathogenicity"
                 and self.all_significances[0]
-                    not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE)
+                not in CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE)
         )
 
         return condition_val
@@ -927,7 +935,7 @@ class VariantInfo:
             Updated protein mutation or None if p_mutation is None.
         """
 
-        if self.p_mutation is None:
+        if self.p_mutation is None or self.ncbi_ref_seq_id is None:
             return None
 
         p_sequence = get_ncbi_ref_seq(self.ncbi_ref_seq_id, ref_seq_file)
@@ -940,13 +948,6 @@ class VariantInfo:
             pairwise_alignment_file=pairwise_alignment_file,
             overwrite=False,
         )
-
-        # clinvar_psa_map, _xtra = handle_pairwise_alignment(
-        #     sseq=p_sequence,
-        #     qseq=modeled_seq,
-        #     pairwise_alignment_file=pairwise_alignment_file,
-        #     overwrite=False,
-        # )
 
         # warn if sequences not identical
         if p_sequence != modeled_seq and ignore_warnings is False:
@@ -1013,8 +1014,6 @@ class VariantInfo:
             "all_significances": "\n\n".join(self.all_significances),
             "all_assertion_comments": "\n\n".join(self.all_assertion_comments),
             "variant_type": self.variant_type,
-            # "afm_patho_score": afm_patho_score,
-            # "afm_pathogenicity": afm_pathogenicity,
         }
 
     def add_to_variant_dict(
@@ -1073,6 +1072,56 @@ def process_clinvar_variant_data(
     af_missense_mode: str = "online",
     af_missense_tsv: str = "",
 ) -> pd.DataFrame:
+    """ A wrapper function to process ClinVar variant data for a set of proteins.
+
+    Given a set of proteins, their gene names and sequences, this function
+    fetches ClinVar variant data for each protein, processes the variant information
+    to filter for missense variants, and optionally includes AlphaMissense scores for
+    the variants. The processed variant information is returned as a DataFrame.
+
+    ## Arguments:
+
+    - **protein_uniprot_map (dict)**:<br />
+        Dictionary mapping protein names to UniProt IDs.
+
+    - **protein_gene_map (dict)**:<br />
+        Dictionary mapping protein names to gene names.
+
+    - **protein_sequences (dict)**:<br />
+        Dictionary mapping UniProt IDs to their sequences.
+
+    - **clinvar_output_dir (str)**:<br />
+        Directory to save ClinVar variant data.
+
+    - **pairwise_alignments_dir (str)**:<br />
+        Directory to save pairwise alignment files.
+
+    - **include_VUS (bool, optional):**:<br />
+        Whether to include variants of uncertain significance (VUS).
+        Defaults to False.
+
+    - **include_AF_missense (bool, optional):**:<br />
+        Whether to include AlphaMissense scores.
+        Defaults to True.
+
+    - **alpha_missense_dir (str, optional):**:<br />
+        Directory to save AlphaMissense data.
+
+    - **af_missense_mode (str, optional):**:<br />
+        Mode to fetch AlphaMissense data. Can be "online" or "offline".
+        Defaults to "online".
+
+    - **af_missense_tsv (str, optional):**:<br />
+        Path to the AlphaMissense TSV file for "offline" mode.
+        > [!CAUTION]
+        > The TSV file is quite large (~1.2GB) and can take a long time to
+        > download depending on your internet connection.
+
+    ## Returns:
+
+    - **pd.DataFrame**:<br />
+        DataFrame containing processed ClinVar variant information.
+    """
 
     #######################################################################
     # Fetch AlphaMissense data
@@ -1081,7 +1130,8 @@ def process_clinvar_variant_data(
     if include_AF_missense:
 
         if af_missense_mode == "offline":
-            assert af_missense_tsv != "", "AF missense TSV file path must be provided for offline mode."
+            if not isinstance(af_missense_tsv, str) or af_missense_tsv == "":
+                raise ValueError("af_missense_tsv must be provided for offline mode.")
 
         af_missense_df_gen = fetch_af_missense_data(
             alpha_missense_dir,
@@ -1113,7 +1163,7 @@ def process_clinvar_variant_data(
         g_name = protein_gene_map[p_name]
 
         CLINVAR_VARIANTS_JSON = os.path.join(
-            clinvar_output_dir, f"{g_name}_clinvar_variants1.json"
+            clinvar_output_dir, f"{g_name}_clinvar_variants.json"
         )
         CLINVAR_VARIANT_IDS_JSON = os.path.join(
             clinvar_output_dir, f"{g_name}_clinvar_variant_ids.json"
@@ -1275,6 +1325,9 @@ def process_clinvar_variant_data(
     if include_AF_missense:
         cols_to_add.update(AF_MISSENSE_COLUMNS)
 
+    if len(df_rows) == 0:
+        return pd.DataFrame(columns=cols_to_add.keys())
+
     df = pd.DataFrame(df_rows)
     df["residue_number"] = df["p_mutation"].apply(
         split_missense_mutation, return_type="res_num"
@@ -1294,19 +1347,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--protein_uniprot_map",
         type=str,
-        default="/home/omg/Projects/cardiac_desmosome/input/cardiac_odp_protein_uniprot_map.json",
         help="Path to JSON file mapping protein names to UniProt IDs.",
     )
     parser.add_argument(
         "--protein_gene_map",
         type=str,
-        default="/home/omg/Projects/cardiac_desmosome/input/cardiac_odp_protein_gene_map.json",
         help="Path to JSON file mapping protein names to gene names.",
     )
     parser.add_argument(
         "--odp_sequences_fasta",
         type=str,
-        default="/home/omg/Projects/cardiac_desmosome/derived_data/sequences/odp_protein_sequences.fasta",
         help="Fasta file containing modeled protein sequences.",
     )
     parser.add_argument(
@@ -1324,33 +1374,29 @@ if __name__ == "__main__":
     parser.add_argument(
         "--clinvar_output_dir",
         type=str,
-        default="/home/omg/Projects/cardiac_desmosome/data/literature_parsing/mutations/clinvar",
         help="Directory to save ClinVar variant information.",
     )
     parser.add_argument(
         "--alpha_missense_dir",
         type=str,
-        default="/home/omg/Projects/cardiac_desmosome/data/literature_parsing/mutations/alpha_missense",
         help="Directory to save AlphaMissense variant information.",
     )
     parser.add_argument(
         "--pairwise_alignments_dir",
         type=str,
-        default="/home/omg/Projects/cardiac_desmosome/data/sequence_alignments/pairwise_alignments",
         help="Directory to save pairwise alignments.",
     )
     parser.add_argument(
         "--af_missense_mode",
         type=str,
         choices=["online", "offline"],
-        default="offline",
+        default="online",
         help="Mode to fetch AlphaMissense data.",
     )
     parser.add_argument(
         "--af_missense_tsv",
         type=str,
         required=False,
-        default=AF_MISSENSE_AA_SUBSTITUTIONS_TSV,
         help="Path to AlphaMissense aa substitutions TSV file for offline mode.",
     )
     args = parser.parse_args()
@@ -1360,7 +1406,6 @@ if __name__ == "__main__":
     protein_sequences = read_fasta(args.odp_sequences_fasta)
 
     os.makedirs(args.clinvar_output_dir, exist_ok=True)
-    uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
 
     df = process_clinvar_variant_data(
         protein_uniprot_map=protein_uniprot_map,
@@ -1374,6 +1419,10 @@ if __name__ == "__main__":
         af_missense_mode=args.af_missense_mode,
         af_missense_tsv=args.af_missense_tsv,
     )
+
+    if df.empty:
+        print("No missense variants found for any protein. Exiting.")
+        exit(0)
 
     # print(df.head())
 
