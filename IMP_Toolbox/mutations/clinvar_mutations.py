@@ -1067,10 +1067,35 @@ def process_clinvar_variant_data(
     protein_sequences: dict,
     clinvar_output_dir: str,
     pairwise_alignments_dir: str,
-    include_AF_missense: bool = True,
     include_VUS: bool = False,
+    include_AF_missense: bool = True,
     alpha_missense_dir: str = "",
+    af_missense_mode: str = "online",
+    af_missense_tsv: str = "",
 ) -> pd.DataFrame:
+
+    #######################################################################
+    # Fetch AlphaMissense data
+    #######################################################################
+    uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
+    if include_AF_missense:
+
+        if af_missense_mode == "offline":
+            assert af_missense_tsv != "", "AF missense TSV file path must be provided for offline mode."
+
+        af_missense_df_gen = fetch_af_missense_data(
+            alpha_missense_dir,
+            uniprot_bases,
+            mode=af_missense_mode,
+            overwrite=False,
+            af_missense_tsv=af_missense_tsv,
+        )
+
+        export_af_missense_data(
+            alpha_missense_dir,
+            af_missense_df_gen,
+            overwrite=False,
+        )
 
     if include_VUS:
         CLINVAR_ALLOWED_CLINICAL_SIGNIFICANCE.append("Uncertain significance")
@@ -1337,34 +1362,17 @@ if __name__ == "__main__":
     os.makedirs(args.clinvar_output_dir, exist_ok=True)
     uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
 
-    #######################################################################
-    # Fetch AlphaMissense data
-    #######################################################################
-    if args.include_AF_missense:
-
-        af_missense_df_gen = fetch_af_missense_data(
-            args.alpha_missense_dir,
-            uniprot_bases,
-            mode=args.af_missense_mode,
-            overwrite=False,
-            af_missense_tsv=args.af_missense_tsv,
-        )
-
-        export_af_missense_data(
-            args.alpha_missense_dir,
-            af_missense_df_gen,
-            overwrite=False,
-        )
-
     df = process_clinvar_variant_data(
         protein_uniprot_map=protein_uniprot_map,
         protein_gene_map=protein_gene_map,
         protein_sequences=protein_sequences,
         clinvar_output_dir=args.clinvar_output_dir,
         pairwise_alignments_dir=args.pairwise_alignments_dir,
-        include_AF_missense=args.include_AF_missense,
         include_VUS=args.include_VUS,
+        include_AF_missense=args.include_AF_missense,
         alpha_missense_dir=args.alpha_missense_dir,
+        af_missense_mode=args.af_missense_mode,
+        af_missense_tsv=args.af_missense_tsv,
     )
 
     # print(df.head())
