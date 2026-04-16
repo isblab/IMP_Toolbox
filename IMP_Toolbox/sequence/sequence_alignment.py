@@ -26,19 +26,25 @@ class PairwiseSequenceAlignment:
     seq2: str
     """ Second sequence. """
 
-    program: PSAProgram
-    """ Program to use for pairwise sequence alignment. """
+    program: PSAProgram = PSAProgram.STRETCHER
+    """ Program to use for pairwise sequence alignment. Default is "stretcher". """
 
     moltype: str = MolType.PROT.value
-    """ Molecule type for alignment. Default is "protein". """
+    """ Molecule type for alignment. Default is "prot". """
 
     pairwise_alignment: psa.PairwiseAlignment | None
     """ Pairwise alignment object. """
 
-    def __init__(self, seq1: str, seq2: str, moltype: str = MolType.PROT.value):
+    def __init__(
+        self,
+        seq1: str,
+        seq2: str,
+        moltype: str = MolType.PROT.value,
+        program: PSAProgram = PSAProgram.STRETCHER
+    ):
         self.seq1 = seq1
         self.seq2 = seq2
-        self.program = PSAProgram.STRETCHER
+        self.program = program
         self.moltype = moltype
         self.pairwise_alignment = None
 
