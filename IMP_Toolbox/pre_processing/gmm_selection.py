@@ -201,7 +201,7 @@ def compare_gmms(
             break
 
     df = pd.DataFrame(correlation_list)
-    out_html = chimerax_log.replace(f".{FileFormat.TXT}", f"_{FileFormat.HTML}")
+    out_html = chimerax_log.replace(f".{FileFormat.TXT}", f".{FileFormat.HTML}")
     styled_df = df.style.map(
         lambda val: highlight_greater_than(val, threshold=threshold),
         subset=[CorrelationMetric.CORRELATION, CorrelationMetric.CAM]
