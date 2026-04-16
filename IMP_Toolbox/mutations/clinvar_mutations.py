@@ -846,6 +846,10 @@ class VariantInfo:
     def get_all_assertion_comments(self) -> list:
         """ Get all assertion comments from the clinical assertions.
 
+        > [!NOTE]
+        > These are ordered by the date they were last evaluated, with the most
+        > recent one first.
+
         ## Returns:
 
         - **list**:<br />
@@ -893,7 +897,7 @@ class VariantInfo:
             or self.ncbi_ref_seq_id is None
             or len(self.molecular_consequence_list) == 0
             or self.g_name != self.ncbi_g_name
-            or is_missense_mutation(self.p_mutation) is False
+            or is_missense_mutation(self.p_mutation, ignore_warnings=True) is False
             or (self.agg_significance
                 == "Conflicting classifications of pathogenicity"
                 and self.all_significances[0]
@@ -959,7 +963,8 @@ class VariantInfo:
 
         split_mut = split_missense_mutation(
             p_mutation=self.p_mutation,
-            return_type="all"
+            return_type="all",
+            ignore_warnings=True,
         )
 
         if split_mut is None:
@@ -1330,7 +1335,7 @@ def process_clinvar_variant_data(
 
     df = pd.DataFrame(df_rows)
     df["residue_number"] = df["p_mutation"].apply(
-        split_missense_mutation, return_type="res_num"
+        split_missense_mutation, return_type="res_num", ignore_warnings=True
     )
     df = df.sort_values(by=["gene", "residue_number", "p_mutation"])
     df = df.drop_duplicates(subset=["gene", "p_mutation"]).reset_index(drop=True)

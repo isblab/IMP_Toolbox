@@ -196,6 +196,7 @@ def get_lovd_variants_for_gene(
 def is_missense_mutation(
     p_mutation: str | None,
     allow_truncation: bool = False,
+    ignore_warnings: bool = False,
 ) -> bool:
     """ Check if a protein mutation string represents a missense mutation
 
@@ -222,7 +223,7 @@ def is_missense_mutation(
             pattern = value["regex"]
             break
 
-    if pattern is None:
+    if pattern is None and ignore_warnings is False:
         warnings.warn(f"No regex pattern found for mutation: {p_mutation}")
         return False
 

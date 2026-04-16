@@ -170,6 +170,7 @@ CLINVAR_TEMPLATE_QUERY_DETAIL = {
 
 CLINVAR_DF_COLUMNS = {
     "gene": "Gene",
+    "protein": "Protein",
     "uniprot_id": "Uniprot ID",
     "ncbi_ref_seq_id": "NCBI RefSeq ID",
     "p_mutation": "Mutation",
@@ -178,6 +179,7 @@ CLINVAR_DF_COLUMNS = {
     "all_assertion_comments": "All submission comments",
     "all_significances": "All clinical significances",
     "variant_id": "ClinVar Variant ID",
+    "variant_type": "Variant type",
     "molecular_consequence": "Molecular consequence",
 }
 
