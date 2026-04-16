@@ -64,8 +64,9 @@ def make_best_structures_df(
 
     for uniprot_id, best_structure in best_structures.items():
 
-        if not best_structure:
+        if not isinstance(best_structure, dict):
             print(f"No best structure found for {uniprot_id}")
+            continue
 
         best_chains = best_structure[uniprot_id.split("-")[0]]
         best_chains = [
