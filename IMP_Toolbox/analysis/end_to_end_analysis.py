@@ -1172,70 +1172,6 @@ def fit_to_binding_data(
 
     os.system(" ".join(map(str, command)))
 
-def fit_to_immunoem_data(
-    script_path: str,
-    xyzr_file: str,
-    input_config: str,
-    output_dir: str,
-    nproc: int = 24,
-    merge_copies: bool = True,
-    float_dtype: int = 64,
-    logger: logging.Logger | None = None,
-):
-    """ Run the script `fit_to_immunoem_data.py` and fit the models to immuno-EM data.
-
-    ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `fit_to_immunoem_data.py` script.
-
-    - **xyzr_file (str)**:<br />
-        Path to the input hdf5 file containing XYZR data. This file is generated
-        from the `rmf_to_xyzr.py` script and contains the coordinates and radii
-        of the beads for each molecule in the system.
-
-    - **input_config (str)**:<br />
-        Path to the input configuration file containing the immuno-EM data and
-        parameters for fitting the models to the immuno-EM data. This file should
-        specify the immuno-EM data to be used for fitting, as well as any parameters
-        needed for the fitting process.
-
-    - **output_dir (str)**:<br />
-        Directory to save the outputs from the fitting process. The outputs may
-        include the fitted models, fit scores, and any visualizations generated from
-        the fitting process.
-
-    - **nproc (int, optional):**:<br />
-        Number of processors to use for the fitting process.
-
-    - **merge_copies (bool, optional):**:<br />
-        Whether to merge maps across copies for protein pairs.
-
-    - **float_dtype (int, optional):**:<br />
-        Float dtype for calculations (e.g., 32 or 64)
-
-    - **logger (logging.Logger | None, optional):**:<br />
-        Logger for logging messages.
-    """
-
-    command = [
-        "python", script_path,
-        "--xyzr_file", xyzr_file,
-        "--input", input_config,
-        "--output_dir", output_dir,
-        "--nproc", nproc,
-        "--float_dtype", float_dtype,
-    ]
-
-    if merge_copies:
-        command.append("--merge_copies")
-
-    if logger is not None:
-        logger.info("Running fit_to_immunoem_data with command:")
-        logger.info(" ".join(map(str, command)))
-
-    os.system(" ".join(map(str, command)))
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
@@ -1783,41 +1719,6 @@ if __name__ == "__main__":
         )
         lap = time.perf_counter()
         logger.info(f"Completed fit_to_binding_data in {lap - start_t:0.4f} seconds")
-
-    ###########################################################################
-    # Fit to immunoem data (optional)
-    ###########################################################################
-
-    if "fit_to_immunoem_data" in args.scripts_to_run:
-
-        fit_to_immunoem_data_dir = os.path.join(
-            ANALYSIS_OUTPUT_PATH, "fit_to_immunoem_data"
-        )
-        os.makedirs(fit_to_immunoem_data_dir, exist_ok=True)
-        input_config = f"{IMP_TOOLOBX_PATH}/analysis/fit_to_immunoem.json"
-        assert os.path.exists(xyzr_output_path), (
-            f"""XYZR output file {xyzr_output_path} does not exist.
-            Please check if rmf_to_xyzr has been run successfully.
-            """
-        )
-        assert os.path.exists(input_config), (
-            f"""Input config file {input_config} does not exist.
-            Please check if the file exists at the specified path.
-            """
-        )
-        fit_to_immunoem_data(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/fit_to_immunoem_data.py",
-            xyzr_file=xyzr_output_path,
-            input_config=input_config,
-            output_dir=fit_to_immunoem_data_dir,
-            nproc=24,
-            merge_copies=True,
-            float_dtype=64,
-            logger=logger
-        )
-        lap = time.perf_counter()
-        logger.info(f"Completed fit_to_immunoem_data in {lap - start_t:0.4f} seconds")
-
     ###########################################################################
     logger.info("End-to-end analysis completed.")
     logger.info("Ran following scripts:")
