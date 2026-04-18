@@ -274,6 +274,19 @@ else
 
 fi
 
+lines_to_add=(
+    "export IMP_BIN_DIR='$install_path/imp-clean/build/bin'"
+    "export IMP_TMP_DIR='$install_path/imp-clean/build/tmp'"
+    "export IMP_DATA='$install_path/imp-clean/build/data'"
+    "export IMP_EXAMPLE_DATA='$install_path/imp-clean/build/doc/examples'"
+    "export SAMPCON_PATH='$install_path/imp-clean/build/lib/IMP/sampcon'"
+    "export PYTHONPATH=$PYTHONPATH:$install_path/imp-clean/build/lib:"
+)
+
+for line in "${lines_to_add[@]}"; do
+    grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
+done
+
 # custom module installation
 
 if [[ -n "$custom_module_path" ]]; then
@@ -374,6 +387,14 @@ if [[ "$clone_prism" == "yes" ]]; then
         echo "prism commit hash: $last_commit_hash - $(date)" >> $commit_hash_file_path ;
     fi
 
+    lines_to_add=(
+        "export PRISM_PATH='$install_path/prism'"
+    )
+
+    for line in "${lines_to_add[@]}"; do
+        grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
+    done
+
 fi
 
 # clone PMI analysis if the flag is set
@@ -401,6 +422,16 @@ if [[ "$clone_pmi_analysis" == "yes" ]]; then
         last_commit_hash=$(git rev-parse HEAD) ;
         echo "PMI_analysis commit hash: $last_commit_hash - $(date)" >> $commit_hash_file_path ;
     fi  
+
+    lines_to_add=(
+        "export PMI_ANALYSIS_PATH='$install_path/PMI_analysis'"
+        "export PYTHONPATH=$PYTHONPATH:$install_path/PMI_analysis/pyext/src:"
+    )
+
+    for line in "${lines_to_add[@]}"; do
+        grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
+    done
+
 fi
 
 # clone PyRMSD if the flag is set
@@ -428,6 +459,15 @@ if [[ "$clone_pyrmsd" == "yes" ]]; then
         last_commit_hash=$(git rev-parse HEAD) ;
         echo "PyRMSD commit hash: $last_commit_hash - $(date)" >> $commit_hash_file_path ;
     fi
+
+    lines_to_add=(
+        "export PYTHONPATH=$PYTHONPATH:$install_path/pyRMSD:"
+    )
+
+    for line in "${lines_to_add[@]}"; do
+        grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
+    done
+
 fi
 
 if [[ -d "./pyRMSD" ]] ; then
