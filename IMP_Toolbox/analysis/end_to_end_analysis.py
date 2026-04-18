@@ -5,13 +5,13 @@ import random
 import argparse
 import logging
 import getpass
+from pathlib import Path
 _user = getpass.getuser()
 
+here = os.path.dirname(os.path.abspath(__file__))
+
 logging.basicConfig(
-    filename=os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        'end_to_end_analysis.log'
-    ),
+    filename=os.path.join(here, 'end_to_end_analysis.log'),
     filemode="a+",
     format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO
@@ -30,9 +30,18 @@ HDBSCAN_RESTRAINT_HANDLES = [
     "EM_sum",
 ]
 TRAJ_DIR_PREFIX = "run_"
-PRISM_PATH = "/home/$USER/IMP_OMG/prism"
-SAMPCON_PATH = "/home/$USER/IMP_OMG/imp-sampcon"
-IMP_TOOLOBX_PATH = "/home/$USER/Projects/IMP_TOOLBOX/IMP_Toolbox"
+
+PRISM_PATH = os.environ.get("PRISM_PATH", f"/home/{_user}/IMP_OMG/prism")
+assert os.path.isdir(PRISM_PATH), (
+    f"""Environment variable PRISM_PATH might not be set correctly.
+    Set using `export PRISM_PATH='/path/to/prism'` in your .bashrc file."""
+)
+SAMPCON_PATH = os.environ.get("SAMPCON_PATH", f"/home/{_user}/IMP_OMG/imp-clean/build/lib/IMP/sampcon")
+assert os.path.isdir(SAMPCON_PATH), (
+    f"""Environment variable SAMPCON_PATH might not be set correctly.
+    Set using `export SAMPCON_PATH='/path/to/sampcon'` in your .bashrc file.
+    You can find it in IMP installation directory under `build/lib/IMP/sampcon` after installing IMP."""
+)
 SYSNAME = "cardiac_desmosome"
 SAMPCON_DENSITY_TXT = f"/data/{_user}/imp_toolbox_test/input/density_sampcon.txt"
 MODEL_CAP = 30000 # for variable filter
@@ -82,7 +91,6 @@ def return_major_cluster(hdbscan_log_path: str):
     return major_clust
 
 def run_analysis_trajectories(
-    script_path: str,
     modeling_dir: str,
     analysis_dir: str,
     traj_dir_prefix: str,
@@ -117,9 +125,6 @@ def run_analysis_trajectories(
     - Distribution of total score and score convergence for each cluster
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `run_analysis_trajectories.py` script.
 
     - **modeling_dir (str)**:<br />
         Path to the modeling output directory containing the trajectory folders.
@@ -170,6 +175,8 @@ def run_analysis_trajectories(
         Directory where the log file is saved.
     """
 
+    script_path = Path(here) / "run_analysis_trajectories.py"
+
     command = [
         "python", script_path,
         "--modeling_dir", modeling_dir,
@@ -201,7 +208,6 @@ def run_analysis_trajectories(
     os.system(" ".join(map(str, command)))
 
 def variable_filter(
-    script_path: str,
     pmi_clust_idx: int,
     lowest_cutoff: float,
     highest_cutoff: float,
@@ -221,9 +227,6 @@ def variable_filter(
       `run_analysis_trajectories.py` in case greater than `model_cap`.
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `variable_filter.py` script.
 
     - **pmi_clust_idx (int)**:<br />
         Index of the major cluster from HDBSCAN clustering to filter models from.
@@ -259,6 +262,8 @@ def variable_filter(
         Directory where the log file will be saved.
     """
 
+    script_path = Path(here) / "variable_filter.py"
+
     command = [
         "python", script_path,
         "--cluster_num", str(pmi_clust_idx),
@@ -285,7 +290,6 @@ def variable_filter(
     os.system(" ".join(map(str, command)))
 
 def run_extract_models(
-    script_path: str,
     modeling_dir: str,
     analysis_dir: str,
     traj_dir_prefix: str,
@@ -311,9 +315,6 @@ def run_extract_models(
       in `analysis_dir` for sample A and B respectively.
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `run_extract_models.py` script.
 
     - **modeling_dir (str)**:<br />
         Path to the modeling output directory containing the trajectory folders.
@@ -361,6 +362,8 @@ def run_extract_models(
         Path to the directory where log files are saved. If None, a default path is used.
     """
 
+    script_path = Path(here) / "run_extract_models.py"
+
     command = [
         "python", script_path,
         "--modeling_dir", modeling_dir,
@@ -393,7 +396,6 @@ def run_extract_models(
     os.system(" ".join(map(str, command)))
 
 def exhaust(
-    script_path: str,
     pmi_analysis_dir: str,
     sysname: str,
     scoreA: str,
@@ -428,9 +430,6 @@ def exhaust(
         - prism input `.npz` files for each cluster if `prism` is True
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `exhaust.py` script from imp-sampcon.
 
     - **pmi_analysis_dir (str)**:<br />
         Path to the pmi_analysis output directory containing the scores and rmf3 files for sample A and B. This is used as input for the exhaustiveness analysis.
@@ -491,6 +490,8 @@ def exhaust(
         Directory where the log file is saved. If None, the log is saved in the current working directory.
     """
 
+    script_path = Path(SAMPCON_PATH) / "exhaust.py"
+
     command = [
         "python", script_path,
         "--sysname", sysname,
@@ -531,7 +532,6 @@ def exhaust(
     os.system(" ".join(map(str, command)))
 
 def correlate_cluster_sample_densities(
-    script_path: str,
     sampcon_cluster_path: str,
     mode: str,
     use_combined_map: bool,
@@ -542,9 +542,6 @@ def correlate_cluster_sample_densities(
     """ Run the script `correlate_cluster_sample_densities.py` from IMP_Toolbox
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `correlate_cluster_sample_densities.py` script.
 
     - **sampcon_cluster_path (str)**:<br />
         Path to the directory containing the cluster directories generated from
@@ -569,6 +566,8 @@ def correlate_cluster_sample_densities(
         current working directory.
     """
 
+    script_path = Path(here) / "correlate_cluster_sample_densities.py"
+
     command = [
         "python", script_path,
         "--sampcon_cluster_path", sampcon_cluster_path,
@@ -592,7 +591,6 @@ def correlate_cluster_sample_densities(
     os.system(" ".join(map(str, command)))
 
 def fit_pdb_to_ccm(
-    script_path: str,
     ccm_file: str,
     input_config: str,
     output_dir: str,
@@ -601,9 +599,6 @@ def fit_pdb_to_ccm(
     """ Run the script `align_pdb_to_ccm.py` from IMP_Toolbox.
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `align_pdb_to_ccm.py` script.
 
     - **ccm_file (str)**:<br />
         Path to the input CCM file. This file contains the contact information
@@ -621,6 +616,8 @@ def fit_pdb_to_ccm(
         Logger for logging messages. If None, logging is skipped.
     """
 
+    script_path = Path(here) / "align_pdb_to_ccm.py"
+
     command = [
         "python", script_path,
         "--ccm_file", ccm_file,
@@ -635,7 +632,6 @@ def fit_pdb_to_ccm(
     os.system(" ".join(map(str, command)))
 
 def prism_annotate(
-    script_path: str,
     input: str,
     input_type: str,
     voxel_size: int,
@@ -657,9 +653,6 @@ def prism_annotate(
     - This generates annotations for indicating precision on the bead models
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `main.py` script from prism.
 
     - **input (str)**:<br />
         Path to the input file for annotation. These are ".npz" files generated
@@ -715,6 +708,8 @@ def prism_annotate(
         If None, the log is saved in the current working directory.
     """
 
+    script_path = Path(PRISM_PATH) / "src" / "main.py"
+
     command = [
         "python", script_path,
         "--input", input,
@@ -751,7 +746,6 @@ def prism_annotate(
     os.system(" ".join(map(str, command)))
 
 def prism_color(
-    script_path: str,
     input: str,
     frame_index: int,
     subunit: str | None,
@@ -767,9 +761,6 @@ def prism_color(
     - The output is a rmf3 file with the colored bead models
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `color_precision.py` script from prism.
 
     - **input (str)**:<br />
         Path to the input rmf3 file containing the bead models to be colored.
@@ -800,6 +791,8 @@ def prism_color(
         Logger for logging messages. If None, logging is skipped. Defaults to None.
     """
 
+    script_path = Path(PRISM_PATH) / "src" / "color_precision.py"
+
     command = [
         "python", script_path,
         "--input", input,
@@ -820,7 +813,6 @@ def prism_color(
     os.system(" ".join(map(str, command)))
 
 def extract_sampcon(
-    script_path: str,
     rmf1: str,
     list1: str,
     rmf2: str,
@@ -836,9 +828,6 @@ def extract_sampcon(
     - The output is a single rmf3 file containing the extracted models
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `extract_sampcon.py` script from imp-sampcon.
 
     - **rmf1 (str)**:<br />
         Path to the rmf3 file for sample A. This file contains the models for
@@ -864,6 +853,8 @@ def extract_sampcon(
         Logger for logging messages. If None, logging is skipped. Defaults to None.
     """
 
+    script_path = Path(here) / "extract_sampcon.py"
+
     command = [
         "python", script_path,
         "--rmf_out", rmf_out,
@@ -880,7 +871,6 @@ def extract_sampcon(
     os.system(" ".join(map(str, command)))
 
 def rmf_to_xyzr(
-    script_path: str,
     rmf_path: str,
     output_path: str,
     frame_subset: str | None = None,
@@ -899,9 +889,6 @@ def rmf_to_xyzr(
       (e.g. {"1-10": [[x, y, z, r], ...], "11": [[x, y, z, r], ...]})
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `rmf_to_xyzr.py` script.
 
     - **rmf_path (str)**:<br />
         Path to the input rmf3 file containing the bead models.
@@ -927,6 +914,8 @@ def rmf_to_xyzr(
         Logger for logging messages.
     """
 
+    script_path = Path(here) / "rmf_to_xyzr.py"
+
     command = [
         "python", script_path,
         "--rmf_path", rmf_path,
@@ -948,7 +937,6 @@ def rmf_to_xyzr(
     os.system(" ".join(map(str, command)))
 
 def interaction_map(
-    script_path: str,
     xyzr_file: str,
     interaction_map_dir: str,
     nproc: int = 24,
@@ -966,9 +954,6 @@ def interaction_map(
     """ Run the script `interaction_map.py` and get pairwise distance/contact maps
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `interaction_map.py` script.
 
     - **xyzr_file (str)**:<br />
         Path to the input hdf5 file containing XYZR data. This file is generated
@@ -1032,6 +1017,8 @@ def interaction_map(
         Logger for logging messages.
     """
 
+    script_path = Path(here) / "interaction" / "coarse_grained" / "interaction_map.py"
+
     command = [
         "python", script_path,
         "--xyzr_file", xyzr_file,
@@ -1063,7 +1050,6 @@ def interaction_map(
     os.system(" ".join(map(str, command)))
 
 def interaction_metapatches(
-    script_path: str,
     interaction_map_dir: str,
     threshold: int = 40,
     plotting: str = "plotly",
@@ -1073,9 +1059,6 @@ def interaction_metapatches(
     interacting regions from the interaction map data.
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `interaction_metapatches.py` script.
 
     - **interaction_map_dir (str)**:<br />
         Directory containing the interaction map data generated from the `interaction_map.py` script.
@@ -1095,6 +1078,8 @@ def interaction_metapatches(
         Logger for logging messages.
     """
 
+    script_path = Path(here) / "interaction" / "interaction_metapatches.py"
+
     command = [
         "python", script_path,
         "--interaction_map_dir", interaction_map_dir,
@@ -1109,7 +1094,6 @@ def interaction_metapatches(
     os.system(" ".join(map(str, command)))
 
 def fit_to_binding_data(
-    script_path: str,
     xyzr_file: str,
     input_config: str,
     output_dir: str,
@@ -1121,9 +1105,6 @@ def fit_to_binding_data(
     """ Run the script `fit_to_binding_data.py` and fit the models to binding data
 
     ## Arguments:
-
-    - **script_path (str)**:<br />
-        Path to the `fit_to_binding_data.py` script.
 
     - **xyzr_file (str)**:<br />
         Path to the input hdf5 file containing XYZR data. This file is generated
@@ -1153,6 +1134,8 @@ def fit_to_binding_data(
     - **logger (logging.Logger | None, optional):**:<br />
         Logger for logging messages.
     """
+
+    script_path = Path(here) / "fit_to_binding_data.py"
 
     command = [
         "python", script_path,
@@ -1285,7 +1268,6 @@ if __name__ == "__main__":
     if "run_analysis_trajectories" in args.scripts_to_run:
 
         run_analysis_trajectories(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/run_analysis_trajectories.py",
             modeling_dir=modeling_dir,
             analysis_output_path=pmi_analysis_output_path,
             traj_dir_prefix=TRAJ_DIR_PREFIX,
@@ -1360,7 +1342,6 @@ if __name__ == "__main__":
             )
             os.makedirs(var_filter_output_path, exist_ok=True)
             variable_filter(
-                script_path=f"{IMP_TOOLOBX_PATH}/analysis/variable_filter.py",
                 major_cluster_idx=pmi_cluster_idx,
                 lowest_cutoff=-2.0,
                 highest_cutoff=3.0,
@@ -1387,7 +1368,6 @@ if __name__ == "__main__":
     if "run_extract_models" in args.scripts_to_run:
 
         run_extract_models(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/run_extract_models.py",
             modeling_dir=modeling_dir,
             analysis_output_path=pmi_analysis_output_path,
             traj_dir_prefix=TRAJ_DIR_PREFIX,
@@ -1423,7 +1403,6 @@ if __name__ == "__main__":
         _current_dir = os.getcwd()
         os.chdir(sampcon_output_dir)
         exhaust(
-            script_path=f"{SAMPCON_PATH}/pyext/src/exhaust.py",
             pmi_analysis_output_path=pmi_analysis_output_path,
             sysname=SYSNAME,
             scoreA=f"A_models_clust{str(pmi_cluster_idx)}.txt",
@@ -1465,7 +1444,6 @@ if __name__ == "__main__":
         )
 
         correlate_cluster_sample_densities(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/correlate_cluster_sample_densities.py",
             sampcon_cluster_path=sampcon_cluster_path,
             mode="pasani",
             use_combined_map=True,
@@ -1504,7 +1482,6 @@ if __name__ == "__main__":
             Please check if exhaust has been run successfully. """
         )
         extract_sampcon(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/xtract_sampcon.py",
             rmf1=frames_A_rmf,
             list1=frame_ids_A_txt,
             rmf2=frames_B_rmf,
@@ -1539,7 +1516,6 @@ if __name__ == "__main__":
     if "prism_annotate" in args.scripts_to_run:
         os.makedirs(prism_output_dir, exist_ok=True)
         prism_annotate(
-            script_path=f"{PRISM_PATH}/src/main.py",
             input=prism_input_path,
             input_type="npz",
             voxel_size=4,
@@ -1574,7 +1550,6 @@ if __name__ == "__main__":
             ".rmf3", "_prism_colored.rmf3"
         )
         prism_color(
-            script_path=f"{PRISM_PATH}/src/color_precision.py",
             input=cluster_center_rmf_path,
             frame_index=0,
             subunit=None,
@@ -1603,9 +1578,8 @@ if __name__ == "__main__":
         )
 
         fit_pdb_to_ccm(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/align_pdb_to_ccm.py",
             ccm_file=cluster_center_rmf_path,
-            input_config=f"{IMP_TOOLOBX_PATH}/analysis/fits_to_perform.json",
+            input_config=f"{here}/analysis/fits_to_perform.json",
             output_dir=os.path.join(ANALYSIS_OUTPUT_PATH, "aligned_pdb_to_ccm"),
             logger=logger
         )
@@ -1631,7 +1605,6 @@ if __name__ == "__main__":
             """
         )
         rmf_to_xyzr(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/rmf_to_xyzr1.py",
             rmf_path=extracted_rmf_path,
             output_path=xyzr_output_path,
             frame_subset=None,
@@ -1665,7 +1638,6 @@ if __name__ == "__main__":
             """
         )
         interaction_map(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/interaction_map.py",
             xyzr_file=xyzr_output_path,
             interaction_map_dir=interaction_map_dir,
             nproc=24,
@@ -1696,7 +1668,7 @@ if __name__ == "__main__":
             ANALYSIS_OUTPUT_PATH, "fit_to_binding_data"
         )
         os.makedirs(fit_to_binding_data_dir, exist_ok=True)
-        input_config = f"{IMP_TOOLOBX_PATH}/analysis/fit_to_binding.json"
+        input_config = f"{here}/analysis/fit_to_binding.json"
         assert os.path.exists(xyzr_output_path), (
             f"""XYZR output file {xyzr_output_path} does not exist.
             Please check if rmf_to_xyzr has been run successfully.
@@ -1708,7 +1680,6 @@ if __name__ == "__main__":
             """
         )
         fit_to_binding_data(
-            script_path=f"{IMP_TOOLOBX_PATH}/analysis/fit_to_binding_data.py",
             xyzr_file=xyzr_output_path,
             input_config=input_config,
             output_dir=fit_to_binding_data_dir,
