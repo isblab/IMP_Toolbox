@@ -115,20 +115,6 @@ def fetch_nuccore_ref_seq_from_id(
 
     return {ref_seq_id: p_sequence}
 
-    """ Fetch variants for a given gene name from the LOVD.
-
-    Args:
-        gene_name (str):
-            Valid gene name to fetch variants for.
-        ignore_error (bool, optional):
-            Defaults to False.
-        max_retries (int, optional):
-            Defaults to 3.
-
-    Returns:
-        list:
-            List of variants for the given gene name if found.
-    """
 def get_lovd_variants_for_gene(
     gene_name: str,
     api_url: str,

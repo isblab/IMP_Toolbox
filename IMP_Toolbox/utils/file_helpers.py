@@ -6,7 +6,8 @@ from typing import Any
 
 def write_json(
     file_path: str,
-    data
+    data,
+    indent: int = None,
 ):
     """ Write data to a JSON file.
 
@@ -20,7 +21,7 @@ def write_json(
     """
 
     with open(file_path, "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=indent)
 
 def read_json(file_path: str) -> Any:
     """ Load content from a JSON file
