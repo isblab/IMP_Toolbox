@@ -1,26 +1,61 @@
 import os
 import argparse
 import pandas as pd
+import Bio.PDB.Structure
+import Bio.PDB.Residue
 from Bio.PDB import FastMMCIFParser, PDBParser
 from Bio.PDB.DSSP import DSSP
-from Bio.PDB.ResidueDepth import residue_depth, get_surface
+from scipy.spatial import KDTree
+from Bio.PDB.ResidueDepth import get_surface
+import numpy as np
+
+def get_residue_depth(
+    residue: Bio.PDB.Residue.Residue,
+    kdtree: KDTree,
+    depth_type: str = "mean", # or "representative"
+):
+
+    assert depth_type in ["mean", "representative"], "depth_type must be 'mean' or 'representative'"
+
+    if depth_type == "representative":
+        if residue.has_id("CB"):
+            target_atom = residue["CB"]
+        elif residue.has_id("CA"):
+            target_atom = residue["CA"]
+        else:
+            return None
+        coord = target_atom.get_coord()
+        depth, _ = kdtree.query(coord)
+        return depth
+
+    elif depth_type == "mean":
+        atom_coords = [atom.get_coord() for atom in residue.get_atoms()]
+        min_dists = [kdtree.query(atom_coord)[0] for atom_coord in atom_coords]
+        return np.mean(min_dists)
 
 def get_burial_info(
     structure_path: str,
+    structure: Bio.PDB.Structure.Structure | None,
     include_residue_depth: bool = False,
     residue_selector: dict | None = None,
     msms_executable: str | None = None,
+    entity_chain_map: dict | None = None,
 ) -> pd.DataFrame:
 
-    file_extension = os.path.splitext(structure_path)[1].lower()
-    if file_extension == ".cif":
-        parser = FastMMCIFParser(QUIET=True)
-    elif file_extension == ".pdb":
-        parser = PDBParser(QUIET=True)
-    else:
-        raise ValueError("Unsupported file format. Please provide a .cif or .pdb file.")
+    if structure is None:
+        file_extension = os.path.splitext(structure_path)[1].lower()
+        if file_extension == ".cif":
+            parser = FastMMCIFParser(QUIET=True)
+        elif file_extension == ".pdb":
+            parser = PDBParser(QUIET=True)
+        else:
+            raise ValueError("Unsupported file format. Please provide a .cif or .pdb file.")
 
-    structure = parser.get_structure("structure", structure_path)
+        structure = parser.get_structure("structure", structure_path)
+
+    elif not isinstance(structure, Bio.PDB.Structure.Structure):
+        raise ValueError("Input structure must be a file path or a Bio.PDB.Structure.Structure object.")
+
     model = structure[0]  # Get the first model
 
     dssp_data = DSSP(
@@ -36,6 +71,7 @@ def get_burial_info(
             model=model,
             MSMS=msms_executable,
         )
+        tree = KDTree(surface)
 
     if residue_selector is None:
         residue_selector = {
@@ -58,28 +94,43 @@ def get_burial_info(
                 nh_o_2_relidx, nh_o_2_energy, o_nh_2_relidx, o_nh_2_energy,
             ) = dssp_data[chain_id, (' ', res_num, ' ')]
 
-            if include_residue_depth:
-                depth = residue_depth(
-                    residue=model[chain_id][(' ', res_num, ' ')],
-                    surface=surface,
-                )
-            else:
-                depth = None
-
-            df_rows.append({
+            df_dict = {
                 "chain_id": chain_id,
                 "res_num": res_num,
                 "amino_acid": amino_acid,
                 "secondary_structure": secondary_structure,
                 "rsa_val": relative_asa,
-                "residue_depth": depth,
-            })
+            }
+            if isinstance(entity_chain_map, dict):
+                df_dict["entity"] = entity_chain_map.get(chain_id, "Unknown")
 
-    df = pd.DataFrame(df_rows)
+            if include_residue_depth:
+                # Biopython's residue depth calculation in `get_depth` is slow
+                # So, we are using KDTree to speed up the depth calculation
+                target_res: Bio.PDB.Residue.Residue = model[chain_id][(' ', res_num, ' ')]
+                depth = get_residue_depth(
+                    residue=target_res,
+                    kdtree=tree,
+                    depth_type="mean",
+                )
+                cab_depth = get_residue_depth(
+                    residue=target_res,
+                    kdtree=tree,
+                    depth_type="representative",
+                )
+                df_dict.update({
+                    "residue_depth": depth,
+                    "residue_cab_depth": cab_depth,
+                })
+
+            df_rows.append(df_dict)
+
     column_order = ["chain_id", "res_num", "amino_acid", "secondary_structure", "rsa_val"]
+
     if include_residue_depth:
-        column_order.append("residue_depth")
-    df = df[column_order]
+        column_order.extend(["residue_depth", "residue_cab_depth"])
+
+    df = pd.DataFrame(df_rows, columns=column_order)
 
     return df
 
@@ -129,7 +180,7 @@ if __name__ == "__main__":
     df = get_burial_info(
         structure_path=input_file,
         include_residue_depth=True,
-        residue_selector={"A": [670]},
+        # residue_selector={"A": [670]},
         msms_executable=args.msms_executable,
     )
     print(df.head())
