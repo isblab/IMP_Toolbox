@@ -1,17 +1,15 @@
+import os
+import argparse
+import pandas as pd
 from Bio.PDB import FastMMCIFParser, PDBParser
 from Bio.PDB.DSSP import DSSP
-import argparse
-import os
-import pandas as pd
 from Bio.PDB.ResidueDepth import residue_depth, get_surface
-
-dssp_executable = '/usr/local/bin/mkdssp'
-msms_executable = '/home/omg/Software/msms_i86_64Linux2_2.6.1/msms.x86_64Linux2.2.6.1'
 
 def get_burial_info(
     structure_path: str,
     include_residue_depth: bool = False,
     residue_selector: dict | None = None,
+    msms_executable: str | None = None,
 ) -> pd.DataFrame:
 
     file_extension = os.path.splitext(structure_path)[1].lower()
@@ -28,11 +26,12 @@ def get_burial_info(
     dssp_data = DSSP(
         model=model,
         in_file=structure_path,
-        dssp=dssp_executable,
+        dssp="mkdssp",
         acc_array="Wilke",
     )
 
     if include_residue_depth:
+        assert msms_executable is not None, "MSMS executable path must be provided to calculate residue depth."
         surface = get_surface(
             model=model,
             MSMS=msms_executable,
@@ -109,6 +108,20 @@ if __name__ == "__main__":
         help="Relative solvent accessibility threshold for classifying residues as surface.",
     )
 
+    parser.add_argument(
+        "--include_residue_depth",
+        action="store_true",
+        help="Whether to include residue depth information in the output.",
+    )
+
+    parser.add_argument(
+        "--msms_executable",
+        type=str,
+        required=False,
+        default="/home/$USER/Software/msms_i86_64Linux2_2.6.1/msms.x86_64Linux2.2.6.1",
+        help="Path to the MSMS executable for calculating residue depth.",
+    )
+
     args = parser.parse_args()
 
     input_file = args.input
@@ -116,6 +129,7 @@ if __name__ == "__main__":
     df = get_burial_info(
         structure_path=input_file,
         include_residue_depth=True,
-        residue_selector={"A": [670]}
+        residue_selector={"A": [670]},
+        msms_executable=args.msms_executable,
     )
     print(df.head())
