@@ -34,7 +34,6 @@ from IMP_Toolbox.analysis.rmf_to_xyzr import (
 )
 
 _user = getpass.getuser()
-_f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
 
 def get_pairwise_distances(
     xyzr1: np.ndarray,
@@ -439,6 +438,94 @@ def plot_pairwise_distances(
     )
     plt.close()
 
+def main(
+    input: str,
+    xyzr_file: str,
+    nproc: int,
+    float_dtype: np.dtype,
+    output_dir: str,
+    overwrite: bool=False,
+    merge_copies: bool=False,
+):
+    _f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
+    xyzr_file = xyzr_file
+    nproc = nproc
+    f_dtype = _f_dtypes.get(float_dtype, np.float64)
+    output_dir = output_dir
+    os.makedirs(output_dir, exist_ok=True)
+    ############################################################################
+    # Load and parse the XYZR data from the HDF5 file
+    xyzr_data = parse_xyzr_h5_file(xyzr_file=xyzr_file)
+    xyzr_keys = list(xyzr_data.keys())
+    unique_mols = get_unique_mols(xyzr_keys)
+    molwise_residues = get_molwise_residues(xyzr_keys)
+    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys)
+    ############################################################################
+    # Load the binding data from the JSON file to determine molecule pairs
+    # and residue ranges
+    mol_pairs = extract_binding_mol_pairs(
+        input=input,
+        unique_mols=unique_mols,
+    )
+    ############################################################################
+    # Select the residues for each molecule as specified
+    sel_molwise_residues = get_residue_selections(
+        mol_pairs=mol_pairs,
+        molwise_residues=molwise_residues,
+    )
+    unique_mols = set(sel_molwise_residues.keys())
+    ############################################################################
+    # Only keep the beads corresponding to the selected residues
+    xyzr_data = filter_xyzr_data(
+        xyzr_data=xyzr_data,
+        sel_molwise_residues=sel_molwise_residues
+    )
+    xyzr_data = sort_xyzr_data(xyzr_data=xyzr_data)
+
+    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
+    xyzr_keys = list(xyzr_data.keys())
+
+    del xyzr_data
+
+    num_frames = xyzr_mat.shape[1]
+
+    print("Got xyzr_mat of shape: ", xyzr_mat.shape, " (num_beads, num_frames, 4)")
+
+    start_t = time.perf_counter()
+    ############################################################################
+    # Fetch pairwise distance maps for the specified molecule pairs and residue
+    # selections
+    pairwise_dmaps = fetch_pairwise_distance_maps(
+        xyzr_mat=xyzr_mat,
+        xyzr_keys=xyzr_keys,
+        mol_pairs=mol_pairs,
+        output_dir=output_dir,
+        nproc=nproc,
+        f_dtype=f_dtype,
+        overwrite=overwrite,
+    )
+
+    del xyzr_mat
+
+    end_t = time.perf_counter()
+    print(f"Time taken: {end_t - start_t} seconds")
+    ################################################################################
+
+    # This is specific to MPDBR implementation, where we deal with ambiguity such
+    # that if the minimum distace across copies of the same protein pair is less
+    # than the threshold, we consider the pair to be in contact. So we take the minimum
+    # across copies for each pair before plotting.
+    if merge_copies:
+        pairwise_dmaps = merge_distance_maps_by_copies(
+            f_dtype=f_dtype,
+            pairwise_dmaps=pairwise_dmaps,
+            keep_which="min",
+        )
+
+    pairwise_dmaps = dict(sorted(pairwise_dmaps.items(), key=lambda x: x[0]))
+
+    plot_pairwise_distances(output_dir, pairwise_dmaps)
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -493,82 +580,15 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
     ############################################################################
-    xyzr_file = args.xyzr_file
-    nproc = args.nproc
-    f_dtype = _f_dtypes.get(args.float_dtype, np.float64)
-    output_dir = args.output_dir
-    os.makedirs(output_dir, exist_ok=True)
-    ############################################################################
-    # Load and parse the XYZR data from the HDF5 file
-    xyzr_data = parse_xyzr_h5_file(xyzr_file=xyzr_file)
-    xyzr_keys = list(xyzr_data.keys())
-    unique_mols = get_unique_mols(xyzr_keys)
-    molwise_residues = get_molwise_residues(xyzr_keys)
-    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys)
-    ############################################################################
-    # Load the binding data from the JSON file to determine molecule pairs
-    # and residue ranges
-    mol_pairs = extract_binding_mol_pairs(
+
+    main(
         input=args.input,
-        unique_mols=unique_mols,
+        xyzr_file=args.xyzr_file,
+        nproc=args.nproc,
+        float_dtype=args.float_dtype,
+        output_dir=args.output_dir,
+        overwrite=bool(args.overwrite),
+        merge_copies=bool(args.merge_copies),
     )
-    ############################################################################
-    # Select the residues for each molecule as specified
-    sel_molwise_residues = get_residue_selections(
-        mol_pairs=mol_pairs,
-        molwise_residues=molwise_residues,
-    )
-    unique_mols = set(sel_molwise_residues.keys())
-    ############################################################################
-    # Only keep the beads corresponding to the selected residues
-    xyzr_data = filter_xyzr_data(
-        xyzr_data=xyzr_data,
-        sel_molwise_residues=sel_molwise_residues
-    )
-    xyzr_data = sort_xyzr_data(xyzr_data=xyzr_data)
-
-    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
-    xyzr_keys = list(xyzr_data.keys())
-
-    del xyzr_data
-
-    num_frames = xyzr_mat.shape[1]
-
-    print("Got xyzr_mat of shape: ", xyzr_mat.shape, " (num_beads, num_frames, 4)")
-
-    start_t = time.perf_counter()
-    ############################################################################
-    # Fetch pairwise distance maps for the specified molecule pairs and residue
-    # selections
-    pairwise_dmaps = fetch_pairwise_distance_maps(
-        xyzr_mat=xyzr_mat,
-        xyzr_keys=xyzr_keys,
-        mol_pairs=mol_pairs,
-        output_dir=output_dir,
-        nproc=nproc,
-        f_dtype=f_dtype,
-        overwrite=bool(args.overwrite)
-    )
-
-    del xyzr_mat
-
-    end_t = time.perf_counter()
-    print(f"Time taken: {end_t - start_t} seconds")
-    ################################################################################
-
-    # This is specific to MPDBR implementation, where we deal with ambiguity such
-    # that if the minimum distace across copies of the same protein pair is less
-    # than the threshold, we consider the pair to be in contact. So we take the minimum
-    # across copies for each pair before plotting.
-    if args.merge_copies:
-
-        pairwise_dmaps = merge_distance_maps_by_copies(
-            f_dtype=f_dtype,
-            pairwise_dmaps=pairwise_dmaps,
-            keep_which="min",
-        )
-
-    pairwise_dmaps = dict(sorted(pairwise_dmaps.items(), key=lambda x: x[0]))
-
-    plot_pairwise_distances(output_dir, pairwise_dmaps)
