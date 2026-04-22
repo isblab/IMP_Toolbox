@@ -83,7 +83,7 @@ def get_burial_info(
 
     for chain_id, res_nums in residue_selector.items():
         for res_num in res_nums:
-            if (' ', res_num, ' ') not in model[chain_id]:
+            if chain_id not in model or (' ', res_num, ' ') not in model[chain_id]:
                 print(f"Warning: Residue {res_num} not found in chain {chain_id}. Skipping.")
                 continue
 
