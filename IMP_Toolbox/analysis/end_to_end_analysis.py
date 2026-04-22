@@ -1135,7 +1135,7 @@ def fit_to_binding_data(
         Logger for logging messages.
     """
 
-    script_path = Path(here) / "fit_to_binding_data.py"
+    script_path = Path(here) / "fit_to_data" / "binding_data.py"
 
     command = [
         "python", script_path,
@@ -1151,6 +1151,44 @@ def fit_to_binding_data(
 
     if logger is not None:
         logger.info("Running fit_to_binding_data with command:")
+        logger.info(" ".join(map(str, command)))
+
+    os.system(" ".join(map(str, command)))
+
+def fit_to_em_data(
+    input_config: str,
+    output_dir: str,
+    logger: logging.Logger | None = None,
+):
+    """ Run the script `fit_to_data/em_data.py` and obtain cross-correlation
+    of the localization probability densities witht the experimental maps.
+
+    ## Arguments:
+
+    - **input_config (str)**:<br />
+        Path to the input configuration file containing the parameters for fitting
+        the models to the EM data. This file should specify the paths to the
+        localization probability density maps, and the experimental EM maps.
+
+    - **output_dir (str)**:<br />
+        Directory to save the outputs from the fitting process. The outputs may
+        include the fit scores, correlation maps, and any visualizations generated from
+        the fitting process.
+
+    - **logger (logging.Logger | None, optional):**:<br />
+        Logger for logging messages.
+    """
+
+    script_path = Path(here) / "fit_to_data" / "em_data.py"
+
+    command = [
+        "python", script_path,
+        "--input", input_config,
+        "--output_dir", output_dir,
+    ]
+
+    if logger is not None:
+        logger.info("Running fit_to_em_data with command:")
         logger.info(" ".join(map(str, command)))
 
     os.system(" ".join(map(str, command)))
