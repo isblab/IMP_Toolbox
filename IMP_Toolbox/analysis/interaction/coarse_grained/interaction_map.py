@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pprint import pprint
 import re
 import os
@@ -811,26 +812,17 @@ def merge_maps_by_copies(
     cutoff,
     dtype,
     map_type,
-    **kwargs
+    binarize_map:bool = False,
 ):
     """ Merge contact or distance maps across copy pairs.
 
     > [!NOTE]
-    > For distance maps,
-    > if the binarize_dmap flag is set to True,
+    > if the binarize_map flag is set to True,
     > the merged map is a binary map where a contact is defined as present if
     > it is present in any of the copy pairs.
     >
-    > if the binarize_dmap flag is set to False,
-    > the merged map is an average of the distance maps across copy pairs.
-    >
-    > For contact maps,
-    > if the binarize_cmap flag is set to True,
-    > the merged map is a binary map where a contact is defined as present if
-    > it is present in any of the copy pairs.
-    >
-    > if the binarize_cmap flag is set to False,
-    > the merged map is a fraction of frames in contact across copy pairs.
+    > if the binarize_map flag is set to False,
+    > the merged map is - average of the distance/contact maps across copy pairs.
 
     ## Arguments:
 
@@ -851,12 +843,12 @@ def merge_maps_by_copies(
 
     ## Returns:
 
-    - **_type_**:<br />
+    - **dict**:<br />
         A dictionary mapping merged molecule pair names (e.g. "MOL1:MOL2") to
         their corresponding merged distance or contact maps (numpy arrays).
     """
 
-    merged_pairwise_maps = {}
+    merged_pairwise_maps = defaultdict(list)
 
     for pair_name in pairwise_maps.keys():
 
@@ -870,72 +862,28 @@ def merge_maps_by_copies(
             f"{base2}{MOL_RANGE_SEP}{range2}"
         )
 
-        if map_type == "dmap":
+        _map = pairwise_maps[pair_name].copy()
 
-            dmap = pairwise_maps[pair_name].copy()
-            binarize_dmap = kwargs.get("binarize_dmap", False)
+        if binarize_map is True:
+            _map = get_binary_map(
+                q_map=_map,
+                cutoff=cutoff,
+                i_dtype=dtype,
+                map_type=map_type,
+            )
 
-            if binarize_dmap:
-                dmap = get_binary_map(
-                    q_map=dmap,
-                    cutoff=cutoff,
-                    i_dtype=dtype,
-                    map_type="dmap",
-                )
+        merged_pairwise_maps[merged_pair_name].append(_map)
 
-            if merged_pair_name in merged_pairwise_maps:
-                merged_pairwise_maps[merged_pair_name].append(dmap)
-            else:
-                merged_pairwise_maps[merged_pair_name] = [dmap]
-
-        elif map_type == "cmap":
-
-            cmap = pairwise_maps[pair_name].copy()
-            binarize_cmap = kwargs.get("binarize_cmap", False)
-            num_frames = kwargs.get("num_frames", 1)
-
-            if binarize_cmap:
-                cmap = get_binary_map(
-                    q_map=cmap,
-                    cutoff=cutoff,
-                    i_dtype=dtype,
-                    map_type="cmap",
-                )
-
-            else:
-                cmap = num_frames * cmap
-
-            if merged_pair_name in merged_pairwise_maps:
-                merged_pairwise_maps[merged_pair_name].append(cmap)
-            else:
-                merged_pairwise_maps[merged_pair_name] = [cmap]
-
-    if map_type == "dmap":
-
-        if binarize_dmap:
-            merged_pairwise_maps = {
-                k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
-                for k, v in merged_pairwise_maps.items()
-            }
-
-        else:
-            merged_pairwise_maps = {
-                k: np.mean(v, axis=0).astype(f_dtype)
-                for k, v in merged_pairwise_maps.items()
-            }
-
-    elif map_type == "cmap":
-
-        if binarize_cmap:
-            merged_pairwise_maps = {
-                k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
-                for k, v in merged_pairwise_maps.items()
-            }
-        else:
-            merged_pairwise_maps = {
-                k: np.sum(v, axis=0).astype(f_dtype) / f_dtype(num_frames * len(v))
-                for k, v in merged_pairwise_maps.items()
-            }
+    if binarize_map is True:
+        merged_pairwise_maps = {
+            k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
+            for k, v in merged_pairwise_maps.items()
+        }
+    else:
+        merged_pairwise_maps = {
+            k: np.mean(v, axis=0).astype(f_dtype)
+            for k, v in merged_pairwise_maps.items()
+        }
 
     return merged_pairwise_maps
 
@@ -1537,7 +1485,7 @@ if __name__ == "__main__":
             cutoff=cutoff1,
             dtype=dmap_dtype,
             map_type="dmap",
-            binarize_dmap=binarize_dmap,
+            binarize_map=binarize_dmap,
         )
 
         pairwise_cmaps = merge_maps_by_copies(
@@ -1545,8 +1493,7 @@ if __name__ == "__main__":
             cutoff=cutoff2,
             dtype=cmap_dtype,
             map_type="cmap",
-            binarize_cmap=binarize_cmap,
-            num_frames=num_frames,
+            binarize_map=binarize_cmap,
         )
 
         molwise_residues = merge_residue_selection_by_copies(
