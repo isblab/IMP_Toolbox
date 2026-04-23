@@ -814,6 +814,8 @@ def merge_maps_by_copies(
     dtype,
     map_type,
     binarize_map:bool = False,
+    i_dtype: np.dtype = np.int32,
+    f_dtype: np.dtype = np.float64,
 ):
     """ Merge contact or distance maps across copy pairs.
 
@@ -1407,6 +1409,8 @@ def process_pairwise_maps(
             dtype=map_dtype,
             map_type=map_type,
             binarize_map=binarize_map,
+            i_dtype=i_dtype,
+            f_dtype=f_dtype,
         )
 
     else:
