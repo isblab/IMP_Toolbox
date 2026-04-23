@@ -447,7 +447,7 @@ def sort_xyzr_data(xyzr_data: dict) -> dict:
         )
     )
 
-def parse_xyzr_h5_file(xyzr_file: str) -> tuple:
+def parse_xyzr_h5_file(xyzr_file: str) -> dict[str, np.ndarray]:
     """ Parse an HDF5 file containing XYZR data for multiple molecules.
 
     Assuming the HDF5 file structure is as follows:
