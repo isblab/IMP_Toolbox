@@ -141,10 +141,10 @@ def extract_binding_mol_pairs(input: str, unique_mols: list) -> list:
         For example:
         ```
         [
-            ("ProteinA_copy1_10-50", "ProteinB_copy1_20-60"),
-            ("ProteinA_copy2_10-50", "ProteinB_copy2_20-60"),
-            ("ProteinC_copy1_5-30", "ProteinD_copy1_15-45"),
-            ("ProteinC_copy2_5-30", "ProteinD_copy2_15-45")
+            ("ProteinA_copy1:10-50", "ProteinB_copy1:20-60"),
+            ("ProteinA_copy2:10-50", "ProteinB_copy2:20-60"),
+            ("ProteinC_copy1:5-30", "ProteinD_copy1:15-45"),
+            ("ProteinC_copy2:5-30", "ProteinD_copy2:15-45")
         ]
         ```
     """
@@ -160,15 +160,29 @@ def extract_binding_mol_pairs(input: str, unique_mols: list) -> list:
         range1 = data_pt["residue_range1"]
         range2 = data_pt["residue_range2"]
 
+        if MOL_COPY_SEP in mol1:
+            mol1_base, m1_cp_idx = mol1.rsplit(MOL_COPY_SEP, 1)
+        else:
+            mol1_base, m1_cp_idx = mol1, None
+
+        if MOL_COPY_SEP in mol2:
+            mol2_base, m2_cp_idx = mol2.rsplit(MOL_COPY_SEP, 1)
+        else:
+            mol2_base, m2_cp_idx = mol2, None
+
         m1_m2_pairs = []
         for m1, m2 in mol_pairs:
-            if m1.startswith(f"{mol1}{MOL_COPY_SEP}") and m2.startswith(f"{mol2}{MOL_COPY_SEP}"):
+
+            lookup1 = f"{mol1_base}{MOL_COPY_SEP}{m1_cp_idx}" if m1_cp_idx else f"{mol1_base}{MOL_COPY_SEP}"
+            lookup2 = f"{mol2_base}{MOL_COPY_SEP}{m2_cp_idx}" if m2_cp_idx else f"{mol2_base}{MOL_COPY_SEP}"
+
+            if m1.startswith(lookup1) and m2.startswith(lookup2):
                 m1_m2_pairs.append((
                     f"{m1}{MOL_RANGE_SEP}{range1[0]}{RES_RANGE_SEP}{range1[1]}",
                     f"{m2}{MOL_RANGE_SEP}{range2[0]}{RES_RANGE_SEP}{range2[1]}"
                 ))
 
-            elif m1.startswith(f"{mol2}{MOL_COPY_SEP}") and m2.startswith(f"{mol1}{MOL_COPY_SEP}"):
+            elif m1.startswith(lookup2) and m2.startswith(lookup1):
                 m1_m2_pairs.append((
                     f"{m1}{MOL_RANGE_SEP}{range2[0]}{RES_RANGE_SEP}{range2[1]}",
                     f"{m2}{MOL_RANGE_SEP}{range1[0]}{RES_RANGE_SEP}{range1[1]}"
@@ -407,21 +421,42 @@ def plot_pairwise_distances(
     """
 
     all_data = list(pairwise_dmaps.values())
-
+    label_names = list(pairwise_dmaps.keys())
     print("Pairwise distance data calculated for all pairs. Now plotting...\n")
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(2*len(label_names), 5))
     violinplot = ax.violinplot(
         all_data,
-        # showmeans=True,
-        showextrema=True,
-        # showmedians=True,
-        quantiles=[[0.9]]*len(all_data),
+        showmeans=False,
+        showextrema=False,
+        showmedians=False,
+        # quantiles=[[0.9]]*len(all_data),
     )
+    for pc in violinplot['bodies']:
+        pc.set_facecolor("#B0ABFF")
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+    quartile1, medians, quartile3 = np.percentile(
+        all_data, [25, 50, 75], axis=1
+    )
+    def adjacent_values(vals, q1, q3):
+        upper_adjacent_value = q3 + (q3 - q1) * 1.5
+        upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
+
+        lower_adjacent_value = q1 - (q3 - q1) * 1.5
+        lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+        return lower_adjacent_value, upper_adjacent_value
+    whiskers = np.array([
+        adjacent_values(sorted_array, q1, q3)
+        for sorted_array, q1, q3 in zip(all_data, quartile1, quartile3)])
+    whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
+
+    inds = np.arange(1, len(medians) + 1)
+    ax.scatter(inds, medians, marker='o', color="#3329BF", s=30, zorder=3)
+    ax.vlines(inds, quartile1, quartile3, color='k', linestyle='-', lw=5)
+    ax.vlines(inds, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
     ax.axhline(y=5, color='g', linestyle='--', label='5 Å Threshold')
-
-    label_names = list(pairwise_dmaps.keys())
 
     ax.set_xticks(np.arange(1, len(label_names) + 1))
     ax.set_xticklabels(label_names, rotation=45, ha='right', fontsize=7)
