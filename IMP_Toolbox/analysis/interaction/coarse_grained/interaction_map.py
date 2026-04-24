@@ -1041,6 +1041,7 @@ def plot_map(
             slice_q_map = q_map[r1_start:r1_end, r2_start:r2_end]
             save_prefix = f"{slice_name}"
 
+            plt.close("all")
             fig, ax = plt.subplots(figsize=(10, 10))
             temp = ax.imshow(
                 slice_q_map.astype(dtype_[binarize_map]),
@@ -1634,6 +1635,7 @@ def save_output(
     assert all([ot in ["patches", "plots"] for ot in output_types]), (
         f"Invalid output_type: {output_type}. Expected 'patches', 'plots', or 'patches+plots'."
     )
+    nproc = min(nproc, len(pairwise_maps), 20)
     executor = ThreadPoolExecutor(max_workers=nproc)
 
     if "plots" in output_types:
