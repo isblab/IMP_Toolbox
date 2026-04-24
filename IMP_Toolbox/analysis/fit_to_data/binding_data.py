@@ -201,6 +201,8 @@ def fetch_pairwise_distance_maps(
     output_dir: str,
     nproc: int,
     f_dtype: np.dtype,
+    operation: str="min",
+    subtract_radii: bool=True,
     overwrite: bool=False,
 ) -> dict:
     """ Fetch pairwise distance maps from XYZR data.
@@ -251,6 +253,11 @@ def fetch_pairwise_distance_maps(
         across all bead pairs for each frame.
     """
 
+    funcs = {
+        "min": np.min,
+        "average": np.average,
+    }
+
     pairwise_dmaps = {}
 
     num_frames = xyzr_mat.shape[1]
@@ -263,7 +270,10 @@ def fetch_pairwise_distance_maps(
         dmap_txt = os.path.join(output_dir, f"{pair_name}_dmap.txt")
 
         if os.path.exists(dmap_txt) and overwrite is False:
-            pairwise_dmaps[pair_name] = np.loadtxt(dmap_txt)
+            pairwise_dmaps[pair_name] = np.loadtxt(
+                dmap_txt,
+                dtype=f_dtype,
+            )
             continue
 
         m1, sel1 = _m1.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m1 else (_m1, None)
@@ -306,7 +316,7 @@ def fetch_pairwise_distance_maps(
 
         with ThreadPoolExecutor(max_workers=nproc) as executor:
             futures = [
-                executor.submit(get_pairwise_distances, xyzr1_b, xyzr2_b, f_dtype, True)
+                executor.submit(get_pairwise_distances, xyzr1_b, xyzr2_b, f_dtype, subtract_radii)
                 for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
             ]
             results = []
@@ -324,7 +334,8 @@ def fetch_pairwise_distance_maps(
             # we take the minimum distance across all bead pairs for each frame,
             # resulting in an array of shape (batch_frames,)
             frame_slice = slice(n_frames, n_frames + flat_dmap_.shape[1])
-            dmap_m1_m2[frame_slice] = np.min(flat_dmap_, axis=0).astype(f_dtype)
+            # dmap_m1_m2[frame_slice] = np.min(flat_dmap_, axis=0).astype(f_dtype)
+            dmap_m1_m2[frame_slice] = funcs[operation](flat_dmap_, axis=0).astype(f_dtype)
             n_frames += flat_dmap_.shape[1]
 
         del results
@@ -537,6 +548,8 @@ def main(
         output_dir=output_dir,
         nproc=nproc,
         f_dtype=f_dtype,
+        operation="min",
+        subtract_radii=True,
         overwrite=overwrite,
     )
 
