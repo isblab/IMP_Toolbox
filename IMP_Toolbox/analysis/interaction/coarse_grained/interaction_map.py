@@ -28,7 +28,7 @@ from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.rmf_to_xyzr1 import (
+from IMP_Toolbox.analysis.rmf_to_xyzr import (
     XYZRParser,
 )
 from IMP_Toolbox.constants.analysis_constants import (

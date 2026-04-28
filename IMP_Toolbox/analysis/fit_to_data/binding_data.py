@@ -6,8 +6,8 @@ import getpass
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from IMP_Toolbox.analysis.rmf_to_xyzr1 import XYZRParser
-from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map2 import (
+from IMP_Toolbox.analysis.rmf_to_xyzr import XYZRParser
+from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map import (
     PairwiseMaps,
     MoleculePairs,
 )
