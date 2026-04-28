@@ -1062,7 +1062,8 @@ def interaction_metapatches(
 
     - **interaction_map_dir (str)**:<br />
         Directory containing the interaction map data generated from the `interaction_map.py` script.
-        This directory should contain the distance and contact maps for each frame.
+        This directory should contain the average distance and contact maps for each bead
+        across frames.
 
     - **threshold (int, optional):**:<br />
         Gap threshold (in number of residues) for merging neighboring patches into metapatches.
