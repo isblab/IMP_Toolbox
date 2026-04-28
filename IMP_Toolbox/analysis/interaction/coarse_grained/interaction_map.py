@@ -3,8 +3,9 @@ from pprint import pprint
 import re
 import os
 import time
-from typing import Dict
+from typing import Dict, List, Optional, Tuple
 import tqdm
+from pathlib import Path
 import getpass
 import textwrap
 import argparse
@@ -27,12 +28,8 @@ from IMP_Toolbox.utils.obj_helpers import (
     get_key_from_res_range,
     get_res_range_from_key
 )
-from IMP_Toolbox.analysis.rmf_to_xyzr import (
-    get_molwise_xyzr_keys,
-    parse_xyzr_h5_file,
-    get_unique_mols,
-    get_molwise_residues,
-    get_verify_copies
+from IMP_Toolbox.analysis.rmf_to_xyzr1 import (
+    XYZRParser,
 )
 from IMP_Toolbox.constants.analysis_constants import (
     PAIR_SEP,
@@ -40,13 +37,44 @@ from IMP_Toolbox.constants.analysis_constants import (
     MOL_COPY_SEP,
     MOL_RANGE_SEP,
     REGEX_MOLNAME,
+    EXPECTED_MOLNAME_FORMATS,
+    F_DTYPES,
+    I_DTYPES,
 )
 
-_user = getpass.getuser()
-_f_dtypes = {16: np.float16, 32: np.float32, 64: np.float64}
-_i_dtypes = {8: np.int8, 16: np.int16, 32: np.int32, 64: np.int64}
+def read_molecules_from_file(
+    input: str,
+    key: str | None=None,
+) -> Tuple[List[str], List[Dict[str, float]], List[str]]:
 
-def read_molecule_pairs_from_file(input: str) -> list:
+    if input.endswith('.json'):
+        data = read_json(input)
+        if key is not None:
+            data = data[key]
+
+        molecules = [_pt["molecule"] for _pt in data]
+        # distances = {_pt["molecule"]: _pt["distance_to_PM"] for _pt in data}
+        # stdevs = {_pt["molecule"]: _pt["sigma"] for _pt in data}
+        extra_attrs = []
+        extra_keys = list(set(data[0].keys()) - {"molecule"})
+        for k in extra_keys:
+            extra_attrs.append({_pt["molecule"]: _pt[k] for _pt in data})
+    else:
+        raise ValueError("Input file must be JSON format.")
+
+    for m in molecules:
+        match = re.match(REGEX_MOLNAME, m)
+        if match is None or len(match.groups()) != 3:
+            raise ValueError(
+                f"Invalid molecule name format: {m}."\
+                f"Expected formats: {", ".join(EXPECTED_MOLNAME_FORMATS)}"
+            )
+    # print(molecules)
+    # print(extra_attrs)
+    # print(extra_keys)
+    return molecules, extra_attrs, extra_keys
+
+def read_molecule_pairs_from_file(input: str, key: str | None=None) ->List[tuple]:
     """ Extract molecule pairs from a json file.
 
     A molcule refers to a specific copy of the modeled protein. e.g. DSC2a_0.
@@ -71,11 +99,19 @@ def read_molecule_pairs_from_file(input: str) -> list:
     """
 
     if input.endswith('.json'):
-        mol_pairs = read_json(input)
+        data = read_json(input)
+        if key is not None:
+            data = data[key]
     else:
         raise ValueError("Input file must be JSON format.")
 
-    mol_pairs = [tuple(pair) for pair in mol_pairs]
+    mol_pairs = [(_pt["molecule1"], _pt["molecule2"]) for _pt in data]
+    extra_attrs = []
+    extra_keys = list(set(data[0].keys()) - {"molecule1", "molecule2"})
+    for k in extra_keys:
+        extra_attrs.append({
+            (_pt["molecule1"], _pt["molecule2"]): _pt[k] for _pt in data
+        })
 
     for m1, m2 in mol_pairs:
         match1 = re.match(REGEX_MOLNAME, m1)
@@ -83,1601 +119,1893 @@ def read_molecule_pairs_from_file(input: str) -> list:
         if match1 is None or len(match1.groups()) != 3:
             raise ValueError(
                 f"Invalid format for molecule pair: {m1}. "\
-                "Expected format: MOL_COPYIDX:RESSTART-RESEND"
+                f"Expected format is one of: {', '.join(EXPECTED_MOLNAME_FORMATS)}"
             )
 
         if match2 is None or len(match2.groups()) != 3:
             raise ValueError(
                 f"Invalid format for molecule pair: {m2}. "\
-                "Expected format: MOL_COPYIDX:RESSTART-RESEND"
+                f"Expected format is one of: {', '.join(EXPECTED_MOLNAME_FORMATS)}"
             )
 
-    return [sorted(pair) for pair in mol_pairs]
+    return mol_pairs, extra_attrs, extra_keys
 
-def get_pairs_to_remove(
-    mol_pairs: list,
-    self_interaction: str = "allow_copies",
-) -> set:
-    """ Determine which molecule pairs to remove based on self-interaction criteria.
+class Molecules:
 
-    ## Arguments:
+    def __init__(
+        self,
+        xyzr_parser: XYZRParser,
+        input: str | None = None,
+    ):
 
-    - **mol_pairs (list)**:<br />
-        A list of tuples containing the molecule pairs in the format
-        (MOL_COPYIDX:RESSTART-RESEND, MOL_COPYIDX:RESSTART-RESEND).
+        self.xyzr_parser = xyzr_parser
+        self.molwise_residues = xyzr_parser.molwise_residues
+        self.unique_mols = xyzr_parser.unique_mols
 
-    - **self_interaction (str, optional):**:<br />
-        Option to specify how to handle self-interactions (interactions between
-        the same molecule). Options:
-        - "allow_all": allow all self-interactions (default).
-        - "allow_none": disallow all self-interactions.
-        - "allow_copies": allow self-interactions between different copies of
-           the same molecule, but disallow interactions within the same copy.
+        if isinstance(input, str):
+            (
+                self.molecules,
+                self.extra_attrs,
+                self.extra_attrs_keys,
+            ) = read_molecules_from_file(input=input)
+        else:
+            self.molecules = sorted(self.unique_mols)
 
-    ## Returns:
+    def process_molecules(self, filter_by: list = []) -> List[str]:
 
-    - **set**:<br />
-        A set of tuples containing the molecule pairs to be removed.
-    """
+        self.enrich_molecules()
+        if hasattr(self, "extra_attrs"):
+            self.enrich_attributes()
 
-    pairs_to_remove = set()
+        if len(filter_by) > 0:
+            self.filter_molecules(
+                filter_by=filter_by,
+                filter_level="copy",
+            )
 
-    do_dict = {
-        "allow_all": lambda b1, c1, b2, c2: False,
-        "allow_none": lambda b1, c1, b2, c2: b1 == b2,
-        "allow_copies": lambda b1, c1, b2, c2: (b1 == b2) and (c1 == c2),
-    }
+        return self.molecules
 
-    for m1, m2 in mol_pairs:
+    def filter_molecules(self, filter_by: list, filter_level: str = "copy",) -> None:
 
-        base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
-        base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
-        assert (
-            all([base1 is not None, base2 is not None]) and
-            all([cp_idx1 is not None, cp_idx2 is not None])
-        ), (
-            f"Invalid format for molecule pair: {(m1, m2)}. "\
-            "Expected format: MOL_COPYIDX:RESSTART-RESEND"
+        assert filter_level in ["copy", "base"], "filter_level must be either 'copy' or 'base'"
+
+        _filter = {"copy": False, "base": True}
+
+        _filtered = [
+            XYZRParser.get_mol_name(m, _filter[filter_level]) for m in filter_by
+        ]
+
+        self.molecules = sorted(set([
+            m for m in self.molecules
+            if (
+                XYZRParser.get_mol_name(m, _filter[filter_level]) in _filtered
+            )
+        ]))
+
+        if hasattr(self, "extra_attrs"):
+            self.extra_attrs = [
+                {m: attr[m] for m in self.molecules if m in attr}
+                for attr in self.extra_attrs
+            ]
+            self.extra_attrs = [
+                dict(sorted(attr.items(), key=lambda x: x[0]))
+                for attr in self.extra_attrs
+            ]
+
+    def enrich_molecules(self) -> List[str]:
+
+        enriched_molecules = []
+        for m in self.molecules:
+            _enriched = self.enrich_molecule(m)
+            enriched_molecules.extend(_enriched)
+
+        self.molecules = sorted(set(enriched_molecules))
+
+    def enrich_attributes(self) -> Dict[str, float]:
+
+        enriched_attrs = []
+
+        for attr in self.extra_attrs:
+            enriched_attr = {
+                en_m: val for m, val in attr.items()
+                for en_m in self.enrich_molecule(m)
+            }
+            enriched_attrs.append(enriched_attr)
+
+        # sorted by molecule name
+        self.extra_attrs = [
+            dict(sorted(enriched_attr.items(), key=lambda x: x[0]))
+            for enriched_attr in enriched_attrs
+        ]
+
+    def raise_invalid_range_error(self, mol, specified_range):
+
+        valid_range = set(self.molwise_residues[mol])
+        specified_range_set = set(get_res_range_from_key(specified_range))
+
+        if not specified_range_set.issubset(valid_range):
+            raise ValueError(
+                f"{mol}:{specified_range} is invalid. "\
+                f"Valid residues - {mol}:{get_key_from_res_range(valid_range)}"
+            )
+
+    @property
+    def _enricher(self):
+        return {
+            True: lambda m, sel: f"{m}{MOL_RANGE_SEP}{sel}",
+            False: lambda m, sel: (
+                f"{m}{MOL_RANGE_SEP}"
+                f"{get_key_from_res_range(self.molwise_residues[m])}"
+            ),
+        }
+
+    @property
+    def _range_checker(self):
+        return {
+            True: self.raise_invalid_range_error,
+            False: lambda mol, specified_range: None,
+        }
+
+    def enrich_molecule(self, m):
+
+        enriched_molecules = []
+
+        try:
+            base, cp_idx, sel = re.match(REGEX_MOLNAME, m).groups()
+
+        except Exception as e:
+            raise ValueError(
+                f"Invalid format for molecule: {m}. "\
+                f"Expected formats: {', '.join(EXPECTED_MOLNAME_FORMATS)}"
+            ) from e
+
+        copies_m = self.xyzr_parser.get_verify_copies(
+            mol_basename=base,
+            copy_idx=cp_idx,
         )
 
-        if do_dict[self_interaction](base1, cp_idx1, base2, cp_idx2):
-            pairs_to_remove.add((m1, m2))
+        for cpy in copies_m:
 
-    return pairs_to_remove
+            condition = sel is not None and sel != ""
+            self._range_checker[condition](cpy, sel)
+            enriched_molecules.append(self._enricher[condition](cpy, sel))
 
-def extend_mol_pairs_for_copies(
-    mol_pairs: list,
-    xyzr_keys: list,
-    self_interaction: str = "allow_copies"
-) -> list:
-    """ Extend selected molecule pairs to include all copy pairs.
+        return enriched_molecules
 
-    For example, if mol_pairs contains ("MOL1:RESSELECTION", "MOL2:RESSELECTION")
-    and unique_mols contains "MOL1_0", "MOL1_1", "MOL2_0", "MOL2_1",
-    then the extended mol_pairs will include:
-    [
-        ("MOL1_0:RESSELECTION", "MOL2_0:RESSELECTION"),
-        ("MOL1_0:RESSELECTION", "MOL2_1:RESSELECTION"),
-        ("MOL1_1:RESSELECTION", "MOL2_0:RESSELECTION"),
-        ("MOL1_1:RESSELECTION", "MOL2_1:RESSELECTION"),
+class MoleculePairs:
+    """ Class to handle molecule pair data during interaction map generation."""
+
+    xyzr_parser: XYZRParser
+    """ XYZRParser object containing the parsed XYZR data and related information. """
+
+    molwise_residues: Dict[str, list]
+    """ Dictionary mapping molecule names to sets of residue numbers. Format: {
+        "MOL1_COPYIDX": [res1, res2, ...],
+        "MOL2_COPYIDX": [res1, res2, ...],
         ...
-    ]
+    } """
 
-    ## Arguments:
-
-    - **mol_pairs (list)**:<br />
-        A list of tuples containing the selected molecule pairs in the format
-        (MOL_COPYIDX:RESSTART-RESEND, MOL_COPYIDX:RESSTART-RESEND).
-
-    - **unique_mols (set)**:<br />
-        A set of unique molecule identifiers (MOL_COPYIDX) present in the data.
-
-    ## Returns:
-
-    - **list**:<br />
-        An extended list of tuples containing molecule pairs for all copies.
+    self_interaction: str
+    """ String indicating how to handle self-interactions. Should be one of:
+    - "allow_all": allow interactions between all molecule pairs, including
+                   self-pairs and copy pairs.
+    - "allow_none": disallow interactions between any molecule pairs of the same
+                    molecule, including self-pairs and copy pairs.
+    - "allow_copies": allow interactions between different copies of the same
+                      molecule, but disallow self-pairs. (default)
     """
 
-    extended_mol_pairs = []
-    unique_mols = get_unique_mols(xyzr_keys)
-    unique_bases = set([mol.split(MOL_COPY_SEP)[0] for mol in unique_mols])
+    unique_mols: set
+    """ Set of unique molecule names (without copy index) present in the model. """
 
-    for m1, m2 in mol_pairs:
+    unique_mol_pairs: set
+    """ Set of unique molecule pairs (without copy index) present in the model. """
 
-        try:
-            base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
-            base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
+    mol_pairs: list
+    """ List of tuples containing the molecule pairs in the format
+    (MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND).
+    This list is processed and enriched based on the specified molecule pairs"""
 
-        except Exception as e:
-            raise ValueError(
-                f"Invalid format for molecule pair: {(m1, m2)}. "\
-                "Expected format: MOL_COPYIDX:RESSTART-RESEND"
-            ) from e
+    def __init__(
+        self,
+        xyzr_parser: XYZRParser,
+        input: str | None = None,
+        self_interaction: str = "allow_copies",
+    ):
 
-        if any([base1 not in unique_bases, base2 not in unique_bases]):
-            raise ValueError(
-                f"{base1} and/or {base2}: not a valid molecule in the model."
-            )
+        self.xyzr_parser = xyzr_parser
+        self.molwise_residues = xyzr_parser.molwise_residues
+        self.self_interaction = self_interaction
+        self.unique_mols = xyzr_parser.unique_mols
+        self.molecule_handler = Molecules(xyzr_parser=xyzr_parser)
 
-        copies_m1 = get_verify_copies(
-            mol_basename=base1,
-            copy_idx=cp_idx1,
-            xyzr_keys=xyzr_keys,
-        )
-
-        copies_m2 = get_verify_copies(
-            mol_basename=base2,
-            copy_idx=cp_idx2,
-            xyzr_keys=xyzr_keys,
-        )
-
-        copy_pairs = list(product(copies_m1, copies_m2))
-
-        for cpy1, cpy2 in copy_pairs:
-
-            new_m1 = f"{cpy1}"
-            if range1 is not None and range1 != "":
-                new_m1 += f"{MOL_RANGE_SEP}{range1}"
-
-            new_m2 = f"{cpy2}"
-            if range2 is not None and range2 != "":
-                new_m2 += f"{MOL_RANGE_SEP}{range2}"
-
-            extended_mol_pairs.append((new_m1, new_m2))
-
-    pairs_to_remove = get_pairs_to_remove(
-        mol_pairs=extended_mol_pairs,
-        self_interaction=self_interaction,
-    )
-
-    return [pair for pair in extended_mol_pairs if pair not in pairs_to_remove]
-
-def add_residue_range_to_mol_pairs(
-    mol_pairs: list,
-    xyzr_keys: list,
-    self_interaction: str = "allow_copies"
-):
-    """ Add explicit residue ranges to molecule pairs that do not have them specified.
-
-    ## Arguments:
-
-    - **mol_pairs (list)**:<br />
-        A list of tuples containing the molecule pairs in the format
-        (MOL_COPYIDX:RESSTART-RESEND, MOL_COPYIDX:RESSTART-RESEND).
-
-    - **molwise_residues (dict)**:<br />
-        A dictionary mapping molecule names to lists of all residues represented
-        in the model.
-
-    - **self_interaction (str, optional):**:<br />
-        Option to specify how to handle self-interactions (interactions between
-        the same molecule). Options:
-        - "allow_all": allow all self-interactions (default).
-        - "allow_none": disallow all self-interactions.
-        - "allow_copies": allow self-interactions between different copies of
-           the same molecule, but disallow interactions within the same copy.
-
-    ## Returns:
-
-    - **list**:<br />
-        An updated list of tuples containing molecule pairs with explicit residue ranges.
-    """
-
-    updated_mol_pairs = []
-    unique_mols = get_unique_mols(xyzr_keys)
-    molwise_residues = get_molwise_residues(xyzr_keys)
-    unique_bases = set([mol.split(MOL_COPY_SEP)[0] for mol in unique_mols])
-
-    for m1, m2 in mol_pairs:
-
-        try:
-            base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
-            base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
-
-        except Exception as e:
-            raise ValueError(
-                f"Invalid format for molecule pair: {(m1, m2)}. "\
-                "Expected format: MOL_COPYIDX:RESSTART-RESEND"
-            ) from e
-
-        if any([base1 not in unique_bases, base2 not in unique_bases]):
-            raise ValueError(
-                f"{base1} and/or {base2}: not a valid molecule in the model."
-            )
-
-        mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
-        mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
-
-        if range1 is not None and range1 != "":
-
-            m1_range = get_res_range_from_key(range1)
-            valid_m1_range = set(molwise_residues[mol1])
-
-            if not set(m1_range).issubset(valid_m1_range):
-                raise ValueError(f"Specified residue range for {m1} is invalid.")
-            updated_mol_pairs.append((m1, m2))
-
+        if isinstance(input, str):
+            (
+                self.mol_pairs,
+                self.extra_attrs,
+                self.extra_attrs_keys,
+            ) = read_molecule_pairs_from_file(input=input)
         else:
-            m1_range_key = get_key_from_res_range(molwise_residues[mol1])
-            updated_mol_pairs.append((f"{m1}{MOL_RANGE_SEP}{m1_range_key}", m2))
-
-        if range2 is not None and range2 != "":
-
-            m2_range = get_res_range_from_key(range2)
-            valid_m2_range = set(molwise_residues[mol2])
-
-            if not set(m2_range).issubset(valid_m2_range):
-                raise ValueError(f"Specified residue range for {m2} is invalid.")
-            continue
-
-        else:
-            m2_range_key = get_key_from_res_range(molwise_residues[mol2])
-            updated_mol_pairs[-1] = (
-                updated_mol_pairs[-1][0], f"{m2}{MOL_RANGE_SEP}{m2_range_key}"
+            self.mol_pairs = list(
+                combinations_with_replacement(sorted(self.unique_mols), 2)
             )
 
-    pairs_to_remove = get_pairs_to_remove(
-        mol_pairs=updated_mol_pairs,
-        self_interaction=self_interaction,
-    )
+    def process_molecule_pairs(self, filter_by: list = []) -> List[tuple]:
+        """ Process and enrich molecule pairs.
 
-    return [pair for pair in updated_mol_pairs if pair not in pairs_to_remove]
+        - Add copy indices and residue ranges.
+        - Filter by specified molecule pairs if filter_by is not empty.
 
-def get_possible_mol_pairs(
-    xyzr_keys: list,
-    filter_by: list | None = None,
-    self_interaction: str = "allow_copies"
-):
-    """ Get possible molecule pairs based on the provided bead keys and
-    filtering criteria.
+        ## Arguments:
 
-    ## Arguments:
+        - **filter_by (list, optional):**:<br />
+            A list of tuples specifying molecule pairs to filter by. Each tuple
+            should be in the format:
+            (MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND) where,
+            COPYIDX and RESSTART-RESEND are be optional.
 
-    - **xyzr_keys (list)**:<br />
-        List of bead keys in the format "MOL_COPYIDX_RESIDUE".
+        ## Returns:
 
-    - **filter_by (list)**:<br />
-        List of tuples containing molecule pairs to filter by.
-        Format: [(MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND), ...]
+        - **list**:<br />
+            A list of tuples containing the processed molecule pairs in the format
+            (MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND).
+        """
 
-    - **self_interaction (str, optional):**:<br />
-        Option to specify how to handle self-interactions (interactions between
-        the same molecule). Options:
-        - "allow_all": allow all self-interactions (default).
-        - "allow_none": disallow all self-interactions.
-        - "allow_copies": allow self-interactions between different copies of
-           the same molecule, but disallow interactions within the same copy.
+        self._enrich_mol_pairs()
+        if hasattr(self, "extra_attrs"):
+            self._enrich_attributes()
 
-    ## Returns:
+        self._filter_self_pairs()
 
-    - **list**:<br />
-        A list of tuples containing the possible molecule pairs based on the
-        provided criteria.
-    """
+        if len(filter_by) > 0:
+            self._filter_mol_pairs(
+                filter_by=filter_by,
+                filter_level="copy",
+            )
 
-    unique_mols = get_unique_mols(xyzr_keys)
-    mol_pairs = list(combinations_with_replacement(sorted(unique_mols), 2))
+        return self.mol_pairs
 
-    if isinstance(filter_by, list):
+    def _enrich_mol_pairs(self) -> None:
+        """ Enrich molecule pairs
 
-        filtered_mol_pairs = [
-            (m1.split(MOL_RANGE_SEP)[0], m2.split(MOL_RANGE_SEP)[0])
+        - Add copy indices and residue ranges to the molecule pairs.
+        """
+
+        enriched_mol_pairs = []
+
+        for m1, m2 in self.mol_pairs:
+
+            enriched_m1 = self.molecule_handler.enrich_molecule(m1)
+            enriched_m2 = self.molecule_handler.enrich_molecule(m2)
+
+            for cpy1, cpy2 in product(enriched_m1, enriched_m2):
+                enriched_mol_pairs.append((cpy1, cpy2))
+
+        self.mol_pairs = list(set(enriched_mol_pairs))
+
+    def _enrich_attributes(self) -> None:
+
+        enriched_attrs = []
+
+        for attr in self.extra_attrs:
+            enriched_attr = {
+                (en_m1, en_m2): val
+                for (m1, m2), val in attr.items()
+                for en_m1 in self.molecule_handler.enrich_molecule(m1)
+                for en_m2 in self.molecule_handler.enrich_molecule(m2)
+            }
+            enriched_attrs.append(enriched_attr)
+
+        # sorted by molecule pair
+        self.extra_attrs = [
+            dict(sorted(enriched_attr.items(), key=lambda x: x[0]))
+            for enriched_attr in enriched_attrs
+        ]
+
+    def _filter_mol_pairs(
+        self,
+        filter_by: List[tuple],
+        filter_level: str = "copy",
+    ) -> None:
+        """ Filter molecule pairs by specified molecule pairs.
+
+        ## Arguments:
+
+        - **filter_by (List[tuple])**:<br />
+            A list of tuples specifying molecule pairs to filter by. Each tuple
+            should be in the format:
+            (MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND) where,
+            COPYIDX and RESSTART-RESEND are be optional.
+
+        - **filter_level (str, optional):**:<br />
+            The level at which to apply the filter. Should be either "copy" or "base".
+            - "copy": filter by the full molecule pair names including copy indices
+                      and residue ranges. (default)
+            - "base": filter by the base molecule names only, ignoring copy indices
+                      and residue ranges.
+        """
+
+        assert filter_level in ["copy", "base"], "filter_level must be either 'copy' or 'base'"
+
+        _filter = {"copy": False, "base": True}
+
+        def get_mol_pair_names(pair):
+            m1, m2 = pair
+            return (
+                XYZRParser.get_mol_name(m1, _filter[filter_level]),
+                XYZRParser.get_mol_name(m2, _filter[filter_level])
+            )
+
+        _filtered_mol_pairs = [
+            (
+                XYZRParser.get_mol_name(m1, _filter[filter_level]),
+                XYZRParser.get_mol_name(m2, _filter[filter_level])
+            )
             for m1, m2 in filter_by
         ]
 
-        mol_pairs = [
-            pair for pair in mol_pairs
+        self.mol_pairs = list(set([
+            pair for pair in self.mol_pairs
             if (
-                pair in filtered_mol_pairs or
-                tuple(reversed(pair)) in filtered_mol_pairs
+                get_mol_pair_names(pair) in _filtered_mol_pairs or
+                tuple(reversed(get_mol_pair_names(pair))) in _filtered_mol_pairs
             )
-        ]
-
-    mol_pairs = list(set(mol_pairs))
-
-    mol_pairs = add_residue_range_to_mol_pairs(
-        mol_pairs=mol_pairs,
-        xyzr_keys=xyzr_keys,
-        self_interaction=self_interaction,
-    )
-
-    self_pairs = get_pairs_to_remove(
-        mol_pairs=mol_pairs,
-        self_interaction=self_interaction,
-    )
-
-    return [pair for pair in mol_pairs if pair not in self_pairs]
-
-def get_residue_selections(
-    mol_pairs: list,
-    molwise_residues: dict,
-) -> dict:
-    """ Get unique residue selections for each molecule in the provided pairs.
-
-    e.g. for pairs:
-        [('MOL1_0|1-10', 'MOL1_1|5-15'), ('MOL1_0|8-20', 'MOL3')]
-
-    returns:
-        {
-            'MOL1_0': {1, 2, ..., 20},
-            'MOL1_1': {5, 6, ..., 15},
-            'MOL3': {all residues of MOL3 from molwise_residues}
-        }
-
-    ## Arguments:
-
-    - **mol_pairs (list)**:<br />
-        List of tuples containing molecule pairs.
-
-    - **molwise_residues (dict)**:<br />
-        Dictionary mapping molecule names to lists of all residues represented in the data.
-        Format: {
-            "MOL1_COPYIDX": [residue numbers],
-            "MOL2_COPYIDX": [residue numbers],
-            ...
-        }
-
-    ## Returns:
-
-    - **dict**:<br />
-        A dictionary mapping molecule names to sets of unique residue numbers.
-    """
-
-    sel_molwise_residues = {mol: set() for mol in molwise_residues.keys()}
-
-    for _m1, _m2 in mol_pairs:
-
-        m1, res_range1 = _m1.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m1 else (_m1, None)
-        m2, res_range2 = _m2.split(MOL_RANGE_SEP) if MOL_RANGE_SEP in _m2 else (_m2, None)
-
-        if res_range1 is not None:
-            res_nums1 = get_res_range_from_key(res_range1)
-            res_nums1 = [r for r in res_nums1 if r in molwise_residues[m1]]
-        else:
-            res_nums1 = molwise_residues[m1]
-
-        sel_molwise_residues[m1].update(res_nums1)
-
-        if res_range2 is not None:
-            res_nums2 = get_res_range_from_key(res_range2)
-            res_nums2 = [r for r in res_nums2 if r in molwise_residues[m2]]
-        else:
-            res_nums2 = molwise_residues[m2]
-
-        sel_molwise_residues[m2].update(res_nums2)
-
-    sel_molwise_residues = {k: v for k, v in sel_molwise_residues.items() if len(v) > 0}
-
-    return sel_molwise_residues
-
-def get_pairwise_map(
-    xyzr1: np.ndarray,
-    xyzr2: np.ndarray,
-    cutoff: float,
-    f_dtype: np.dtype = np.float64,
-    i_dtype: np.dtype = np.int32,
-) -> tuple[np.ndarray, np.ndarray]:
-    """ Compute pairwise distance and contact maps between two sets of beads
-    over multiple frames.
-
-    NOTE: Pay attention to the size of the input arrays to avoid memory issues.
-    TODO: Implement chunked cdist calculation to avoid memory issues.
-
-    ## Arguments:
-
-    - **xyzr1 (np.ndarray)**:<br />
-        XYZR data for molecule 1, (n_beads1, n_frames, 4).
-
-    - **xyzr2 (np.ndarray)**:<br />
-        XYZR data for molecule 2, (n_beads2, n_frames, 4).
-
-    - **cutoff (float)**:<br />
-        Distance cutoff for contact map.
-
-    - **f_dtype (np.dtype, optional):**:<br />
-        Data type for distance map calculations.
-
-    - **i_dtype (np.dtype, optional):**:<br />
-        Data type for contact map calculations.
-
-    ## Returns:
-
-    - **tuple**:<br />
-        - **dmap (np.ndarray)**: Distance map of shape (n_beads1, n_beads2).
-        - **cmap (np.ndarray or None)**: Contact map of shape (n_beads1, n_beads2).
-    """
-
-    coords1 = xyzr1[:, :, :3].astype(f_dtype)
-    coords2 = xyzr2[:, :, :3].astype(f_dtype)
-
-    radii1 = xyzr1[:, :, 3].astype(f_dtype)
-    radii2 = xyzr2[:, :, 3].astype(f_dtype)
-
-    n_frames = coords1.shape[1]
-    n_beads1 = coords1.shape[0]
-    n_beads2 = coords2.shape[0]
-
-    radii_sum = np.zeros((radii1.shape[0], radii2.shape[0]), dtype=f_dtype)
-    np.add(
-        radii1[:, None, 0].copy(),
-        radii2[None, :, 0].copy(),
-        out=radii_sum,
-    )
-
-    dmap = np.zeros((n_beads1, n_beads2), dtype=f_dtype)
-    cmap = np.zeros((n_beads1, n_beads2), dtype=i_dtype)
-
-    for i in range(n_frames):
-
-        temp_dmap = np.zeros((n_beads1, n_beads2), dtype=f_dtype)
-
-        np.subtract(
-            cdist(coords1[:, i, :], coords2[:, i, :]),
-            radii_sum,
-            out=temp_dmap,
-            dtype=f_dtype,
-        )
-        temp_dmap[temp_dmap < 0.0] = 0.0
-
-        np.add(
-            dmap,
-            temp_dmap,
-            out=dmap,
-            dtype=f_dtype,
-        )
-
-        temp_cmap = (temp_dmap <= cutoff).astype(i_dtype)
-
-        np.add(
-            cmap,
-            temp_cmap,
-            out=cmap,
-            dtype=i_dtype,
-        )
-
-        del temp_dmap, temp_cmap
-
-    return dmap, cmap
-
-def expand_map_to_residue_level(
-    q_map: np.ndarray,
-    molwise_xyzr_keys: dict,
-    pair_name: str
-) -> np.ndarray:
-    """ Expand a bead-level distance/contact map to residue-level map.
-
-    ## Arguments:
-
-    - **q_map (np.ndarray)**:<br />
-        Original distance/contact map.
-
-    - **molwise_xyzr_keys (dict)**:<br />
-        Dictionary mapping molecule names to lists of bead keys.
-        Format: {
-            "MOL1_COPYIDX": ["MOL1_COPYIDX_RESSTART-RESEND", ...],
-            "MOL2_COPYIDX": ["MOL2_COPYIDX_RESSTART-RESEND", ...],
-            ...
-        }
-
-    - **pair_name (str)**:<br />
-        The name of the molecule pair. (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
-
-    ## Returns:
-
-    - **np.ndarray**:<br />
-        Expanded distance/contact map.
-    """
-
-    _m1, _m2 = pair_name.split(PAIR_SEP)
-    base1, cp_idx1, _range1 = re.match(REGEX_MOLNAME, _m1).groups()
-    base2, cp_idx2, _range2 = re.match(REGEX_MOLNAME, _m2).groups()
-    mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
-    mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
-
-    # expand the maps to include all residues in the selection
-    special_keys1 = [
-        (key.rsplit("_", 1)[1], idx)
-        for idx, key in enumerate(molwise_xyzr_keys[mol1]) if "-" in key
-    ]
-    special_keys2 = [
-        (key.rsplit("_", 1)[1], idx)
-        for idx, key in enumerate(molwise_xyzr_keys[mol2]) if "-" in key
-    ]
-
-    dup_cols = []
-    dup_rows = []
-
-    for key, row_idx in special_keys1:
-        num_repeats = len(get_res_range_from_key(key))
-        to_add = np.tile(q_map[row_idx, :], (num_repeats - 1, 1))
-        dup_rows.append((to_add, row_idx))
-
-    for to_add, row_idx in reversed(dup_rows):
-        q_map = np.insert(q_map, row_idx + 1, to_add, axis=0)
-
-    for key, col_idx in special_keys2:
-        num_repeats = len(get_res_range_from_key(key))
-        to_add = np.tile(q_map[:, col_idx], (num_repeats - 1, 1))
-        dup_cols.append((to_add, col_idx))
-
-    for to_add, col_idx in reversed(dup_cols):
-        q_map = np.insert(q_map, col_idx + 1, to_add, axis=1)
-
-    return q_map
-
-def fetch_pairwise_maps(
-    xyzr_mat: np.ndarray,
-    xyzr_keys: list,
-    mol_pairs: list,
-    contact_cutoff: float,
-    interaction_map_dir: str,
-    nproc: int,
-    f_dtype: np.dtype = np.float64,
-    i_dtype: np.dtype = np.int32,
-    overwrite: bool = False,
-) -> tuple[dict, dict]:
-    """ Fetch pairwise distance and contact maps for specified molecule pairs.
-
-    > [!NOTE]
-    > The selection defined in `mol_pairs` matters here.
-    > The maps will only be computed for the selected residue ranges.
-
-    ## Arguments:
-
-    - **xyzr_mat (np.ndarray)**:<br />
-        An array of shape (num_beads, num_frames, 4) containing the XYZR data
-        for all beads across all frames.
-
-    - **xyzr_keys (list)**:<br />
-        A list of strings corresponding to the bead keys for each row in
-        xyzr_mat, in the same order.
-
-    - **mol_pairs (list)**:<br />
-        A list of tuples specifying the molecule pairs for which to compute
-        the distance and contact maps. Each tuple should be in the format
-        (MOL1:RESSELECTION, MOL2:RESSELECTION) where RESSELECTION is optional
-
-    - **contact_cutoff (float)**:<br />
-        The contact cutoff distance (in Angstroms) for computing contact maps.
-
-    - **interaction_map_dir (str)**:<br />
-        The directory where interaction maps are saved.
-
-    - **nproc (int)**:<br />
-        The number of processes to use for parallel computation.
-
-    - **f_dtype (np.dtype, optional):**:<br />
-        The floating point data type to use for distance map calculations.
-
-    - **i_dtype (np.dtype, optional):**:<br />
-        The integer data type to use for contact map calculations.
-
-    - **overwrite (bool, optional):**:<br />
-        Whether to overwrite existing interaction map files. If False, function
-        will load existing maps from disk if they are available, and skip
-        recomputation. Note that the plots are always overwritten to reflect the
-        current binarization settings, but the raw maps are not recomputed if
-        the files already exist.
-
-    ## Returns:
-
-    - **tuple**:<br />
-        A tuple containing two dictionaries:
-        - pairwise_dmaps: A dictionary mapping molecule pair names (e.g. "MOL1:MOL2")
-          to their corresponding average distance maps (numpy arrays).
-        - pairwise_cmaps: A dictionary mapping molecule pair names to their
-          corresponding average contact maps (numpy arrays).
-    """
-
-    pairwise_dmaps = {}
-    pairwise_cmaps = {}
-
-    molwise_residues = get_molwise_residues(xyzr_keys)
-
-    num_frames = xyzr_mat.shape[1]
-    num_beads = xyzr_mat.shape[0]
-    assert xyzr_mat.shape[2] == 4, "Expected last dimension of xyzr_mat to be 4 (XYZR)."
-    assert num_beads == len(xyzr_keys), "Number of beads in xyzr_mat does not match length of bead keys."
-
-    frame_batches = np.array_split(np.arange(num_frames), nproc)
-
-    for _m1, _m2 in tqdm.tqdm(mol_pairs):
-
-        base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
-        base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
-        mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
-        mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
-        range1 = get_res_range_from_key(range1) if range1 is not None else molwise_residues[mol1]
-        range2 = get_res_range_from_key(range2) if range2 is not None else molwise_residues[mol2]
-        pair_name = f"{_m1}{PAIR_SEP}{_m2}"
-
-        dmap_file = os.path.join(interaction_map_dir, f"{pair_name}_dmap.txt")
-        cmap_file = os.path.join(interaction_map_dir, f"{pair_name}_cmap.txt")
-
-        if (
-            (os.path.exists(dmap_file) and os.path.exists(cmap_file)) and
-            overwrite is False
-        ):
-
-            pairwise_cmaps[pair_name] = np.loadtxt(cmap_file)
-            pairwise_dmaps[pair_name] = np.loadtxt(dmap_file)
-            continue
-
-        idx1 = sorted([
-            i for i, k in enumerate(xyzr_keys)
-            if k.startswith(mol1) and len(get_res_range_from_key(
-                k.rsplit("_", 1)[1],
-                return_type="set"
-            ).intersection(range1)) > 0
-        ])
-
-        idx2 = sorted([
-            i for i, k in enumerate(xyzr_keys)
-            if k.startswith(mol2) and len(get_res_range_from_key(
-                k.rsplit("_", 1)[1],
-                return_type="set"
-            ).intersection(range2)) > 0
-        ])
-
-        xyzr1 = xyzr_mat[idx1, :, :].astype(f_dtype)
-        xyzr2 = xyzr_mat[idx2, :, :].astype(f_dtype)
-
-        xyzr1_batches = [
-            xyzr1[:, f_batch, :].astype(f_dtype) for f_batch in frame_batches
-        ]
-        xyzr2_batches = [
-            xyzr2[:, f_batch, :].astype(f_dtype) for f_batch in frame_batches
-        ]
-
-        with ProcessPoolExecutor(max_workers=nproc) as executor:
-            futures = [
-                executor.submit(
-                    get_pairwise_map,
-                    xyzr1_b,
-                    xyzr2_b,
-                    contact_cutoff,
-                    f_dtype,
-                    i_dtype
-                )
-                for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
+        ]))
+
+        if hasattr(self, "extra_attrs"):
+            self.extra_attrs = [
+                {
+                    pair: attr[pair] for pair in self.mol_pairs if pair in attr
+                }
+                for attr in self.extra_attrs
             ]
-            results = []
-            for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
-                results.append(future.result())
+            self.extra_attrs = [
+                dict(sorted(attr.items(), key=lambda x: x[0]))
+                for attr in self.extra_attrs
+            ]
 
-        del xyzr1, xyzr2
-        del xyzr1_batches, xyzr2_batches
+    def _filter_self_pairs(self) -> None:
+        """ Remove self-interactions based on self.self_interaction attribute."""
 
-        dmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=f_dtype)
-        cmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=i_dtype)
+        pairs_to_remove = set()
 
-        for i, (dmap_, cmap_) in enumerate(results):
-            np.add(dmap_m1_m2, dmap_, out=dmap_m1_m2, dtype=f_dtype)
-            np.add(cmap_m1_m2, cmap_, out=cmap_m1_m2, dtype=i_dtype)
+        _do_dict = {
+            "allow_all": lambda b1, c1, b2, c2: False,
+            "allow_none": lambda b1, c1, b2, c2: b1 == b2,
+            "allow_copies": lambda b1, c1, b2, c2: (b1 == b2) and (c1 == c2),
+        }
 
-        del results
+        for m1, m2 in self.mol_pairs:
 
-        pairwise_dmaps[pair_name] = dmap_m1_m2.astype(f_dtype) / f_dtype(num_frames)
-        pairwise_cmaps[pair_name] = cmap_m1_m2.astype(i_dtype) / f_dtype(num_frames)
-
-        save_map_txt(
-            q_map=pairwise_dmaps[pair_name],
-            save_dir=interaction_map_dir,
-            map_name=f"{pair_name}_dmap",
-            overwrite=overwrite,
-        )
-
-        save_map_txt(
-            q_map=pairwise_cmaps[pair_name],
-            save_dir=interaction_map_dir,
-            map_name=f"{pair_name}_cmap",
-            overwrite=overwrite,
-        )
-
-    return pairwise_dmaps, pairwise_cmaps
-
-def save_map_txt(
-    q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
-    save_dir: str,
-    map_name: str,
-    overwrite: bool = False
-):
-    """ Save a distance or contact map as a text file.
-
-    ## Arguments:
-
-    - **q_map (npt.NDArray[np.int_] | npt.NDArray[np.floating])**:<br />
-        The distance or contact map to be saved as a text file.
-
-    - **save_dir (str)**:<br />
-        The directory where the text file will be saved.
-
-    - **map_name (str)**:<br />
-        The name of the map, which will be used as the filename (without extension).
-
-    - **overwrite (bool, optional):**:<br />
-        Whether to overwrite the file if it already exists.
-    """
-
-    save_path = os.path.join(save_dir, f"{map_name}.txt")
-
-    if not os.path.exists(save_path) or overwrite:
-        np.savetxt(
-            save_path,
-            q_map,
-            fmt="%.6f"
-        )
-
-def merge_maps_by_copies(
-    pairwise_maps,
-    cutoff,
-    dtype,
-    map_type,
-    binarize_map:bool = False,
-    i_dtype: np.dtype = np.int32,
-    f_dtype: np.dtype = np.float64,
-):
-    """ Merge contact or distance maps across copy pairs.
-
-    > [!NOTE]
-    > if the binarize_map flag is set to True,
-    > the merged map is a binary map where a contact is defined as present if
-    > it is present in any of the copy pairs.
-    >
-    > if the binarize_map flag is set to False,
-    > the merged map is - average of the distance/contact maps across copy pairs.
-
-    ## Arguments:
-
-    - **pairwise_maps (_type_)**:<br />
-        A dictionary mapping molecule pair names (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
-        to their corresponding distance or contact maps (numpy arrays).
-
-    - **cutoff (_type_)**:<br />
-        The cutoff distance used for binarization of the maps.
-        See :func:`get_binary_map` for more details.
-
-    - **dtype (_type_)**:<br />
-        The data type to use for the merged maps. Should be a numpy dtype.
-
-    - **map_type (_type_)**:<br />
-        A string indicating the type of maps being merged.
-        Should be either "dmap" for distance maps or "cmap" for contact maps.
-
-    ## Returns:
-
-    - **dict**:<br />
-        A dictionary mapping merged molecule pair names (e.g. "MOL1:MOL2") to
-        their corresponding merged distance or contact maps (numpy arrays).
-    """
-
-    merged_pairwise_maps = defaultdict(list)
-
-    for pair_name in pairwise_maps.keys():
-
-        _m1, _m2 = pair_name.split(PAIR_SEP)
-        base1, _cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
-        base2, _cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
-
-        merged_pair_name = (
-            f"{base1}{MOL_RANGE_SEP}{range1}" +
-            f"{PAIR_SEP}" +
-            f"{base2}{MOL_RANGE_SEP}{range2}"
-        )
-
-        _map = pairwise_maps[pair_name].copy()
-
-        if binarize_map is True:
-            _map = get_binary_map(
-                q_map=_map,
-                cutoff=cutoff,
-                i_dtype=dtype,
-                map_type=map_type,
+            base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
+            base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
+            assert (
+                all([base1 is not None, base2 is not None]) and
+                all([cp_idx1 is not None, cp_idx2 is not None])
+            ), (
+                f"Invalid format for molecule pair: {(m1, m2)}. "\
+                "Expected format: MOL_COPYIDX:RESSTART-RESEND"
             )
 
-        merged_pairwise_maps[merged_pair_name].append(_map)
+            if _do_dict[self.self_interaction](base1, cp_idx1, base2, cp_idx2):
+                pairs_to_remove.add((m1, m2))
 
-    if binarize_map is True:
-        merged_pairwise_maps = {
-            k: np.logical_or.reduce(v, axis=0).astype(i_dtype)
-            for k, v in merged_pairwise_maps.items()
-        }
-    else:
-        merged_pairwise_maps = {
-            k: np.mean(v, axis=0).astype(f_dtype)
-            for k, v in merged_pairwise_maps.items()
-        }
-
-    return merged_pairwise_maps
-
-def merge_residue_selection_by_copies(molwise_residues: dict) -> dict:
-    """ Merge moleculwise residue dictionary across molecule copies.
-
-    ## Arguments:
-
-    - **molwise_residues (dict)**:<br />
-        A dictionary mapping molecule names (including copy index) to lists of
-        residue numbers. Format:
-        {
-            "MOL1_COPYIDX": [residue numbers],
-            "MOL2_COPYIDX": [residue numbers],
-            ...
-        }
-
-    ## Returns:
-
-    - **dict**:<br />
-        A dictionary mapping base molecule names (without copy index) to lists of
-        residue numbers. Format:
-        {
-            "MOL1": [residue numbers],
-            "MOL2": [residue numbers],
-            ...
-        }
-    """
-
-    merged_molwise_residues = {}
-
-    for mol in molwise_residues.keys():
-
-        base_mol, _cp_idx, _range = re.match(REGEX_MOLNAME, mol).groups()
-
-        if base_mol in merged_molwise_residues:
-            merged_molwise_residues[base_mol].extend(molwise_residues[mol])
-        else:
-            merged_molwise_residues[base_mol] = molwise_residues[mol].copy()
-
-    molwise_residues = {
-        k: sorted(set(v)) for k, v in merged_molwise_residues.items()
-    }
-
-    return molwise_residues
-
-def plot_map(
-    q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
-    pair_name: str,
-    save_dir: str,
-    map_type: str,
-    cutoff: float,
-    molwise_residues: dict,
-    map_slice_dict: dict,
-    plotting: str = "matplotlib",
-    binarize_map: bool = True,
-):
-    """ Plot the contact or distance map.
-
-    ## Arguments:
-
-    - **q_map (npt.NDArray[np.integer] | npt.NDArray[np.floating])**:<br />
-        The distance or contact map to be plotted.
-
-    - **pair_name (str)**:<br />
-        The name of the molecule pair corresponding to the map (e.g. "MOL1:MOL2").
-
-    - **save_dir (str)**:<br />
-        The directory where the plot will be saved.
-
-    - **map_type (str)**:<br />
-        A string indicating the type of map being plotted.
-        Should be either "dmap" for distance maps or "cmap" for contact maps.
-
-    - **cutoff (float)**:<br />
-        The cutoff distance used for binarization of the maps, which will be
-        included in the plot title and colorbar label. See :func:`get_binary_map`
-        for more details.
-
-    - **molwise_residues (dict)**:<br />
-        A dictionary mapping molecule names to lists of residue numbers.
-        Format:
-        {
-            "MOL1": [residue numbers],
-            "MOL2": [residue numbers],
-            ...
-        }
-
-    - **plotting (str, optional):**:<br />
-        The plotting backend to use. Can be either "matplotlib" or "plotly".
-
-    - **binarize_map (bool, optional):**:<br />
-        Whether to binarize the map before plotting.
-    """
-
-    _m1, _m2 = pair_name.split(PAIR_SEP)
-    base1, cp_idx1, _range1 = re.match(REGEX_MOLNAME, _m1).groups()
-    base2, cp_idx2, _range2 = re.match(REGEX_MOLNAME, _m2).groups()
-    mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
-    mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
-
-    map_titles = {
-        "dmap": {
-            True: f"Binarized Average Distance Map (cutoff={cutoff} Å): {mol1}{PAIR_SEP}{mol2}",
-            False: f"Average Distance Map (Å): {mol1}{PAIR_SEP}{mol2}",
-        },
-        "cmap": {
-            True: f"Binarized Average Contact Map (cutoff={cutoff}) : {mol1}{PAIR_SEP}{mol2}",
-            False: f'Average Contact Map (cutoff={cutoff}) : {mol1}{PAIR_SEP}{mol2}',
-        },
-    }
-    map_labels = {
-        "dmap": {
-            True: 'Contact (1) / No Contact (0)',
-            False: 'Average Distance (Å)',
-        },
-        "cmap": {
-            True: 'Contact (1) / No Contact (0)',
-            False: 'Fraction of Frames in Contact',
-        }
-    }
-    max_vals = {
-        "dmap": {
-            True: 1,
-            False: np.max(q_map),
-        },
-        "cmap": {
-            True: 1,
-            False: cutoff,
-        }
-    }
-    cmap_ = {
-        "dmap": {
-            True: 'Greens',
-            False: 'Greens_r',
-        },
-        "cmap": {
-            True: 'Greens',
-            False: 'Greens',
-        },
-    }
-    dtype_ = {True: np.int32, False: np.float64}
-
-    if plotting == "matplotlib":
-
-        for slice_name, slices_ in map_slice_dict.items():
-
-            r1_start = slices_["s1"] - molwise_residues[mol1][0]
-            r1_end = slices_["e1"] - molwise_residues[mol1][0] + 1
-            r2_start = slices_["s2"] - molwise_residues[mol2][0]
-            r2_end = slices_["e2"] - molwise_residues[mol2][0] + 1
-            slice_q_map = q_map[r1_start:r1_end, r2_start:r2_end]
-            save_prefix = f"{slice_name}"
-
-            plt.close("all")
-            fig, ax = plt.subplots(figsize=(10, 10))
-            temp = ax.imshow(
-                slice_q_map.astype(dtype_[binarize_map]),
-                cmap=cmap_[map_type][binarize_map],
-                vmin=0,
-                vmax=max_vals[map_type][binarize_map]
-            )
-            ax.set_title(
-                map_titles[map_type][binarize_map].replace(
-                    f"{mol1}{PAIR_SEP}{mol2}",
-                    f"{slice_name}"
-                )
-            )
-            ax.set_xlabel(f"{mol2}")
-            ax.set_ylabel(f"{mol1}")
-            ax.set_xticks(ticks=np.arange(0, slice_q_map.shape[1], 50))
-            ax.set_yticks(ticks=np.arange(0, slice_q_map.shape[0], 50))
-            ax.set_xticklabels(labels=np.arange(
-                slices_["s2"], slices_["e2"]+1, 50
-            ))
-            ax.set_yticklabels(labels=np.arange(
-                slices_["s1"], slices_["e1"]+1, 50
-            ))
-            fig.colorbar(temp, ax=ax, label=map_labels[map_type][binarize_map])
-            fig.savefig(os.path.join(save_dir, f"{save_prefix}_{map_type}.png"))
-            plt.close(fig)
-
-    elif plotting == "plotly":
-
-        import plotly.graph_objects as go
-
-        for slice_name, slices_ in map_slice_dict.items():
-
-            r1_start = slices_["s1"] - molwise_residues[mol1][0]
-            r1_end = slices_["e1"] - molwise_residues[mol1][0] + 1
-            r2_start = slices_["s2"] - molwise_residues[mol2][0]
-            r2_end = slices_["e2"] - molwise_residues[mol2][0] + 1
-            slice_q_map = q_map[r1_start:r1_end, r2_start:r2_end]
-            save_prefix = f"{slice_name}"
-
-            fig = go.Figure(data=go.Heatmap(
-                z=slice_q_map.astype(dtype_[binarize_map]),
-                colorscale=cmap_[map_type][binarize_map],
-                zmin=0,
-                zmax=max_vals[map_type][binarize_map],
-                colorbar=dict(title=map_labels[map_type][binarize_map])
-            ))
-
-            fig.update_layout(
-                title=map_titles[map_type][binarize_map].replace(
-                    f"{mol1}{PAIR_SEP}{mol2}",
-                    f"{slice_name}"
-                ),
-                xaxis_title=f"{mol2}",
-                yaxis_title=f"{mol1}",
-                xaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, slice_q_map.shape[1], 1),
-                    ticktext=np.arange(
-                        slices_["s2"], slices_["e2"]+1, 1
-                    )
-                ),
-                yaxis=dict(tickmode='array',
-                    tickvals=np.arange(0, slice_q_map.shape[0], 1),
-                    ticktext=np.arange(
-                        slices_["s1"], slices_["e1"]+1, 1
-                    )
-                ),
-            )
-            fig.write_html(os.path.join(save_dir, f"{save_prefix}_{map_type}.html"))
-
-def get_binary_map(
-    q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
-    cutoff: float,
-    i_dtype: np.dtype = np.int32,
-    map_type: str = "dmap",
-) -> npt.NDArray[np.integer] | npt.NDArray[np.floating]:
-    """ Convert the distance or contact map to binary map based on cutoff.
-
-    ## Arguments:
-
-    - **q_map (npt.NDArray[np.integer] | npt.NDArray[np.floating])**:<br />
-        The distance or contact map to be binarized.
-
-    - **cutoff (float)**:<br />
-        The cutoff value used for binarization.
-        - For distance maps, this is the maximum distance for a pair to be
-        considered in contact.
-        - For contact maps, this is the minimum fraction of frames which should
-        have the pair in contact for it to be considered a contact.
-
-    - **i_dtype (np.dtype, optional):**:<br />
-        The integer data type to be used for the binary map.
-
-    - **map_type (str, optional):**:<br />
-        The type of map being binarized.
-        Either "dmap" for distance maps or "cmap" for contact maps.
-
-    ## Returns:
-
-    - **npt.NDArray[np.integer] | npt.NDArray[np.floating]**:<br />
-        The binary map.
-    """
-
-    if map_type == "dmap":
-        q_map[q_map < cutoff] = i_dtype(1)
-        q_map[q_map >= cutoff] = i_dtype(0)
-
-    elif map_type == "cmap":
-        q_map[q_map >= cutoff] = i_dtype(1)
-        q_map[q_map < cutoff] = i_dtype(0)
-
-    q_map = q_map.astype(i_dtype)
-
-    return q_map
-
-def matrix_patches_worker(
-    cmap: npt.NDArray[np.integer],
-    pair_name: str,
-    interaction_map_dir: str,
-):
-    """ Extract interacting patches from the contact map and save them as csvs.
-
-    ## Arguments:
-
-    - **cmap (npt.NDArray[np.integer])**:<br />
-        The binary contact map from which to extract patches.
-
-    - **pair_name (str)**:<br />
-        The name of the molecule pair corresponding to the contact map (e.g. "MOL1:MOL2").
-
-    - **interaction_map_dir (str)**:<br />
-        The directory where the patch files will be saved.
-    """
-
-    _m1, _m2 = pair_name.split(PAIR_SEP)
-    base1, cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
-    base2, cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
-    mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}" if cp_idx1 is not None else base1
-    mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}" if cp_idx2 is not None else base2
-
-    assert all([range1 is not None, range2 is not None]), (
-        f"Invalid format for molecule pair: {(_m1, _m2)}. "\
-        "Expected format: MOL_COPYIDX:RESSTART-RESEND"
-    )
-
-    # cheap trick to avoid df.groupby() error
-    # `df.grouby()` will fail if row_obj and col_obj are the same
-    if mol1 == mol2:
-        mol1 += "-1"
-        mol2 += "-2"
-
-    region_of_interest = {
-        mol1: [
-            get_res_range_from_key(range1)[0],
-            get_res_range_from_key(range1)[1]
-        ],
-        mol2: [
-            get_res_range_from_key(range2)[0],
-            get_res_range_from_key(range2)[1]
+        self.mol_pairs = [
+            pair for pair in self.mol_pairs
+            if pair not in pairs_to_remove
         ]
-    }
 
-    if len(np.unique(cmap)) == 1 and np.unique(cmap)[0] == 0:
-        # print(f"No contacts found for {pair_name}, skipping patches.")
-        return None
+        if hasattr(self, "extra_attrs"):
+            self.extra_attrs = [
+                {
+                    pair: attr[pair] for pair in self.mol_pairs if pair in attr
+                }
+                for attr in self.extra_attrs
+            ]
+            self.extra_attrs = [
+                dict(sorted(attr.items(), key=lambda x: x[0]))
+                for attr in self.extra_attrs
+            ]
 
-    matrix_patches = MatrixPatches(
-        matrix=cmap,
-        row_obj=mol1,
-        col_obj=mol2,
-    )
+class PairwiseMaps:
+    """ Class to handle pairwise distance and contact maps for given molecule pairs."""
 
-    patches_df = matrix_patches.get_patches_from_matrix()
+    mol_pairs: list
+    """ List of enriched molecule pairs. See `MoleculePairs` class for details."""
 
-    ch1_p = [
-        np.array(list(patch)) + region_of_interest[mol1][0]
-        for patch in patches_df[mol1].tolist()
-    ]
-    ch2_p = [
-        np.array(list(patch)) + region_of_interest[mol2][0]
-        for patch in patches_df[mol2].tolist()
-    ]
+    xyzr_parser: XYZRParser
+    """ XYZRParser object containing the parsed XYZR data and related information. """
 
-    patches = {
-        patch_idx: {
-            mol1: ch1_patch,
-            mol2: ch2_patch,
-        } for patch_idx, (ch1_patch, ch2_patch) in enumerate(zip(ch1_p, ch2_p))
-    }
+    xyzr_mat: np.ndarray
+    """ The raw XYZR data as a numpy array of shape (num_beads, num_frames, 4). """
 
-    if len(patches) > 0:
+    xyzr_keys: list
+    """ List of bead keys in the format "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND",
+    corresponding to the rows in xyzr_mat. """
 
-        pair_name = (
-            f"{mol1.replace('-1', '')}{MOL_RANGE_SEP}{range1}" +
-            f"{PAIR_SEP}" +
-            f"{mol2.replace('-2', '')}{MOL_RANGE_SEP}{range2}"
-        )
+    molwise_residues: dict
+    """ Dictionary mapping molecule names to sets of residue numbers. Format: {
+        "MOL1_COPYIDX": [res1, res2, ...],
+        "MOL2_COPYIDX": [res1, res2, ...],
+        ...
+    } """
 
-        save_map(
-            contact_map=cmap,
-            avg_contact_probs_mat=None,
-            patches=patches,
-            chain1=mol1,
-            chain2=mol2,
-            p1_name=mol1,
-            p2_name=mol2,
-            p1_region=region_of_interest[mol1],
-            p2_region=region_of_interest[mol2],
-            out_file=os.path.join(
-                interaction_map_dir, f"patches_{pair_name}.png"
-            ),
-            save_plot=False,
-            verbose=False,
-            # plot_type="static",
-            # concat_residues=True,
-            # contact_probability=False,
-        )
+    molwise_xyzr_keys: dict
+    """ Dictionary mapping molecule names to lists of bead keys. Format: {
+        "MOL1_COPYIDX": ["MOL1_COPYIDX_RESSTART-RESEND", ...],
+        "MOL2_COPYIDX": ["MOL2_COPYIDX_RESSTART-RESEND", ...],
+        ...
+    } """
 
-def select_mol_pairs(
-    xyzr_keys: list,
-    input: str = None,
-    self_interaction: bool = False
-):
-    """ Select molecule pairs for which to compute the maps based on the provided
-    input file or by selecting all possible pairs by default.
-
-    ## Arguments:
-
-    - **xyzr_keys (list)**:<br />
-        A list of strings representing the keys for the XYZR data of the beads.
-        The format of the keys should be:
-        "MOLNAME_COPYIDX_RESSTART-RESEND" or "MOLNAME_COPYIDX" or
-        "MOLNAME_RESSTART-RESEND" or "MOLNAME", where
-        - MOLNAME is the name of the molecule (e.g. "PROT1", "RNA1", etc.)
-        - COPYIDX is the copy index of the molecule (e.g. "1", "2", etc.).
-          This is optional and if not provided, it is assumed to be a single copy.
-        - RESSTART and RESEND are the start and end residue numbers for the molecule.
-          This is optional and if not provided, it is assumed to be the full residue
-
-    - **input (str, optional):**:<br />
-        The path to a json file containing the selected molecule pairs and their
-        residue ranges for which to compute the maps. If not provided, all possible
-        molecule pairs will be selected by default.
-        See :func:`read_molecule_pairs_from_file` for more details.
-
-    - **self_interaction (bool, optional):**:<br />
-        Whether to include self-interactions (i.e. interactions between the same
-        molecule) in the selection of molecule pairs. Default is False, meaning
-        that self-interactions will be excluded from the selection.
-
-    ## Returns:
-
-    - **list**:
-        A list of tuples representing the selected molecule pairs and their residue ranges.
-        Each tuple is of the format:
-        ("MOL1_COPYIDX:RESSTART-RESEND", "MOL2_COPYIDX:RESSTART-RESEND")
+    self_interaction: str
+    """ String indicating how to handle self-interactions. Should be one of:
+    - "allow_all": allow interactions between all molecule pairs, including
+                   self-pairs and copy pairs.
+    - "allow_none": disallow interactions between any molecule pairs of the same
+                    molecule, including self-pairs and copy pairs.
+    - "allow_copies": allow interactions between different copies of the same
+                      molecule, but disallow self-pairs. (default)
     """
 
-    if input is not None:
-        sel_mol_pairs = read_molecule_pairs_from_file(input=input)
-    else:
-        sel_mol_pairs = get_possible_mol_pairs(
-            xyzr_keys=xyzr_keys,
-            filter_by=None,
-            self_interaction=self_interaction,
-        )
+    unique_mols: set
+    """ Set of unique molecule names (without copy index) present in the model. """
 
-    # extend for copies if not specified in the input
-    sel_mol_pairs = extend_mol_pairs_for_copies(
-        mol_pairs=sel_mol_pairs,
-        xyzr_keys=xyzr_keys,
-        self_interaction=self_interaction,
-    )
+    f_dtype: np.dtype
+    """ The floating point data type to use for the distance and contact maps. """
 
-    # add residue range if not specified in the input
-    sel_mol_pairs = add_residue_range_to_mol_pairs(
-        mol_pairs=sel_mol_pairs,
-        xyzr_keys=xyzr_keys,
-        self_interaction=self_interaction,
-    )
+    i_dtype: np.dtype
+    """ The integer data type to use for the binary contact maps. """
 
-    return sel_mol_pairs
-
-def process_pairwise_maps(
-    pairwise_maps: dict,
-    molwise_xyzr_keys: dict,
-    cutoff: float,
-    map_type: str,
-    merge_copies: bool = False,
-    binarize_map: bool = False,
-    i_dtype: np.dtype = np.int32,
-    f_dtype: np.dtype = np.float64,
-) -> Dict[str, np.ndarray]:
-    """ Process pairwise distance or contact maps by expanding to residue-level,
-    merging across copies if specified, and binarizing if specified.
-
-    ## Arguments:
-
-    - **pairwise_maps (dict)**:<br />
-        A dictionary mapping molecule pair names (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
-        to their corresponding distance or contact maps (numpy arrays).
-
-    - **molwise_xyzr_keys (dict)**:<br />
-        A dictionary mapping molecule names to lists of bead keys.
-        Format: {
-            "MOL1_COPYIDX": ["MOL1_COPYIDX_RESSTART-RESEND", ...],
-            "MOL2_COPYIDX": ["MOL2_COPYIDX_RESSTART-RESEND", ...],
-            ...
-        }
-
-    - **cutoff (float)**:<br />
-        The cutoff distance used for binarization of the maps, which will be
-        passed to the `get_binary_map` function if binarization is specified.
-        See :func:`get_binary_map` for more details.
-
-    - **map_type (str)**:<br />
-        A string indicating the type of maps being processed.
-        Should be either "dmap" for distance maps or "cmap" for contact maps.
-
-    - **merge_copies (bool, optional):**:<br />
-        Whether to merge molecule copies when processing the maps. If True, the
-        maps will be merged across copy pairs (e.g. "MOL1_COPYIDX:MOL2_COPYIDX" maps
-        will be merged into a single "MOL1:MOL2" map) using the `merge_maps_by_copies`
-        function. If False, the maps will be processed separately for each copy pair.
-
-    - **binarize_map (bool, optional):**:<br />
-        Whether to binarize the maps based on the cutoff. If True, the maps will be
-        converted to binary maps using the `get_binary_map` function, where a contact is
-        defined as present if it is present in any of the copy pairs (if merge_copies
-        is True) or based on the cutoff for each individual map (if merge_copies is False).
-        If False, the maps will not be binarized and will retain their original values.
-
-    - **i_dtype (np.dtype, optional):**:<br />
-        The integer data type to use. Default is np.int32.
-
-    - **f_dtype (np.dtype, optional):**:<br />
-        The floating point data type to use. Default is np.float64.
-
-    ## Returns:
-
-    - **dict**:<br />
-        A dictionary of processed interaction maps per molecule pair.
+    contact_cutoff: float
+    """ The cutoff distance used for binarization of the maps, which will be
+    passed to the `get_binary_map` function if binarization is specified.
+    See :func:`get_binary_map` for more details.
     """
 
-    ############################################################################
-    # Expand the maps to residue-level for plotting and patch extraction.
-    ############################################################################
-    for pair_name, pairwise_map in pairwise_maps.items():
+    def __init__(
+        self,
+        mol_pairs: list,
+        xyzr_parser: XYZRParser,
+        cutoff: float,
+        self_interaction: bool = False,
+        f_dtype: np.dtype = np.float64,
+        i_dtype: np.dtype = np.int32,
+    ):
 
-        pairwise_maps[pair_name] = expand_map_to_residue_level(
-            q_map=pairwise_map.astype(f_dtype),
-            molwise_xyzr_keys=molwise_xyzr_keys,
-            pair_name=pair_name
-        )
+        self.mol_pairs = mol_pairs
+        self.xyzr_parser = xyzr_parser
+        self.xyzr_mat = xyzr_parser.xyzr_mat
+        self.xyzr_keys = xyzr_parser.xyzr_keys
+        self.molwise_residues = xyzr_parser.molwise_residues
+        self.molwise_xyzr_keys = xyzr_parser.molwise_xyzr_keys
+        self.self_interaction = self_interaction
+        self.unique_mols = xyzr_parser.unique_mols
+        self.f_dtype = f_dtype
+        self.i_dtype = i_dtype
+        self.contact_cutoff = cutoff
 
-    map_dtype = i_dtype if binarize_map else f_dtype
+    def process_pairwise_maps(
+        self,
+        pairwise_maps: dict,
+        map_type: str,
+        merge_copies: bool = False,
+        binarize_map: bool = False,
+    ) -> Dict[str, np.ndarray]:
+        """ Process pairwise distance or contact maps by expanding to residue-level,
+        merging across copies if specified, and binarizing if specified.
 
-    ############################################################################
-    # Merge maps across copies if specified, and binarize if specified.
-    ############################################################################
-    if merge_copies:
+        ## Arguments:
 
-        pairwise_maps = merge_maps_by_copies(
-            pairwise_maps=pairwise_maps,
-            cutoff=cutoff,
-            dtype=map_dtype,
-            map_type=map_type,
-            binarize_map=binarize_map,
-            i_dtype=i_dtype,
-            f_dtype=f_dtype,
-        )
+        - **pairwise_maps (dict)**:<br />
+            A dictionary mapping molecule pair names (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
+            to their corresponding distance or contact maps (numpy arrays).
 
-    else:
+        - **map_type (str)**:<br />
+            A string indicating the type of maps being processed.
+            Should be either "dmap" for distance maps or "cmap" for contact maps.
 
+        - **merge_copies (bool, optional):**:<br />
+            Whether to merge molecule copies when processing the maps. If True, the
+            maps will be merged across copy pairs (e.g. "MOL1_COPYIDX:MOL2_COPYIDX" maps
+            will be merged into a single "MOL1:MOL2" map) using the `merge_maps_by_copies`
+            function. If False, the maps will be processed separately for each copy pair.
+
+        - **binarize_map (bool, optional):**:<br />
+            Whether to binarize the maps based on the cutoff. If True, the maps will be
+            converted to binary maps using the `get_binary_map` function, where a contact is
+            defined as present if it is present in any of the copy pairs (if merge_copies
+            is True) or based on the cutoff for each individual map (if merge_copies is False).
+            If False, the maps will not be binarized and will retain their original values.
+
+        ## Returns:
+
+        - **dict**:<br />
+            A dictionary of processed interaction maps per molecule pair.
+        """
+
+        ############################################################################
+        # Expand the maps to residue-level for plotting and patch extraction.
+        ############################################################################
         for pair_name, pairwise_map in pairwise_maps.items():
 
-            if binarize_map:
-                pairwise_maps[pair_name] = get_binary_map(
-                    q_map=pairwise_map.astype(f_dtype),
-                    cutoff=cutoff,
-                    i_dtype=i_dtype,
-                    map_type=map_type,
-                ).astype(map_dtype)
-
-            else:
-                pairwise_maps[pair_name] = pairwise_map.astype(map_dtype)
-
-    return pairwise_maps
-
-def generate_map_slices(
-    pairwise_keys: list,
-    molwise_residues: dict,
-    sel_mol_pairs: list,
-    merge_copies: bool = False,
-) -> Dict[str, Dict[str, Dict[str, int]]]:
-    """ Generate a dictionary of slice names and their corresponding residue
-    ranges for each molecule pair.
-
-    ## Arguments:
-
-    - **pairwise_keys (list)**:<br />
-        A list of molecule pair names (e.g. "MOL1:MOL2") corresponding to the
-        keys in the pairwise_maps dictionary. This is used to ensure that the
-        generated slice names are consistent with the keys in the pairwise_maps
-        dictionary, and to filter out any selected molecule pairs that do not have
-        corresponding maps.
-
-    - **molwise_residues (dict)**:<br />
-        A dictionary mapping molecule names to lists of residue numbers.
-        Format:
-        {
-            "MOL1": [residue numbers],
-            "MOL2": [residue numbers],
-            ...
-        }
-        This is used to determine the residue ranges for the selected molecule pairs,
-        which are included in the slice names.
-
-    - **sel_mol_pairs (list)**:<br />
-        A list of tuples specifying the selected molecule pairs and their residue
-        selections. Each tuple should be in the format (MOL1:RESSELECTION, MOL2:RESSELECTION)
-        where RESSELECTION is optional. This is used to generate the slice names for
-        the selected molecule pairs, which are included in the map_slices dictionary.
-
-    - **merge_copies (bool, optional):**:<br />
-        Whether to merge molecule copies when generating the slice names. If True,
-        the copy index is not included in the molecule names in the slice names, and
-        the residue ranges are determined by merging the residue numbers across all
-        copies of the molecule. If False, the copy index is included in the molecule
-        names in the slice names, and the residue ranges are determined separately for
-        each copy of the molecule.
-
-    ## Returns:
-
-    - **dict**:<br />
-        A dictionary mapping molecule pair names to dictionaries of slice names and
-        their corresponding residue ranges. Format:
-        {
-            "MOL1:MOL2": {
-                "slice_name1": {
-                    "s1": start residue number for mol1,
-                    "e1": end residue number for mol1,
-                    "s2": start residue number for mol2,
-                    "e2": end residue number for mol2,
-                },
-                "slice_name2": {
-                    ...
-                },
-                ...
-            },
-            ...
-        }
-    """
-
-    map_slices = {k: {} for k in pairwise_keys}
-
-    for _m1, _m2 in sel_mol_pairs:
-        base1, cp_idx1, sel1 = re.match(REGEX_MOLNAME, _m1).groups()
-        base2, cp_idx2, sel2 = re.match(REGEX_MOLNAME, _m2).groups()
-
-        mol1 = base1 if merge_copies else f"{base1}{MOL_COPY_SEP}{cp_idx1}"
-        mol2 = base2 if merge_copies else f"{base2}{MOL_COPY_SEP}{cp_idx2}"
-
-        range1 = f"{min(molwise_residues[mol1])}{RES_RANGE_SEP}{max(molwise_residues[mol1])}"
-        range2 = f"{min(molwise_residues[mol2])}{RES_RANGE_SEP}{max(molwise_residues[mol2])}"
-
-        pair_name = (
-            f"{mol1}{MOL_RANGE_SEP}{range1}" +
-            f"{PAIR_SEP}" +
-            f"{mol2}{MOL_RANGE_SEP}{range2}"
-        )
-
-        if pair_name not in pairwise_keys:
-            print(f"Warning: {pair_name} not found in computed maps. Skipping.")
-            continue
-
-        s1, e1 = get_res_range_from_key(sel1)[0], get_res_range_from_key(sel1)[-1]
-        s2, e2 = get_res_range_from_key(sel2)[0], get_res_range_from_key(sel2)[-1]
-
-        slice_name = (
-            f"{mol1}{MOL_RANGE_SEP}{s1}{RES_RANGE_SEP}{e1}" +
-            f"{PAIR_SEP}" +
-            f"{mol2}{MOL_RANGE_SEP}{s2}{RES_RANGE_SEP}{e2}"
-        )
-
-        map_slices[pair_name][slice_name] = {
-            "s1": int(s1),
-            "e1": int(e1),
-            "s2": int(s2),
-            "e2": int(e2),
-        }
-
-    return map_slices
-
-def save_output(
-    pairwise_maps,
-    interaction_map_dir,
-    nproc,
-    cutoff,
-    binarize_map,
-    map_type,
-    output_type: str = "patches+plots",
-    f_dtype: np.dtype = np.float64,
-    i_dtype: np.dtype = np.int32,
-    **kwargs,
-):
-    """ Save the processed interaction maps as plots and/or patches.
-
-    ## Arguments:
-
-    - **pairwise_maps (_type_)**:<br />
-        A dictionary mapping molecule pair names to their corresponding distance
-        or contact maps (numpy arrays).
-
-    - **interaction_map_dir (_type_)**:<br />
-        The directory where the output maps and plots will be saved.
-
-    - **nproc (_type_)**:<br />
-        The number of processes to use for parallel processing when saving the
-        maps and plots.
-
-    - **cutoff (_type_)**:<br />
-        The cutoff distance used for binarization of the maps, which will be
-        included in the plot title and colorbar label. See :func:`get_binary_map`
-        for more details.
-
-    - **binarize_map (_type_)**:<br />
-        Whether to binarize the maps before saving and plotting. If True, the maps
-        will be converted to binary maps based on the cutoff value before saving
-        and plotting.
-
-    - **map_type (_type_)**:<br />
-        A string indicating the type of maps being saved and plotted.
-        Should be either "dmap" for distance maps or "cmap" for contact maps.
-
-    - **output_type (str, optional):**:<br />
-        A string indicating the type of output to save. Can be either "patches",
-        "plots", or "patches+plots".
-        - If "patches", only the patches will be saved as csv files.
-        - If "plots", only the plots will be saved as png files.
-        - If "patches+plots", both the patches and plots will be saved.
-
-    - **f_dtype (np.dtype, optional):**:<br />
-        The floating-point data type to use for the distance maps.
-        Default is np.float64.
-
-    - **i_dtype (np.dtype, optional):**:<br />
-        The integer data type to use for the contact maps.
-        Default is np.int32.
-
-    ## Keyword arguments:
-
-    - **molwise_residues (dict, optional):**:<br />
-        A dictionary mapping molecule names to lists of residue numbers.
-        Format:
-        {
-            "MOL1": [residue numbers],
-            "MOL2": [residue numbers],
-            ...
-        }
-        This is required if output_type includes "plots", as it is used for
-        labeling the axes of the plots.
-
-    - **map_slices (dict, optional):**:<br />
-        A dictionary mapping molecule pair names to dictionaries of slice names
-        and their corresponding residue ranges. Format:
-        {
-            "MOL1:MOL2": {
-                "slice_name1": {
-                    "s1": start residue number for mol1,
-                    "e1": end residue number for mol1,
-                    "s2": start residue number for mol2,
-                    "e2": end residue number for mol2,
-                },
-                "slice_name2": {
-                    ...
-                },
-                ...
-            },
-            ...
-        }
-        This is required if output_type includes "plots", as it is used for
-        defining the regions of the maps to be plotted.
-
-    - **plotting_lib (str, optional):**:<br />
-        The plotting library to use for generating the plots. Can be either
-        "matplotlib" or "plotly". Default is "matplotlib".
-    """
-
-    output_types = output_type.split("+")
-    assert all([ot in ["patches", "plots"] for ot in output_types]), (
-        f"Invalid output_type: {output_type}. Expected 'patches', 'plots', or 'patches+plots'."
-    )
-    nproc = min(nproc, len(pairwise_maps), 20)
-    executor = ThreadPoolExecutor(max_workers=nproc)
-
-    if "plots" in output_types:
-        assert "molwise_residues" in kwargs, "`molwise_residues` must be provided for plotting."
-        assert "map_slices" in kwargs, "`map_slices` must be provided for plotting."
-        for pair_name in pairwise_maps.keys():
-            executor.submit(
-                plot_map,
-                pairwise_maps[pair_name],
-                pair_name,
-                interaction_map_dir,
-                map_type,
-                cutoff,
-                kwargs["molwise_residues"],
-                kwargs["map_slices"][pair_name],
-                kwargs.get("plotting_lib", "matplotlib"),
-                binarize_map,
+            pairwise_maps[pair_name] = self.expand_map_to_residue_level(
+                q_map=pairwise_map.astype(self.f_dtype),
+                pair_name=pair_name
             )
 
-    if "patches" in output_types:
-        if not binarize_map:
-            pairwise_maps = {
-                pair_name: get_binary_map(
-                    pairwise_maps[pair_name].astype(f_dtype),
-                    cutoff,
-                    i_dtype,
-                    map_type
-                ).astype(i_dtype)
-                for pair_name in pairwise_maps.keys()
+        ############################################################################
+        # Merge maps across copies if specified, and binarize if specified.
+        ############################################################################
+        if merge_copies:
+
+            pairwise_maps = self.merge_maps_by_copies(
+                pairwise_maps=pairwise_maps,
+                map_type=map_type,
+                operation="or" if binarize_map else "average",
+                binarize_map=binarize_map,
+            )
+
+        else:
+
+            for pair_name, pairwise_map in pairwise_maps.items():
+
+                if binarize_map:
+                    pairwise_maps[pair_name] = PairwiseMaps.get_binary_map(
+                        q_map=pairwise_map.astype(self.f_dtype),
+                        contact_cutoff=self.contact_cutoff,
+                        map_type=map_type,
+                        i_dtype=self.i_dtype
+                    )
+
+                else:
+                    pairwise_maps[pair_name] = pairwise_map.astype(self.f_dtype)
+
+        return pairwise_maps
+
+    def expand_map_to_residue_level(
+        self,
+        q_map: np.ndarray,
+        pair_name: str
+    ) -> np.ndarray:
+        """ Expand a bead-level distance/contact map to residue-level map.
+
+        ## Arguments:
+
+        - **q_map (np.ndarray)**:<br />
+            Original distance/contact map.
+
+        - **pair_name (str)**:<br />
+            The name of the molecule pair. (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
+
+        ## Returns:
+
+        - **np.ndarray**:<br />
+            Expanded distance/contact map.
+        """
+
+        _m1, _m2 = pair_name.split(PAIR_SEP)
+        mol1 = self.xyzr_parser.get_mol_name(_m1, only_base=False)
+        mol2 = self.xyzr_parser.get_mol_name(_m2, only_base=False)
+
+        # expand the maps to include all residues in the selection
+        q_map = self.explode_map(q_map, mol1, by="row")
+        q_map = self.explode_map(q_map, mol2, by="col")
+
+        return q_map
+
+    def explode_map(
+        self,
+        q_map: np.ndarray,
+        mol: str,
+        by: str = "row",
+    ) -> np.ndarray:
+        """ Expand a bead-level distance/contact map to residue-level map along
+        the specified axis.
+
+        ## Arguments:
+
+        - **q_map (np.ndarray)**:<br />
+            The distance/contact map to be expanded.
+
+        - **mol (str)**:<br />
+            The molecule name for which the map is being expanded (e.g. "MOL_COPYIDX").
+
+        - **by (str, optional):**:<br />
+            The axis along which to expand the map. Should be either "row" or "col".
+
+        ## Returns:
+
+        - **np.ndarray**:<br />
+            The expanded distance/contact map.
+        """
+
+        assert q_map.ndim == 2, "q_map must be a 2D array."
+
+        repeat_ = {
+            "row": lambda q, i: q[i, :],
+            "col": lambda q, i: q[:, i],
+        }
+
+        axis_ = {"row": 0, "col": 1}
+
+        special_keys = [
+            (key.rsplit("_", 1)[1], idx)
+            for idx, key in enumerate(self.molwise_xyzr_keys[mol])
+            if "-" in key
+        ]
+        dup_attrs = []
+
+        for key, attr_idx in special_keys:
+            num_repeats = len(get_res_range_from_key(key))
+            to_add = np.tile(repeat_[by](q_map, attr_idx), (num_repeats - 1, 1))
+            dup_attrs.append((to_add, attr_idx))
+
+        for to_add, attr_idx in reversed(dup_attrs):
+            q_map = np.insert(q_map, attr_idx + 1, to_add, axis=axis_[by])
+
+        return q_map
+
+    def prepare_xyzr_batches(
+        self,
+        frame_batches: List[np.ndarray],
+        res_range: Optional[str],
+        mol_name: str
+    ) -> Tuple[List[int], List[np.ndarray]]:
+        """ Prepare batches of XYZR data for the specified molecule and residue range.
+
+        ## Arguments:
+
+        - **frame_batches (List[np.ndarray])**:<br />
+            A list of numpy arrays, where each array contains the frame indices
+            for a batch.
+
+        - **res_range (Optional[str])**:<br />
+            A string specifying the residue range to select for the molecule.
+            Should be in the format "RESSTART-RESEND". If None, all residues for
+            the molecule will be selected.
+
+        - **mol_name (str)**:<br />
+            The name of the molecule for which to prepare the XYZR batches. Should
+            be in the format "MOL_COPYIDX".
+
+        ## Returns:
+
+        - **Tuple[List[int], List[np.ndarray]]**:<br />
+            A tuple containing:
+            - A list of indices corresponding to the selected residues for the
+              molecule.
+            - A list of numpy arrays, where each array contains the XYZR data
+              for the selected residues and frames in the corresponding batch.
+        """
+
+        res_range = (
+            get_res_range_from_key(res_range)
+            if res_range is not None else self.molwise_residues[mol_name]
+        )
+
+        idx = sorted([
+                i for i, k in enumerate(self.xyzr_keys)
+                if k.startswith(mol_name) and len(get_res_range_from_key(
+                    k.rsplit("_", 1)[1],
+                    return_type="set"
+                ).intersection(res_range)) > 0
+            ])
+        xyzr = self.xyzr_mat[idx, :, :].astype(self.f_dtype)
+        xyzr_batches = [
+                xyzr[:, f_batch, :].astype(self.f_dtype)
+                for f_batch in frame_batches
+            ]
+
+        del xyzr
+
+        return idx, xyzr_batches
+
+    def merge_maps_by_copies(
+        self,
+        pairwise_maps: dict,
+        map_type: str,
+        operation: str = "average",
+        binarize_map:bool = False,
+    ) -> Dict[str, np.ndarray]:
+        """ Merge contact or distance maps across copy pairs.
+
+        > [!NOTE]
+        > if the binarize_map flag is set to True,
+        > the merged map is a binary map where a contact is defined as present if
+        > it is present in any of the copy pairs.
+        >
+        > if the binarize_map flag is set to False,
+        > the merged map is - average of the distance/contact maps across copy pairs.
+
+        ## Arguments:
+
+        - **pairwise_maps (dict)**:<br />
+            A dictionary mapping molecule pair names (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
+            to their corresponding distance or contact maps (numpy arrays).
+
+        - **map_type (str)**:<br />
+            A string indicating the type of maps being merged.
+            Should be either "dmap" for distance maps or "cmap" for contact maps.
+
+        - **operation (str, optional):**:<br />
+            The operation to use when merging the maps across copy pairs. Should be
+            either "average" to take the average of the maps across copy pairs or "or"
+            to take the logical OR of the maps across copy pairs when binarizing.
+            (default: "average")
+
+        - **binarize_map (bool, optional):**:<br />
+            Whether to binarize the merged maps based on the cutoff.
+            - If True, the merged maps will be converted to binary maps using the
+              `get_binary_map` function, where a contact is defined as present
+               if it is present in any of the copy pairs.
+            - If False, the merged maps will not be binarized and will retain
+              their original values (e.g. average distances or contact frequencies).
+              (default: False)
+
+        ## Returns:
+
+        - **dict**:<br />
+            A dictionary mapping merged molecule pair names (e.g. "MOL1:MOL2") to
+            their corresponding merged distance or contact maps (numpy arrays).
+        """
+
+        merged_pairwise_maps = defaultdict(list)
+
+        def raise_invalid_operation_error(operation):
+            raise ValueError(f"Invalid operation: {operation}.")
+
+        func_ = {
+            ("average", False): lambda v: np.mean(v, axis=0).astype(self.f_dtype),
+            ("or", True): lambda v: np.logical_or.reduce(v, axis=0).astype(self.i_dtype),
+            ("min", False): lambda v: np.min(np.stack(v, axis=0), axis=0).astype(self.f_dtype),
+            # ("max", False): lambda v: np.max(np.stack(v, axis=0), axis=0),
+        }.get(
+            (operation, binarize_map),
+            lambda v: raise_invalid_operation_error(operation)
+        )
+
+        for pair_name in pairwise_maps.keys():
+
+            _m1, _m2 = pair_name.split(PAIR_SEP)
+            base1, _, range1 = re.match(REGEX_MOLNAME, _m1).groups()
+            base2, _, range2 = re.match(REGEX_MOLNAME, _m2).groups()
+
+            merged_pair_name = (
+                f"{base1}{MOL_RANGE_SEP}{range1}" +
+                f"{PAIR_SEP}" +
+                f"{base2}{MOL_RANGE_SEP}{range2}"
+            )
+
+            _map = pairwise_maps[pair_name].copy()
+
+            if binarize_map is True:
+                _map = PairwiseMaps.get_binary_map(
+                    q_map=_map,
+                    contact_cutoff=self.contact_cutoff,
+                    map_type=map_type,
+                    i_dtype=self.i_dtype,
+                )
+
+            merged_pairwise_maps[merged_pair_name].append(_map)
+
+        merged_pairwise_maps = {
+            k: func_(v)
+            for k, v in merged_pairwise_maps.items()
+        }
+
+        return merged_pairwise_maps
+
+    @staticmethod
+    def get_binary_map(
+        q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
+        contact_cutoff: float,
+        map_type: str = "dmap",
+        i_dtype: np.dtype = np.int32,
+    ) -> npt.NDArray[np.integer] | npt.NDArray[np.floating]:
+        """ Convert the distance or contact map to binary map based on cutoff.
+
+        ## Arguments:
+
+        - **q_map (npt.NDArray[np.integer] | npt.NDArray[np.floating])**:<br />
+            The distance or contact map to be binarized.
+
+        - **contact_cutoff (float)**:<br />
+            The cutoff value used for binarization.
+            - For distance maps, this is the maximum distance for a pair to be
+            considered in contact.
+            - For contact maps, this is the minimum fraction of frames which should
+            have the pair in contact for it to be considered a contact.
+
+        - **map_type (str, optional):**:<br />
+            The type of map being binarized.
+            Either "dmap" for distance maps or "cmap" for contact maps.
+
+        - **i_dtype (np.dtype, optional):**:<br />
+            The integer data type to be used for the binary map.
+
+        ## Returns:
+
+        - **npt.NDArray[np.integer] | npt.NDArray[np.floating]**:<br />
+            The binary map.
+        """
+
+        if map_type == "dmap":
+            q_map[q_map < contact_cutoff] = i_dtype(1)
+            q_map[q_map >= contact_cutoff] = i_dtype(0)
+
+        elif map_type == "cmap":
+            q_map[q_map >= contact_cutoff] = i_dtype(1)
+            q_map[q_map < contact_cutoff] = i_dtype(0)
+
+        q_map = q_map.astype(i_dtype)
+
+        return q_map
+
+    def fetch_pairwise_distances(
+        self,
+        output_dir: str,
+        nproc: int,
+        operation: str="min",
+        subtract_radii: bool=True,
+        overwrite: bool=False,
+    ) -> dict:
+        """ Fetch pairwise distance maps from XYZR data.
+
+        ## Arguments:
+
+        - **xyzr_mat (np.ndarray)**:<br />
+            Array of shape (num_beads, num_frames, 4) containing XYZR data for all
+            beads across all frames.
+
+        - **xyzr_keys (list)**:<br />
+            List of strings representing the keys for each bead in the XYZR data.
+            Each key should be formatted as "MoleculeName_CopyIndex_ResidueRangeStart-ResidueRangeEnd".
+
+        - **mol_pairs (list)**:<br />
+            List of tuples, where each tuple contains two strings representing the
+            names of the molecules in a binding pair, including copy indices and residue range information.
+                For example:
+            ```
+            [
+                ("ProteinA_copy1_10-50", "ProteinB_copy1_20-60"),
+                ("ProteinA_copy2_10-50", "ProteinB_copy2_20-60"),
+                ("ProteinC_copy1_5-30", "ProteinD_copy1_15-45"),
+                ("ProteinC_copy2_5-30", "ProteinD_copy2_15-45")
+            ]
+            ```
+
+        - **output_dir (str)**:<br />
+            Directory to save output distance map files. Each pairwise distance map will
+            be saved as a text file named "Molecule1_Molecule2_dmap.txt" in this directory.
+
+        - **nproc (int)**:<br />
+            Number of processes to use for parallel distance map calculations.
+
+        - **f_dtype (np.dtype)**:<br />
+            Float dtype for distance calculations.
+
+        - **overwrite (bool, optional):**:<br />
+            Whether to overwrite existing distance map files. If False and a distance
+            map file already exists for a given pair, the function will load the
+            distance map from the file instead of recalculating it. Defaults to False.
+
+        ## Returns:
+
+        - **dict**:<br />
+            Dictionary where keys are pair names formatted as "Molecule1_Molecule2" and
+            values are arrays of shape (num_frames,) containing the minimum distance
+            across all bead pairs for each frame.
+        """
+
+        funcs = {
+            "min": np.min,
+            "average": np.average,
+        }
+
+        pairwise_dmaps = {}
+
+        num_frames = self.xyzr_mat.shape[1]
+
+        frame_batches = np.array_split(np.arange(num_frames), nproc)
+
+        for _m1, _m2 in tqdm.tqdm(self.mol_pairs):
+
+            _base1, _cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
+            _base2, _cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
+
+            mol1 = XYZRParser.get_mol_name(_m1, only_base=False)
+            mol2 = XYZRParser.get_mol_name(_m2, only_base=False)
+            pair_name = f"{_m1}{PAIR_SEP}{_m2}" # this should include copy idx
+
+            dmap_txt = Path(output_dir) / f"{pair_name}_dmap.txt"
+
+            if os.path.exists(dmap_txt) and overwrite is False:
+                pairwise_dmaps[pair_name] = np.loadtxt(
+                    dmap_txt,
+                    dtype=self.f_dtype,
+                )
+                continue
+
+            _idx1, xyzr1_batches = self.prepare_xyzr_batches(
+                frame_batches=frame_batches,
+                res_range=range1,
+                mol_name=mol1,
+            )
+
+            _idx2, xyzr2_batches = self.prepare_xyzr_batches(
+                frame_batches=frame_batches,
+                res_range=range2,
+                mol_name=mol2,
+            )
+
+            with ThreadPoolExecutor(max_workers=nproc) as executor:
+                futures = [
+                    executor.submit(
+                        PairwiseMaps.get_pairwise_distances,
+                        xyzr1_b,
+                        xyzr2_b,
+                        self.f_dtype,
+                        subtract_radii
+                    )
+                    for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
+                ]
+                results = []
+                for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
+                    results.append(future.result())
+
+            del xyzr1_batches, xyzr2_batches
+
+            dmap_m1_m2 = np.zeros(num_frames, dtype=self.f_dtype)
+
+            n_frames = 0
+            for i, flat_dmap_ in enumerate(results):
+                # from each flattened dmap of shape (n_beads1*n_beads2, batch_frames),
+                # we take the minimum distance across all bead pairs for each frame,
+                # resulting in an array of shape (batch_frames,)
+                frame_slice = slice(n_frames, n_frames + flat_dmap_.shape[1])
+                # dmap_m1_m2[frame_slice] = np.min(flat_dmap_, axis=0).astype(self.f_dtype)
+                dmap_m1_m2[frame_slice] = funcs[operation](flat_dmap_, axis=0).astype(self.f_dtype)
+                n_frames += flat_dmap_.shape[1]
+
+            del results
+
+            pairwise_dmaps[pair_name] = dmap_m1_m2.astype(self.f_dtype)
+
+            if not os.path.exists(dmap_txt) or overwrite:
+                np.savetxt(dmap_txt, dmap_m1_m2, fmt="%.6f")
+
+        return pairwise_dmaps
+
+    def fetch_pairwise_maps(
+        self,
+        interaction_map_dir: str,
+        nproc: int,
+        overwrite: bool = False,
+    ) -> tuple[dict, dict]:
+        """ Fetch pairwise distance and contact maps for specified molecule pairs.
+
+        > [!NOTE]
+        > The selection defined in `mol_pairs` matters here.
+        > The maps will only be computed for the selected residue ranges.
+
+        ## Arguments:
+
+        - **interaction_map_dir (str)**:<br />
+            The directory where interaction maps are saved.
+
+        - **nproc (int)**:<br />
+            The number of processes to use for parallel computation.
+
+        - **overwrite (bool, optional):**:<br />
+            Whether to overwrite existing interaction map files. If False, function
+            will load existing maps from disk if they are available, and skip
+            recomputation. Note that the plots are always overwritten to reflect the
+            current binarization settings, but the raw maps are not recomputed if
+            the files already exist.
+
+        ## Returns:
+
+        - **tuple**:<br />
+            A tuple containing two dictionaries:
+            - pairwise_dmaps: A dictionary mapping molecule pair names (e.g. "MOL1:MOL2")
+            to their corresponding average distance maps (numpy arrays).
+            - pairwise_cmaps: A dictionary mapping molecule pair names to their
+            corresponding average contact maps (numpy arrays).
+        """
+
+        pairwise_dmaps = {}
+        pairwise_cmaps = {}
+
+        num_frames = self.xyzr_mat.shape[1]
+        num_beads = self.xyzr_mat.shape[0]
+        assert self.xyzr_mat.shape[2] == 4, "Expected last dimension of xyzr_mat to be 4 (XYZR)."
+        assert num_beads == len(self.xyzr_keys), "Number of beads in xyzr_mat does not match length of bead keys."
+
+        frame_batches = np.array_split(np.arange(num_frames), nproc)
+
+        for _m1, _m2 in tqdm.tqdm(self.mol_pairs):
+
+            pair_name = f"{_m1}{PAIR_SEP}{_m2}"
+
+            dmap_file = Path(interaction_map_dir) / f"{pair_name}_dmap.txt"
+            cmap_file = Path(interaction_map_dir) / f"{pair_name}_cmap.txt"
+
+            _base1, _cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
+            _base2, _cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
+
+            mol1 = XYZRParser.get_mol_name(_m1, only_base=False)
+            mol2 = XYZRParser.get_mol_name(_m2, only_base=False)
+
+            if (
+                dmap_file.exists() and cmap_file.exists() and overwrite is False
+            ):
+
+                pairwise_cmaps[pair_name] = np.loadtxt(cmap_file)
+                pairwise_dmaps[pair_name] = np.loadtxt(dmap_file)
+                continue
+
+            idx1, xyzr1_batches = self.prepare_xyzr_batches(
+                frame_batches=frame_batches,
+                res_range=range1,
+                mol_name=mol1,
+            )
+
+            idx2, xyzr2_batches = self.prepare_xyzr_batches(
+                frame_batches=frame_batches,
+                res_range=range2,
+                mol_name=mol2,
+            )
+
+            with ProcessPoolExecutor(max_workers=nproc) as executor:
+                futures = [
+                    executor.submit(
+                        PairwiseMaps.get_pairwise_maps,
+                        xyzr1_b,
+                        xyzr2_b,
+                        self.contact_cutoff,
+                        self.f_dtype,
+                        self.i_dtype
+                    )
+                    for xyzr1_b, xyzr2_b in zip(xyzr1_batches, xyzr2_batches)
+                ]
+                results = []
+                for future in tqdm.tqdm(
+                    as_completed(futures), total=len(futures)
+                ):
+                    results.append(future.result())
+
+            del xyzr1_batches, xyzr2_batches
+
+            dmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=self.f_dtype)
+            cmap_m1_m2 = np.zeros((len(idx1), len(idx2)), dtype=self.i_dtype)
+
+            for i, (dmap_, cmap_) in enumerate(results):
+                np.add(dmap_m1_m2, dmap_, out=dmap_m1_m2, dtype=self.f_dtype)
+                np.add(cmap_m1_m2, cmap_, out=cmap_m1_m2, dtype=self.i_dtype)
+
+            del results
+
+            pairwise_dmaps[pair_name] = (
+                dmap_m1_m2.astype(self.f_dtype) / self.f_dtype(num_frames)
+            )
+            pairwise_cmaps[pair_name] = (
+                cmap_m1_m2.astype(self.i_dtype) / self.f_dtype(num_frames)
+            )
+
+            PairwiseMaps.save_map_txt(
+                q_map=pairwise_dmaps[pair_name],
+                save_dir=interaction_map_dir,
+                map_name=f"{pair_name}_dmap",
+                overwrite=overwrite,
+            )
+
+            PairwiseMaps.save_map_txt(
+                q_map=pairwise_cmaps[pair_name],
+                save_dir=interaction_map_dir,
+                map_name=f"{pair_name}_cmap",
+                overwrite=overwrite,
+            )
+
+        del self.xyzr_mat
+
+        return pairwise_dmaps, pairwise_cmaps
+
+    @staticmethod
+    def get_pairwise_distances(
+        xyzr1: np.ndarray,
+        xyzr2: np.ndarray,
+        f_dtype: np.dtype=np.float64,
+        subtract_radii: bool=True,
+    ):
+        """ Given two arrays of XYZR, return all pairwise distances.
+
+        ## Arguments:
+
+        - **xyzr1 (np.ndarray)**:<br />
+            Array of shape (n_beads1, n_frames, 4) containing XYZR data for molecule 1.
+
+        - **xyzr2 (np.ndarray)**:<br />
+            Array of shape (n_beads2, n_frames, 4) containing XYZR data for molecule 2.
+
+        - **f_dtype (np.dtype, optional):**:<br />
+            Float dtype for distance calculations. Defaults to np.float64.
+
+        ## Returns:
+
+        - **np.ndarray**:<br />
+            Array of shape (n_beads1*n_beads2, n_frames) containing pairwise distances.
+        """
+
+        coords1 = xyzr1[:, :, :3].astype(f_dtype)
+        coords2 = xyzr2[:, :, :3].astype(f_dtype)
+
+        radii1 = xyzr1[:, :, 3].astype(f_dtype)
+        radii2 = xyzr2[:, :, 3].astype(f_dtype)
+
+        n_frames = coords1.shape[1]
+        n_beads1 = coords1.shape[0]
+        n_beads2 = coords2.shape[0]
+
+        radii_sum = np.zeros((radii1.shape[0], radii2.shape[0]), dtype=f_dtype)
+        np.add(
+            radii1[:, None, 0].copy(),
+            radii2[None, :, 0].copy(),
+            out=radii_sum,
+        )
+
+        flat_distances = np.zeros((n_beads1*n_beads2, n_frames), dtype=f_dtype)
+
+        for i in range(n_frames):
+
+            temp_dmap = np.zeros((n_beads1, n_beads2), dtype=f_dtype)
+
+            np.subtract(
+                cdist(coords1[:, i, :], coords2[:, i, :]),
+                radii_sum if subtract_radii else 0.0,
+                out=temp_dmap,
+                dtype=f_dtype,
+            )
+            temp_dmap[temp_dmap < 0.0] = 0.0
+
+            flat_distances[:, i] = temp_dmap.flatten().astype(f_dtype)
+
+            del temp_dmap
+
+        return flat_distances
+
+    @staticmethod
+    def get_pairwise_maps(
+        xyzr1: np.ndarray,
+        xyzr2: np.ndarray,
+        cutoff: float,
+        f_dtype: np.dtype = np.float64,
+        i_dtype: np.dtype = np.int32,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """ Compute pairwise distance and contact maps between two sets of beads
+        over multiple frames.
+
+        NOTE: Pay attention to the size of the input arrays to avoid memory issues.
+
+        ## Arguments:
+
+        - **xyzr1 (np.ndarray)**:<br />
+            XYZR data for molecule 1, (n_beads1, n_frames, 4).
+
+        - **xyzr2 (np.ndarray)**:<br />
+            XYZR data for molecule 2, (n_beads2, n_frames, 4).
+
+        - **cutoff (float)**:<br />
+            Distance cutoff for contact map.
+
+        - **f_dtype (np.dtype, optional):**:<br />
+            Data type for distance map calculations.
+
+        - **i_dtype (np.dtype, optional):**:<br />
+            Data type for contact map calculations.
+
+        ## Returns:
+
+        - **tuple**:<br />
+            - **dmap (np.ndarray)**: Distance map of shape (n_beads1, n_beads2).
+            - **cmap (np.ndarray or None)**: Contact map of shape (n_beads1, n_beads2).
+        """
+
+        coords1 = xyzr1[:, :, :3].astype(f_dtype)
+        coords2 = xyzr2[:, :, :3].astype(f_dtype)
+
+        radii1 = xyzr1[:, :, 3].astype(f_dtype)
+        radii2 = xyzr2[:, :, 3].astype(f_dtype)
+
+        n_frames = coords1.shape[1]
+        n_beads1 = coords1.shape[0]
+        n_beads2 = coords2.shape[0]
+
+        radii_sum = np.zeros((radii1.shape[0], radii2.shape[0]), dtype=f_dtype)
+        np.add(
+            radii1[:, None, 0].copy(),
+            radii2[None, :, 0].copy(),
+            out=radii_sum,
+        )
+
+        dmap = np.zeros((n_beads1, n_beads2), dtype=f_dtype)
+        cmap = np.zeros((n_beads1, n_beads2), dtype=i_dtype)
+
+        for i in range(n_frames):
+
+            temp_dmap = np.zeros((n_beads1, n_beads2), dtype=f_dtype)
+
+            np.subtract(
+                cdist(coords1[:, i, :], coords2[:, i, :]),
+                radii_sum,
+                out=temp_dmap,
+                dtype=f_dtype,
+            )
+            temp_dmap[temp_dmap < 0.0] = 0.0
+
+            np.add(
+                dmap,
+                temp_dmap,
+                out=dmap,
+                dtype=f_dtype,
+            )
+
+            temp_cmap = (temp_dmap <= cutoff).astype(i_dtype)
+
+            np.add(
+                cmap,
+                temp_cmap,
+                out=cmap,
+                dtype=i_dtype,
+            )
+
+            del temp_dmap, temp_cmap
+
+        return dmap, cmap
+
+    @staticmethod
+    def save_map_txt(
+        q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
+        save_dir: str,
+        map_name: str,
+        overwrite: bool = False
+    ):
+        """ Save a distance or contact map as a text file.
+
+        ## Arguments:
+
+        - **q_map (npt.NDArray[np.int_] | npt.NDArray[np.floating])**:<br />
+            The distance or contact map to be saved as a text file.
+
+        - **save_dir (str)**:<br />
+            The directory where the text file will be saved.
+
+        - **map_name (str)**:<br />
+            The name of the map, which will be used as the filename (without extension).
+
+        - **overwrite (bool, optional):**:<br />
+            Whether to overwrite the file if it already exists.
+        """
+
+        save_path = os.path.join(save_dir, f"{map_name}.txt")
+
+        if not os.path.exists(save_path) or overwrite:
+            np.savetxt(
+                save_path,
+                q_map,
+                fmt="%.6f"
+            )
+
+class Interaction:
+    """ Class for computing interaction maps for selected molecule pairs."""
+
+    xyzr_parser: XYZRParser
+    """ XYZRParser object containing the parsed XYZR data and related information. """
+
+    molwise_residues: dict
+    """ Dictionary mapping molecule names to lists of residue numbers. Format: {
+        "MOL1": [residue numbers],
+        "MOL2": [residue numbers],
+        ...
+    } """
+
+    contact_cutoff: float
+    """ The cutoff distance used for binarization of the maps, which will be
+    passed to the `get_binary_map` function if binarization is specified.
+    See :func:`get_binary_map` for more details.
+    """
+
+    f_dtype: np.dtype
+    """ The floating point data type to use for the distance/contact maps. """
+
+    i_dtype: np.dtype
+    """ The integer data type to use for the binary contact maps. """
+
+    merge_copies: bool
+    """ Whether to merge molecule copies when processing the maps. If True, the
+    maps will be merged across copy pairs (e.g. "MOL1_COPYIDX:MOL2_COPYIDX" maps
+    will be merged into a single "MOL1:MOL2" map) using the `merge_maps_by_copies`
+    function. If False, the maps will be treated separately for each copy pair.
+    """
+
+    sel_mol_pairs: list
+    """ List of selected molecule pairs based on the input selection. See
+    `MoleculePairs` class for details."""
+
+    mol_pairs: list
+    """ List of all molecule pairs. See `MoleculePairs` class for details."""
+
+    def __init__(
+        self,
+        xyzr_parser: XYZRParser,
+        cutoff: float,
+        input: str = None,
+        merge_copies=False,
+        self_interaction: str = "allow_none",
+        f_dtype: np.dtype = np.float64,
+        i_dtype: np.dtype = np.int32,
+    ):
+
+        if not xyzr_parser.is_setup:
+            xyzr_parser.parse_xyzr_h5_file()
+
+        self.xyzr_parser = xyzr_parser
+        self.molwise_residues = xyzr_parser.molwise_residues
+
+        self.contact_cutoff = cutoff
+        self.f_dtype = f_dtype
+        self.i_dtype = i_dtype
+        self.merge_copies = merge_copies
+
+        sel_mol_pair_handler = MoleculePairs(
+            xyzr_parser=xyzr_parser,
+            input=input,
+            self_interaction=self_interaction,
+        )
+        mol_pair_handler = MoleculePairs(
+            xyzr_parser=xyzr_parser,
+            input=None,
+            self_interaction=self_interaction,
+        )
+        sel_mol_pair_handler.process_molecule_pairs()
+        self.sel_mol_pairs = sel_mol_pair_handler.mol_pairs
+        mol_pair_handler.process_molecule_pairs(
+            filter_by=self.sel_mol_pairs,
+        )
+        self.mol_pairs = mol_pair_handler.mol_pairs
+        self.pairwise_maps_handler = PairwiseMaps(
+            mol_pairs=self.mol_pairs,
+            xyzr_parser=xyzr_parser,
+            cutoff=cutoff,
+            self_interaction=self_interaction,
+            f_dtype=f_dtype,
+            i_dtype=i_dtype,
+        )
+
+    def compute_interaction_maps(
+        self,
+        interaction_map_dir: str,
+        nproc: int,
+        overwrite: bool = False,
+        binarize_dmap: bool = False,
+        binarize_cmap: bool = False,
+    ) -> None:
+        """ Compute pairwise distance and contact maps for the selected molecule pairs.
+
+        ## Arguments:
+
+        - **interaction_map_dir (str)**:<br />
+            The directory where the computed interaction maps will be saved.
+
+        - **nproc (int)**:<br />
+            The number of processes to use for parallel computation of the maps.
+
+        - **overwrite (bool, optional):**:<br />
+            Whether to overwrite existing map files in the interaction_map_dir. If False,
+            the function will load existing maps from disk if they are available, and skip
+            recomputation. Note that the plots are always overwritten to reflect the current
+            binarization settings, but the raw maps are not recomputed if the files already exist.
+
+        - **binarize_dmap (bool, optional):**:<br />
+            Whether to binarize the distance maps based on the cutoff. If True, the distance
+            maps will be converted to binary maps using the `get_binary_map` function, where a
+            contact is defined as present if the distance is less than or equal to the cutoff.
+            If False, the distance maps will not be binarized and will retain their original values
+            (e.g. average distances). (default: False)
+
+        - **binarize_cmap (bool, optional):**:<br />
+            Whether to binarize the contact maps based on the cutoff. If True, the contact maps
+            will be converted to binary maps using the `get_binary_map` function, where a contact
+            is defined as present if the contact frequency is greater than or equal to the cutoff.
+            If False, the contact maps will not be binarized and will retain their original values
+            (e.g. average contact frequencies). (default: False)
+        """
+        (
+            pairwise_dmaps,
+            pairwise_cmaps
+        ) = self.pairwise_maps_handler.fetch_pairwise_maps(
+            interaction_map_dir=interaction_map_dir,
+            nproc=nproc,
+            overwrite=overwrite,
+        )
+
+        self.pairwise_dmaps = self.pairwise_maps_handler.process_pairwise_maps(
+            pairwise_maps=pairwise_dmaps,
+            map_type="dmap",
+            merge_copies=self.merge_copies,
+            binarize_map=binarize_dmap,
+        )
+
+        self.pairwise_cmaps = self.pairwise_maps_handler.process_pairwise_maps(
+            pairwise_maps=pairwise_cmaps,
+            map_type="cmap",
+            merge_copies=self.merge_copies,
+            binarize_map=binarize_cmap,
+        )
+
+        if self.merge_copies:
+            self.xyzr_parser.merge_residue_selection_by_copies()
+            self.molwise_residues = self.xyzr_parser.molwise_residues
+
+        self.map_slices = self.generate_map_slices(
+            pairwise_keys=list(self.pairwise_dmaps.keys()),
+        )
+
+    def generate_map_slices(
+        self,
+        pairwise_keys: list,
+    ) -> Dict[str, Dict[str, Dict[str, int]]]:
+        """ Generate a dictionary of slice names and their corresponding residue
+        ranges for each molecule pair.
+
+        ## Arguments:
+
+        - **pairwise_keys (list)**:<br />
+            A list of molecule pair names (e.g. "MOL1:MOL2") corresponding to the
+            keys in the pairwise_maps dictionary. This is used to ensure that the
+            generated slice names are consistent with the keys in the pairwise_maps
+            dictionary, and to filter out any selected molecule pairs that do not have
+            corresponding maps.
+
+        ## Returns:
+
+        - **dict**:<br />
+            A dictionary mapping molecule pair names to dictionaries of slice names and
+            their corresponding residue ranges. Format:
+            {
+                "MOL1:MOL2": {
+                    "slice_name1": {
+                        "s1": start residue number for mol1,
+                        "e1": end residue number for mol1,
+                        "s2": start residue number for mol2,
+                        "e2": end residue number for mol2,
+                    },
+                    "slice_name2": {
+                        ...
+                    },
+                    ...
+                },
+                ...
+            }
+        """
+
+        map_slices = {k: {} for k in pairwise_keys}
+
+        for _m1, _m2 in self.sel_mol_pairs:
+
+            _base1, _cp_idx1, sel1 = re.match(REGEX_MOLNAME, _m1).groups()
+            _base2, _cp_idx2, sel2 = re.match(REGEX_MOLNAME, _m2).groups()
+
+            mol1 = XYZRParser.get_mol_name(_m1, only_base=self.merge_copies)
+            mol2 = XYZRParser.get_mol_name(_m2, only_base=self.merge_copies)
+
+            range1 = f"{min(self.molwise_residues[mol1])}{RES_RANGE_SEP}{max(self.molwise_residues[mol1])}"
+            range2 = f"{min(self.molwise_residues[mol2])}{RES_RANGE_SEP}{max(self.molwise_residues[mol2])}"
+
+            pair_name = (
+                f"{mol1}{MOL_RANGE_SEP}{range1}" +
+                f"{PAIR_SEP}" +
+                f"{mol2}{MOL_RANGE_SEP}{range2}"
+            )
+
+            if pair_name not in pairwise_keys:
+                print(f"Warning: {pair_name} not found in computed maps. Skipping.")
+                continue
+
+            s1, e1 = get_res_range_from_key(sel1)[0], get_res_range_from_key(sel1)[-1]
+            s2, e2 = get_res_range_from_key(sel2)[0], get_res_range_from_key(sel2)[-1]
+
+            slice_name = (
+                f"{mol1}{MOL_RANGE_SEP}{s1}{RES_RANGE_SEP}{e1}" +
+                f"{PAIR_SEP}" +
+                f"{mol2}{MOL_RANGE_SEP}{s2}{RES_RANGE_SEP}{e2}"
+            )
+
+            map_slices[pair_name][slice_name] = {
+                "s1": int(s1),
+                "e1": int(e1),
+                "s2": int(s2),
+                "e2": int(e2),
             }
 
-        for pair_name in pairwise_maps.keys():
+        return map_slices
 
-            executor.submit(
-                matrix_patches_worker,
-                pairwise_maps[pair_name].astype(i_dtype),
-                pair_name,
-                interaction_map_dir,
+    def save_output(
+        self,
+        pairwise_maps,
+        interaction_map_dir,
+        nproc,
+        cutoff,
+        binarize_map,
+        map_type,
+        output_type: str = "patches+plots",
+        plotting_lib: str = "matplotlib",
+    ):
+        """ Save the processed interaction maps as plots and/or patches.
+
+        ## Arguments:
+
+        - **pairwise_maps (_type_)**:<br />
+            A dictionary mapping molecule pair names to their corresponding distance
+            or contact maps (numpy arrays).
+
+        - **interaction_map_dir (_type_)**:<br />
+            The directory where the output maps and plots will be saved.
+
+        - **nproc (_type_)**:<br />
+            The number of processes to use for parallel processing when saving the
+            maps and plots.
+
+        - **cutoff (_type_)**:<br />
+            The cutoff distance used for binarization of the maps, which will be
+            included in the plot title and colorbar label. See :func:`get_binary_map`
+            for more details.
+
+        - **binarize_map (_type_)**:<br />
+            Whether to binarize the maps before saving and plotting. If True, the maps
+            will be converted to binary maps based on the cutoff value before saving
+            and plotting.
+
+        - **map_type (_type_)**:<br />
+            A string indicating the type of maps being saved and plotted.
+            Should be either "dmap" for distance maps or "cmap" for contact maps.
+
+        - **output_type (str, optional):**:<br />
+            A string indicating the type of output to save. Can be either "patches",
+            "plots", or "patches+plots".
+            - If "patches", only the patches will be saved as csv files.
+            - If "plots", only the plots will be saved as png files.
+            - If "patches+plots", both the patches and plots will be saved.
+
+        - **plotting_lib (str, optional):**:<br />
+            The plotting library to use for generating the plots. Can be either
+            "matplotlib" or "plotly". Default is "matplotlib".
+        """
+
+        output_types = output_type.split("+")
+        assert all([ot in ["patches", "plots"] for ot in output_types]), (
+            f"Invalid output_type: {output_type}. Expected 'patches', 'plots', or 'patches+plots'."
+        )
+        nproc = min(nproc, len(pairwise_maps), 20)
+        executor = ThreadPoolExecutor(max_workers=nproc)
+
+        if "plots" in output_types:
+            for pair_name in pairwise_maps.keys():
+                executor.submit(
+                    Interaction.plot_map,
+                    pairwise_maps[pair_name],
+                    pair_name,
+                    interaction_map_dir,
+                    map_type,
+                    cutoff,
+                    self.molwise_residues,
+                    self.map_slices[pair_name],
+                    plotting_lib,
+                    binarize_map,
+                )
+
+        if "patches" in output_types:
+            if not binarize_map:
+                pairwise_maps = {
+                    pair_name: PairwiseMaps.get_binary_map(
+                        q_map=pairwise_maps[pair_name].astype(self.f_dtype),
+                        contact_cutoff=cutoff,
+                        map_type=map_type,
+                        i_dtype=self.i_dtype,
+                    )
+                    for pair_name in pairwise_maps.keys()
+                }
+
+            for pair_name in pairwise_maps.keys():
+
+                executor.submit(
+                    Interaction.matrix_patches_worker,
+                    pairwise_maps[pair_name].astype(self.i_dtype),
+                    pair_name,
+                    interaction_map_dir,
+                )
+
+        executor.shutdown(wait=False)
+        print(f"Saved {map_type} maps and plots to {interaction_map_dir}")
+
+    @staticmethod
+    def matrix_patches_worker(
+        cmap: npt.NDArray[np.integer],
+        pair_name: str,
+        interaction_map_dir: str,
+    ) -> None:
+        """ Extract interacting patches from the contact map and save them as csvs.
+
+        ## Arguments:
+
+        - **cmap (npt.NDArray[np.integer])**:<br />
+            The binary contact map from which to extract patches.
+
+        - **pair_name (str)**:<br />
+            The name of the molecule pair corresponding to the contact map (e.g. "MOL1:MOL2").
+
+        - **interaction_map_dir (str)**:<br />
+            The directory where the patch files will be saved.
+        """
+
+        _m1, _m2 = pair_name.split(PAIR_SEP)
+        _base1, _cp_idx1, range1 = re.match(REGEX_MOLNAME, _m1).groups()
+        _base2, _cp_idx2, range2 = re.match(REGEX_MOLNAME, _m2).groups()
+        mol1 = XYZRParser.get_mol_name(_m1, only_base=False)
+        mol2 = XYZRParser.get_mol_name(_m2, only_base=False)
+
+        assert all([range1 is not None, range2 is not None]), (
+            f"Invalid format for molecule pair: {(_m1, _m2)}. "\
+            "Expected format: MOL_COPYIDX:RESSTART-RESEND"
+        )
+
+        # cheap trick to avoid df.groupby() error
+        # `df.grouby()` will fail if row_obj and col_obj are the same
+        if mol1 == mol2:
+            mol1 += "-1"
+            mol2 += "-2"
+
+        region_of_interest = {
+            mol1: [
+                get_res_range_from_key(range1)[0],
+                get_res_range_from_key(range1)[1]
+            ],
+            mol2: [
+                get_res_range_from_key(range2)[0],
+                get_res_range_from_key(range2)[1]
+            ]
+        }
+
+        if len(np.unique(cmap)) == 1 and np.unique(cmap)[0] == 0:
+            # print(f"No contacts found for {pair_name}, skipping patches.")
+            return None
+
+        matrix_patches = MatrixPatches(
+            matrix=cmap,
+            row_obj=mol1,
+            col_obj=mol2,
+        )
+
+        patches_df = matrix_patches.get_patches_from_matrix()
+
+        ch1_p = [
+            np.array(list(patch)) + region_of_interest[mol1][0]
+            for patch in patches_df[mol1].tolist()
+        ]
+        ch2_p = [
+            np.array(list(patch)) + region_of_interest[mol2][0]
+            for patch in patches_df[mol2].tolist()
+        ]
+
+        patches = {
+            patch_idx: {
+                mol1: ch1_patch,
+                mol2: ch2_patch,
+            } for patch_idx, (ch1_patch, ch2_patch) in enumerate(zip(ch1_p, ch2_p))
+        }
+
+        if len(patches) > 0:
+
+            pair_name = (
+                f"{mol1.replace('-1', '')}{MOL_RANGE_SEP}{range1}" +
+                f"{PAIR_SEP}" +
+                f"{mol2.replace('-2', '')}{MOL_RANGE_SEP}{range2}"
             )
 
-    executor.shutdown(wait=False)
-    print(f"Saved {map_type} maps and plots to {interaction_map_dir}")
+            save_map(
+                contact_map=cmap,
+                avg_contact_probs_mat=None,
+                patches=patches,
+                chain1=mol1,
+                chain2=mol2,
+                p1_name=mol1,
+                p2_name=mol2,
+                p1_region=region_of_interest[mol1],
+                p2_region=region_of_interest[mol2],
+                out_file=Path(interaction_map_dir) / f"patches_{pair_name}.png",
+                save_plot=False,
+                verbose=False,
+                # plot_type="static",
+                # concat_residues=True,
+                # contact_probability=False,
+            )
+
+    @staticmethod
+    def plot_map(
+        q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
+        pair_name: str,
+        save_dir: str,
+        map_type: str,
+        cutoff: float,
+        molwise_residues: dict,
+        map_slice_dict: dict,
+        plotting: str = "matplotlib",
+        binarize_map: bool = True,
+    ):
+        """ Plot the contact or distance map.
+
+        ## Arguments:
+
+        - **q_map (npt.NDArray[np.integer] | npt.NDArray[np.floating])**:<br />
+            The distance or contact map to be plotted.
+
+        - **pair_name (str)**:<br />
+            The name of the molecule pair corresponding to the map (e.g. "MOL1:MOL2").
+
+        - **save_dir (str)**:<br />
+            The directory where the plot will be saved.
+
+        - **map_type (str)**:<br />
+            A string indicating the type of map being plotted.
+            Should be either "dmap" for distance maps or "cmap" for contact maps.
+
+        - **cutoff (float)**:<br />
+            The cutoff distance used for binarization of the maps, which will be
+            included in the plot title and colorbar label. See :func:`get_binary_map`
+            for more details.
+
+        - **molwise_residues (dict)**:<br />
+            A dictionary mapping molecule names to lists of residue numbers.
+            Format:
+            {
+                "MOL1": [residue numbers],
+                "MOL2": [residue numbers],
+                ...
+            }
+
+        - **plotting (str, optional):**:<br />
+            The plotting backend to use. Can be either "matplotlib" or "plotly".
+
+        - **binarize_map (bool, optional):**:<br />
+            Whether to binarize the map before plotting.
+        """
+
+        _m1, _m2 = pair_name.split(PAIR_SEP)
+        mol1 = XYZRParser.get_mol_name(_m1, only_base=False)
+        mol2 = XYZRParser.get_mol_name(_m2, only_base=False)
+
+        map_titles = {
+            "dmap": {
+                True: f"Binarized Average Distance Map (cutoff={cutoff} Å): {mol1}{PAIR_SEP}{mol2}",
+                False: f"Average Distance Map (Å): {mol1}{PAIR_SEP}{mol2}",
+            },
+            "cmap": {
+                True: f"Binarized Average Contact Map (cutoff={cutoff}) : {mol1}{PAIR_SEP}{mol2}",
+                False: f'Average Contact Map (cutoff={cutoff}) : {mol1}{PAIR_SEP}{mol2}',
+            },
+        }
+        map_labels = {
+            "dmap": {
+                True: 'Contact (1) / No Contact (0)',
+                False: 'Average Distance (Å)',
+            },
+            "cmap": {
+                True: 'Contact (1) / No Contact (0)',
+                False: 'Fraction of Frames in Contact',
+            }
+        }
+        max_vals = {
+            "dmap": {
+                True: 1,
+                False: np.max(q_map),
+            },
+            "cmap": {
+                True: 1,
+                False: cutoff,
+            }
+        }
+        cmap_ = {
+            "dmap": {
+                True: 'Greens',
+                False: 'Greens_r',
+            },
+            "cmap": {
+                True: 'Greens',
+                False: 'Greens',
+            },
+        }
+        dtype_ = {True: np.int32, False: np.float64}
+
+        if plotting == "matplotlib":
+
+            for slice_name, slices_ in map_slice_dict.items():
+
+                r1_start = slices_["s1"] - molwise_residues[mol1][0]
+                r1_end = slices_["e1"] - molwise_residues[mol1][0] + 1
+                r2_start = slices_["s2"] - molwise_residues[mol2][0]
+                r2_end = slices_["e2"] - molwise_residues[mol2][0] + 1
+                slice_q_map = q_map[r1_start:r1_end, r2_start:r2_end]
+                save_prefix = f"{slice_name}"
+
+                plt.close("all")
+                fig, ax = plt.subplots(figsize=(10, 10))
+                temp = ax.imshow(
+                    slice_q_map.astype(dtype_[binarize_map]),
+                    cmap=cmap_[map_type][binarize_map],
+                    vmin=0,
+                    vmax=max_vals[map_type][binarize_map]
+                )
+                ax.set_title(
+                    map_titles[map_type][binarize_map].replace(
+                        f"{mol1}{PAIR_SEP}{mol2}",
+                        f"{slice_name}"
+                    )
+                )
+                ax.set_xlabel(f"{mol2}")
+                ax.set_ylabel(f"{mol1}")
+                ax.set_xticks(ticks=np.arange(0, slice_q_map.shape[1], 50))
+                ax.set_yticks(ticks=np.arange(0, slice_q_map.shape[0], 50))
+                ax.set_xticklabels(labels=np.arange(
+                    slices_["s2"], slices_["e2"]+1, 50
+                ))
+                ax.set_yticklabels(labels=np.arange(
+                    slices_["s1"], slices_["e1"]+1, 50
+                ))
+                fig.colorbar(temp, ax=ax, label=map_labels[map_type][binarize_map])
+                fig.savefig(os.path.join(save_dir, f"{save_prefix}_{map_type}.png"))
+                plt.close(fig)
+
+        elif plotting == "plotly":
+
+            import plotly.graph_objects as go
+
+            for slice_name, slices_ in map_slice_dict.items():
+
+                r1_start = slices_["s1"] - molwise_residues[mol1][0]
+                r1_end = slices_["e1"] - molwise_residues[mol1][0] + 1
+                r2_start = slices_["s2"] - molwise_residues[mol2][0]
+                r2_end = slices_["e2"] - molwise_residues[mol2][0] + 1
+                slice_q_map = q_map[r1_start:r1_end, r2_start:r2_end]
+                save_prefix = f"{slice_name}"
+
+                fig = go.Figure(data=go.Heatmap(
+                    z=slice_q_map.astype(dtype_[binarize_map]),
+                    colorscale=cmap_[map_type][binarize_map],
+                    zmin=0,
+                    zmax=max_vals[map_type][binarize_map],
+                    colorbar=dict(title=map_labels[map_type][binarize_map])
+                ))
+
+                fig.update_layout(
+                    title=map_titles[map_type][binarize_map].replace(
+                        f"{mol1}{PAIR_SEP}{mol2}",
+                        f"{slice_name}"
+                    ),
+                    xaxis_title=f"{mol2}",
+                    yaxis_title=f"{mol1}",
+                    xaxis=dict(tickmode='array',
+                        tickvals=np.arange(0, slice_q_map.shape[1], 1),
+                        ticktext=np.arange(
+                            slices_["s2"], slices_["e2"]+1, 1
+                        )
+                    ),
+                    yaxis=dict(tickmode='array',
+                        tickvals=np.arange(0, slice_q_map.shape[0], 1),
+                        ticktext=np.arange(
+                            slices_["s1"], slices_["e1"]+1, 1
+                        )
+                    ),
+                )
+                fig.write_html(os.path.join(save_dir, f"{save_prefix}_{map_type}.html"))
 
 def main(
     xyzr_file: str,
@@ -1687,140 +2015,56 @@ def main(
     interaction_map_dir: str,
     binarize_dmap: bool,
     binarize_cmap: bool,
-    plotting_lib: str,
+    plotting_lib: str = "matplotlib",
     input: str = None,
-    self_interaction: bool = False,
+    self_interaction: str = "allow_copies",
     merge_copies: bool = False,
     overwrite: bool = False,
     f_dtype: np.dtype = np.float64,
     i_dtype: np.dtype = np.int32,
-):
+) -> None:
 
     os.makedirs(interaction_map_dir, exist_ok=True)
-    ############################################################################
-    # Load and parse the XYZR data from the HDF5 file
-    ############################################################################
-    xyzr_data: dict[str, np.ndarray] = parse_xyzr_h5_file(xyzr_file=xyzr_file)
-    xyzr_mat = np.stack(list(xyzr_data.values()), axis=0)
-    xyzr_keys = list(xyzr_data.keys())
-    # unique_mols = get_unique_mols(xyzr_keys=xyzr_keys)
-    molwise_residues = get_molwise_residues(xyzr_keys=xyzr_keys)
-    molwise_xyzr_keys = get_molwise_xyzr_keys(xyzr_keys=xyzr_keys)
-    # num_frames = xyzr_mat.shape[1]
-    print("Got xyzr_mat of shape: ", xyzr_mat.shape, " (num_beads, num_frames, 4)")
 
-    ############################################################################
-    # Determine molecule pairs for which to compute the maps
-    ############################################################################
-    sel_mol_pairs = select_mol_pairs(
-        xyzr_keys=xyzr_keys,
+    interaction_ = Interaction(
+        xyzr_parser=XYZRParser(xyzr_file=xyzr_file),
+        cutoff=cutoff1,
         input=input,
         self_interaction=self_interaction,
+        merge_copies=merge_copies,
+        f_dtype=f_dtype,
+        i_dtype=i_dtype,
     )
 
-    # mol_pairs are sel_mol_pairs but with full residue ranges
-    mol_pairs = get_possible_mol_pairs(
-        xyzr_keys=xyzr_keys,
-        filter_by=sel_mol_pairs,
-        self_interaction=self_interaction,
-    )
-
-    if len(mol_pairs) == 0:
-        print("No valid molecule pairs found for the specified criteria. Exiting.")
-        exit(0)
-
-    start_t = time.perf_counter()
-    ############################################################################
-    # Fetch pairwise distance and contact maps for the specified molecule pairs
-    ############################################################################
-    pairwise_dmaps, pairwise_cmaps = fetch_pairwise_maps(
-        xyzr_mat=xyzr_mat,
-        xyzr_keys=xyzr_keys, # sequence is important for indexing into the xyzr_mat
-        mol_pairs=mol_pairs,
-        contact_cutoff=cutoff1,
+    interaction_.compute_interaction_maps(
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
-        f_dtype=f_dtype,
-        i_dtype=i_dtype,
         overwrite=overwrite,
+        binarize_dmap=binarize_dmap,
+        binarize_cmap=binarize_cmap,
     )
 
-    del xyzr_mat
-
-    ############################################################################
-    # Process the pairwise maps by expanding to residue-level, merging across
-    # copies if specified, and binarizing if specified.
-    ############################################################################
-    pairwise_dmaps = process_pairwise_maps(
-        pairwise_maps=pairwise_dmaps,
-        molwise_xyzr_keys=molwise_xyzr_keys,
-        cutoff=cutoff1,
-        map_type="dmap",
-        merge_copies=merge_copies,
-        binarize_map=binarize_dmap,
-        i_dtype=i_dtype,
-        f_dtype=f_dtype,
-    )
-
-    pairwise_cmaps = process_pairwise_maps(
-        pairwise_maps=pairwise_cmaps,
-        molwise_xyzr_keys=molwise_xyzr_keys,
-        cutoff=cutoff2,
-        map_type="cmap",
-        merge_copies=merge_copies,
-        binarize_map=binarize_cmap,
-        i_dtype=i_dtype,
-        f_dtype=f_dtype,
-    )
-
-    # if merging across copies, we need to also merge the residue selections
-    # for defining the map slices for plotting and patch extraction
-    if merge_copies:
-        molwise_residues = merge_residue_selection_by_copies(
-            molwise_residues=molwise_residues
-        )
-
-    ############################################################################
-    # Define the slices of maps as specified by ranges in the input or by default
-    ############################################################################
-    map_slices = generate_map_slices(
-        pairwise_keys=list(pairwise_dmaps.keys()),
-        molwise_residues=molwise_residues,
-        sel_mol_pairs=sel_mol_pairs,
-        merge_copies=merge_copies,
-    )
-
-    ############################################################################
-    # Plot the distance and contact maps for each molecule pair
-    # and extract interacting patches from the contact maps and save them as csv
-    ############################################################################
-    save_output(
-        pairwise_maps=pairwise_dmaps,
+    interaction_.save_output(
+        pairwise_maps=interaction_.pairwise_dmaps,
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
         cutoff=cutoff1,
         binarize_map=binarize_dmap,
         map_type="dmap",
         output_type="plots",
-        molwise_residues=molwise_residues,
-        map_slices=map_slices,
         plotting_lib=plotting_lib,
     )
-    save_output(
-        pairwise_maps=pairwise_cmaps,
+
+    interaction_.save_output(
+        pairwise_maps=interaction_.pairwise_cmaps,
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
         cutoff=cutoff2,
         binarize_map=binarize_cmap,
         map_type="cmap",
-        output_type="patches+plots",
-        molwise_residues=molwise_residues,
-        map_slices=map_slices,
+        output_type="plots+patches",
         plotting_lib=plotting_lib,
     )
-
-    end_t = time.perf_counter()
-    print(f"Time taken: {end_t - start_t} seconds")
 
 if __name__ == "__main__":
 
@@ -1948,13 +2192,13 @@ if __name__ == "__main__":
         cutoff1=args.dist_cutoff,
         cutoff2=args.frac_cutoff,
         interaction_map_dir=args.interaction_map_dir,
-        binarize_dmap=bool(args.binarize_dmap),
-        binarize_cmap=bool(args.binarize_cmap),
+        binarize_dmap=args.binarize_dmap,
+        binarize_cmap=args.binarize_cmap,
         plotting_lib=args.plotting,
         input=args.input,
         self_interaction=args.self_interaction,
-        merge_copies=bool(args.merge_copies),
-        overwrite=bool(args.overwrite),
-        f_dtype=_f_dtypes.get(args.float_dtype, np.float64),
-        i_dtype=_i_dtypes.get(args.int_dtype, np.int32),
+        merge_copies=args.merge_copies,
+        overwrite=args.overwrite,
+        f_dtype=F_DTYPES.get(args.float_dtype, np.float64),
+        i_dtype=I_DTYPES.get(args.int_dtype, np.int32),
     )
