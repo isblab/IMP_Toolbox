@@ -49,18 +49,23 @@ def read_molecules_from_file(
 
     if input.endswith('.json'):
         data = read_json(input)
-        if key is not None:
-            data = data[key]
 
-        molecules = [_pt["molecule"] for _pt in data]
-        # distances = {_pt["molecule"]: _pt["distance_to_PM"] for _pt in data}
-        # stdevs = {_pt["molecule"]: _pt["sigma"] for _pt in data}
-        extra_attrs = []
-        extra_keys = list(set(data[0].keys()) - {"molecule"})
-        for k in extra_keys:
-            extra_attrs.append({_pt["molecule"]: _pt[k] for _pt in data})
+    elif input.endswith('.yaml') or input.endswith('.yml'):
+        import yaml
+        with open(input, 'r') as f:
+            data = yaml.load(f, Loader=yaml.FullLoader)
+
     else:
-        raise ValueError("Input file must be JSON format.")
+        raise ValueError("Input file must be JSON or YAML format.")
+
+    if key is not None:
+        data = data[key]
+
+    molecules = [_pt["molecule"] for _pt in data]
+    extra_attrs = []
+    extra_keys = sorted(list(set(data[0].keys()) - {"molecule"}))
+    for k in extra_keys:
+        extra_attrs.append({_pt["molecule"]: _pt[k] for _pt in data})
 
     for m in molecules:
         match = re.match(REGEX_MOLNAME, m)
@@ -69,9 +74,7 @@ def read_molecules_from_file(
                 f"Invalid molecule name format: {m}."\
                 f"Expected formats: {", ".join(EXPECTED_MOLNAME_FORMATS)}"
             )
-    # print(molecules)
-    # print(extra_attrs)
-    # print(extra_keys)
+
     return molecules, extra_attrs, extra_keys
 
 def read_molecule_pairs_from_file(input: str, key: str | None=None) ->List[tuple]:
@@ -102,8 +105,14 @@ def read_molecule_pairs_from_file(input: str, key: str | None=None) ->List[tuple
         data = read_json(input)
         if key is not None:
             data = data[key]
+    elif input.endswith('.yaml') or input.endswith('.yml'):
+        import yaml
+        with open(input, 'r') as f:
+            data = yaml.load(f, Loader=yaml.FullLoader)
+            if key is not None:
+                data = data[key]
     else:
-        raise ValueError("Input file must be JSON format.")
+        raise ValueError("Input file must be JSON or YAML format.")
 
     mol_pairs = [(_pt["molecule1"], _pt["molecule2"]) for _pt in data]
     extra_attrs = []
@@ -148,9 +157,11 @@ class Molecules:
                 self.extra_attrs,
                 self.extra_attrs_keys,
             ) = read_molecules_from_file(input=input)
+            # print(self.molecules)
+            # print(self.extra_attrs)
+            # print(self.extra_attrs_keys)
         else:
             self.molecules = sorted(self.unique_mols)
-
     def process_molecules(self, filter_by: list = []) -> List[str]:
 
         self.enrich_molecules()
