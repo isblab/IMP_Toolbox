@@ -61,10 +61,10 @@ class RMFToXYZRConverter:
     ):
         self.rmf_file = rmf_file
         self.xyzr_data = {}
-        self.num_frames = self.get_number_of_frames(self.rmf_file)
-        self.frame_batches = self.prepare_frame_batches()
         self.frame_subset = frame_subset
         self.num_cores = num_cores
+        self.num_frames = self.get_number_of_frames(self.rmf_file)
+        self.frame_batches = self.prepare_frame_batches()
 
     def convert_rmf_to_xyzr(self) -> dict:
         """ Wrapper over `batch_worker` to parallely process frame batches and get
