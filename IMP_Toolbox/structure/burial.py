@@ -36,6 +36,7 @@ def get_residue_depth(
 def get_burial_info(
     structure_path: str,
     structure: Bio.PDB.Structure.Structure | None,
+    ignore_chains: list | None = None,
     include_residue_depth: bool = False,
     residue_selector: dict | None = None,
     msms_executable: str | None = None,
@@ -77,11 +78,14 @@ def get_burial_info(
         residue_selector = {
             chain_id: [res.get_id()[1] for res in chain.child_list]
             for chain_id, chain in model.child_dict.items()
+            if ignore_chains is None or chain_id not in ignore_chains
         }
 
     df_rows = []
 
     for chain_id, res_nums in residue_selector.items():
+        if chain_id in ignore_chains:
+            continue
         for res_num in res_nums:
             if chain_id not in model or (' ', res_num, ' ') not in model[chain_id]:
                 print(f"Warning: Residue {res_num} not found in chain {chain_id}. Skipping.")
