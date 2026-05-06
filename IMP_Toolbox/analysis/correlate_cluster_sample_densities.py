@@ -240,6 +240,6 @@ if __name__ == "__main__":
     print(f"Average CAM: {cam_.mean()} ± {cam_.std()}")
     print(f"Number of points: {pts_.sum()}")
 
-    out_csv = os.path.join(args.sampcon_cluster_path, 'correlation_results.csv')
+    out_csv = os.path.join(args.sampcon_cluster_path, 'correlation_sampleA_sampleB.csv')
     df.to_csv(out_csv, index=False)
     print(f"Correlation results saved to {out_csv}")

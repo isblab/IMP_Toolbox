@@ -82,7 +82,7 @@ def main(
 
         meta_df = pd.concat([meta_df, df], ignore_index=True)
 
-    out_csv = os.path.join(output_dir, 'correlation_results.csv')
+    out_csv = os.path.join(output_dir, 'correlation_LPD_experimentalMap.csv')
     meta_df.to_csv(out_csv, index=False)
 
 if __name__ == "__main__":
