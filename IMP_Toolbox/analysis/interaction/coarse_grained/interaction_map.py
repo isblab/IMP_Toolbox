@@ -587,6 +587,7 @@ class PairwiseMaps:
         self.xyzr_parser = xyzr_parser
         self.xyzr_mat = xyzr_parser.xyzr_mat
         self.xyzr_keys = xyzr_parser.xyzr_keys
+        self.num_frames = xyzr_parser.xyzr_mat.shape[1]
         self.molwise_residues = xyzr_parser.molwise_residues
         self.molwise_xyzr_keys = xyzr_parser.molwise_xyzr_keys
         self.self_interaction = self_interaction
@@ -1015,9 +1016,7 @@ class PairwiseMaps:
 
         pairwise_dmaps = {}
 
-        num_frames = self.xyzr_mat.shape[1]
-
-        frame_batches = np.array_split(np.arange(num_frames), nproc)
+        frame_batches = np.array_split(np.arange(self.num_frames), nproc)
 
         for _m1, _m2 in tqdm.tqdm(self.mol_pairs):
 
@@ -1066,7 +1065,7 @@ class PairwiseMaps:
 
             del xyzr1_batches, xyzr2_batches
 
-            dmap_m1_m2 = np.zeros(num_frames, dtype=self.f_dtype)
+            dmap_m1_m2 = np.zeros(self.num_frames, dtype=self.f_dtype)
 
             n_frames = 0
             for i, flat_dmap_ in enumerate(results):
@@ -1127,12 +1126,12 @@ class PairwiseMaps:
         pairwise_dmaps = {}
         pairwise_cmaps = {}
 
-        num_frames = self.xyzr_mat.shape[1]
+        # num_frames = self.xyzr_mat.shape[1]
         num_beads = self.xyzr_mat.shape[0]
         assert self.xyzr_mat.shape[2] == 4, "Expected last dimension of xyzr_mat to be 4 (XYZR)."
         assert num_beads == len(self.xyzr_keys), "Number of beads in xyzr_mat does not match length of bead keys."
 
-        frame_batches = np.array_split(np.arange(num_frames), nproc)
+        frame_batches = np.array_split(np.arange(self.num_frames), nproc)
 
         for _m1, _m2 in tqdm.tqdm(self.mol_pairs):
 
@@ -1197,10 +1196,10 @@ class PairwiseMaps:
             del results
 
             pairwise_dmaps[pair_name] = (
-                dmap_m1_m2.astype(self.f_dtype) / self.f_dtype(num_frames)
+                dmap_m1_m2.astype(self.f_dtype) / self.f_dtype(self.num_frames)
             )
             pairwise_cmaps[pair_name] = (
-                cmap_m1_m2.astype(self.i_dtype) / self.f_dtype(num_frames)
+                cmap_m1_m2.astype(self.i_dtype) / self.f_dtype(self.num_frames)
             )
 
             PairwiseMaps.save_map_txt(
