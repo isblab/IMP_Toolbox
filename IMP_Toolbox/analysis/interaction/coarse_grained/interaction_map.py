@@ -5,6 +5,7 @@ import os
 import time
 from typing import Dict, List, Optional, Tuple
 import tqdm
+import pandas as pd
 from pathlib import Path
 import getpass
 import textwrap
@@ -2016,6 +2017,48 @@ class Interaction:
                     ),
                 )
                 fig.write_html(os.path.join(save_dir, f"{save_prefix}_{map_type}.html"))
+
+    @staticmethod
+    def extract_interface_residues_from_patches(
+        interacting_patches_csvs: list[str],
+    ):
+        """ Extract interface residue information from interaction map patch CSV files.
+
+        ## Arguments:
+
+        - **interacting_patches_csvs (str)**:<br />
+            A list of paths to CSV files containing the interacting patches
+            extracted from the contact maps. Each CSV file should have columns
+            corresponding to the molecule names (e.g. "MOL1", "MOL2")
+
+        ## Returns:
+
+        - **dict**:<br />
+            A dictionary mapping interface names to sets of residue pairs.
+            The keys are interface names in the format "Protein1_Protein2", and the
+            values are sets of tuples, where each tuple contains the residue ranges
+            for the interacting residues from the two proteins (e.g.,
+            ("res1_start-res1_end", "res2_start-res2_end")).
+        """
+
+        interface_dict = defaultdict(list)
+
+        for patches_csv_path in interacting_patches_csvs:
+
+            patches_df = pd.read_csv(patches_csv_path, header=0)
+            prot1_n, prot2_n = list(patches_df.columns)
+            if "_" in prot1_n:
+                _prot1_n = prot1_n.split("_")[0]
+            if "_" in prot2_n:
+                _prot2_n = prot2_n.split("_")[0]
+
+            interface_name = f"{_prot1_n.split("-")[0]}_{_prot2_n.split("-")[0]}"
+            interface_dict[interface_name] = set()
+
+            for _, row in patches_df.iterrows():
+                interface_dict[interface_name].add((row[prot1_n], row[prot2_n]))
+
+        return interface_dict
 
 def main(
     xyzr_file: str,

@@ -30,3 +30,13 @@ def split_structure_by_chain(
         chain_structures[chain_id] = new_structure
 
     return chain_structures
+
+def get_per_chain_residues(structure: Structure):
+
+    chain_ranges = {
+        chain.get_id(): [
+            res.get_id()[1] for res in chain.get_residues()
+        ] for chain in structure[0].get_chains()
+    }
+
+    return chain_ranges
