@@ -122,6 +122,11 @@ def generate_cmap(n, scheme="soft-warm"):
             g = random.randint(130, 200)
             b = random.randint(90, 160)
 
+        elif scheme == "soft-cool":
+            r = random.randint(90, 160)
+            g = random.randint(130, 200)
+            b = random.randint(180, 255)
+
         elif scheme == "contrasting-non-bright":
             if len(colors) % 2 == 0:  # Alternate between darker and lighter muted tones
                 r = random.randint(40, 120)

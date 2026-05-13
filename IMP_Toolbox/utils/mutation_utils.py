@@ -288,7 +288,8 @@ def split_missense_mutation(
 
     if match:
         if return_type == "all":
-            return match.groups()
+            wt_, res_num, mut_ = match.groups()
+            return wt_, int(res_num), mut_
 
         elif return_type == "wt_aa":
             return match.group(1)
