@@ -275,6 +275,7 @@ else
 fi
 
 lines_to_add=(
+    "export PATH=$PATH:$install_path/imp-clean/build/bin:"
     "export IMP_BIN_DIR='$install_path/imp-clean/build/bin'"
     "export IMP_TMP_DIR='$install_path/imp-clean/build/tmp'"
     "export IMP_DATA='$install_path/imp-clean/build/data'"
