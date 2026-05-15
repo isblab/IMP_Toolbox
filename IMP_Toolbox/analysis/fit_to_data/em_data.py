@@ -1,4 +1,5 @@
 import os
+import yaml
 import argparse
 import subprocess
 import pandas as pd
@@ -52,8 +53,13 @@ def main(
     em_data_info: dict,
     output_dir: str,
 ):
+    if em_data_info.endswith(".json"):
+        em_data_info: dict = read_json(em_data_info)
+    elif em_data_info.endswith(".yaml") or em_data_info.endswith(".yml"):
+        em_data_info: dict = yaml.load(open(em_data_info), Loader=yaml.FullLoader)
+    else:
+        raise ValueError("Input file must be JSON or YAML format.")
 
-    em_data_info: dict = read_json(em_data_info)
     # em_data_info = {
     #     "pg_layer_lpd": {
     #         "model_maps": [
@@ -93,7 +99,7 @@ if __name__ == "__main__":
         "--input",
         type=str,
         required=True,
-        help="Path to the JSON file containing EM data information.",
+        help="Path to the JSON/YAML file containing EM data information.",
     )
 
     parser.add_argument(
