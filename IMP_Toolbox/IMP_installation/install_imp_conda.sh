@@ -4,7 +4,7 @@
 
 usage() {
 	echo >&2 \
-	"usage: install_imp_conda.sh -e conda_env_name -i install_path -s install_mode -I imp_version [-c num_cores] [-P python_version] [-m custom_module_path] [--prism] [--pmi_analysis] [--pyrmsd] [-y] [-h]
+	"usage: $0 -e conda_env_name -i install_path -s install_mode -I imp_version [-c num_cores] [-P python_version] [-m custom_module_path] [--prism] [--pmi_analysis] [--pyrmsd] [-y] [-h]
 
     Required arguments:
     -e conda_env_name: the name of the conda environment to be created or used
@@ -274,20 +274,6 @@ else
 
 fi
 
-lines_to_add=(
-    "export PATH='\$PATH:$install_path/imp-clean/build/bin'"
-    "export IMP_BIN_DIR='$install_path/imp-clean/build/bin'"
-    "export IMP_TMP_DIR='$install_path/imp-clean/build/tmp'"
-    "export IMP_DATA='$install_path/imp-clean/build/data'"
-    "export IMP_EXAMPLE_DATA='$install_path/imp-clean/build/doc/examples'"
-    "export SAMPCON_PATH='$install_path/imp-clean/build/lib/IMP/sampcon'"
-    "export PYTHONPATH='\$PYTHONPATH:$install_path/imp-clean/build/lib'"
-)
-
-for line in "${lines_to_add[@]}"; do
-    grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
-done
-
 # custom module installation
 
 if [[ -n "$custom_module_path" ]]; then
@@ -388,14 +374,6 @@ if [[ "$clone_prism" == "yes" ]]; then
         echo "prism commit hash: $last_commit_hash - $(date)" >> $commit_hash_file_path ;
     fi
 
-    lines_to_add=(
-        "export PRISM_PATH='$install_path/prism'"
-    )
-
-    for line in "${lines_to_add[@]}"; do
-        grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
-    done
-
 fi
 
 # clone PMI analysis if the flag is set
@@ -424,15 +402,6 @@ if [[ "$clone_pmi_analysis" == "yes" ]]; then
         echo "PMI_analysis commit hash: $last_commit_hash - $(date)" >> $commit_hash_file_path ;
     fi  
 
-    lines_to_add=(
-        "export PMI_ANALYSIS_PATH='$install_path/PMI_analysis'"
-        "export PYTHONPATH='\$PYTHONPATH:$install_path/PMI_analysis/pyext/src'"
-    )
-
-    for line in "${lines_to_add[@]}"; do
-        grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
-    done
-
 fi
 
 # clone PyRMSD if the flag is set
@@ -460,14 +429,6 @@ if [[ "$clone_pyrmsd" == "yes" ]]; then
         last_commit_hash=$(git rev-parse HEAD) ;
         echo "PyRMSD commit hash: $last_commit_hash - $(date)" >> $commit_hash_file_path ;
     fi
-
-    lines_to_add=(
-        "export PYTHONPATH='\$PYTHONPATH:$install_path/pyRMSD'"
-    )
-
-    for line in "${lines_to_add[@]}"; do
-        grep -qxF "$line" ~/.bashrc || echo "$line" >> ~/.bashrc
-    done
 
 fi
 
@@ -532,3 +493,5 @@ END_TIME=$(date +%s) ;
 ELAPSED_TIME=$((END_TIME - START_TIME)) ;
 
 echo "Installation complete. IMP and selected repositories have been installed at $install_path. Total installation time: $ELAPSED_TIME seconds." ;
+
+bash $script_dir_/setup_imp_paths.sh -i $install_path $( [[ "$clone_prism" == "yes" ]] && echo "--prism" ) $( [[ "$clone_pmi_analysis" == "yes" ]] && echo "--pmi_analysis" ) $( [[ "$clone_pyrmsd" == "yes" ]] && echo "--pyrmsd" ) ;
