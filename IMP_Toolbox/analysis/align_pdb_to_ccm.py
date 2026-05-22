@@ -260,8 +260,7 @@ if __name__ == "__main__":
     if args.input.endswith('.json'):
         fits_to_perform = read_json(args.input)
     elif args.input.endswith(('.yml', '.yaml')):
-        input_config = yaml.load(open(args.input), Loader=yaml.FullLoader)
-        fits_to_perform = input_config["fits_to_perform"]
+        fits_to_perform = yaml.load(open(args.input), Loader=yaml.FullLoader)
     else:
         raise ValueError("Input file must be JSON or YAML format.")
 
