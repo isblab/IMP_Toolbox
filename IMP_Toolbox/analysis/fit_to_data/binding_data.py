@@ -129,7 +129,7 @@ class BindingData:
             # quantiles=[[0.9]]*len(all_data),
         )
         for pc in violinplot['bodies']:
-            pc.set_facecolor("#B0ABFF")
+            pc.set_facecolor("#ffddd7") #B0ABFF
             pc.set_edgecolor('black')
             pc.set_alpha(1)
         quartile1, medians, quartile3 = np.percentile(
@@ -148,7 +148,7 @@ class BindingData:
         whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
 
         inds = np.arange(1, len(medians) + 1)
-        ax.scatter(inds, medians, marker='o', color="#3329BF", s=30, zorder=3)
+        ax.scatter(inds, medians, marker='o', color="#c36148", s=30, zorder=3) #3329BF
         ax.vlines(inds, quartile1, quartile3, color='k', linestyle='-', lw=5)
         ax.vlines(inds, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
