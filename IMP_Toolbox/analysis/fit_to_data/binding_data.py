@@ -14,6 +14,7 @@ from IMP_Toolbox.analysis.interaction.coarse_grained.interaction_map import (
 from IMP_Toolbox.constants.analysis_constants import (
     F_DTYPES,
     I_DTYPES,
+    SINGLE_WIDTH,
 )
 
 _user = getpass.getuser()
@@ -98,6 +99,7 @@ class BindingData:
         self,
         output_dir: str,
         outname: str="fit_to_binding_data",
+        **kwargs,
     ):
         """ Plot pairwise distance maps.
 
@@ -119,8 +121,12 @@ class BindingData:
         all_data = list(self.pairwise_distances.values())
         label_names = list(self.pairwise_distances.keys())
         print("Pairwise distance data calculated for all pairs. Now plotting...\n")
+        single_width = kwargs.get("single_width", 1.3)
 
-        fig, ax = plt.subplots(figsize=(2*len(label_names), 5))
+        if len(label_names) == 1:
+            single_width = 2.0
+
+        fig, ax = plt.subplots(figsize=(single_width*len(label_names), 5))
         violinplot = ax.violinplot(
             all_data,
             showmeans=False,
@@ -175,6 +181,7 @@ def main(
     outname: str="fit_to_binding_data",
     overwrite: bool=False,
     merge_copies: bool=False,
+    **kwargs,
 ):
 
     os.makedirs(binding_data_dir, exist_ok=True)
@@ -197,6 +204,7 @@ def main(
     binding_data_.plot_pairwise_distances(
         output_dir=binding_data_dir,
         outname=outname,
+        single_width=kwargs.get("single_width", 1.3),
     )
 
 if __name__ == "__main__":
@@ -267,4 +275,5 @@ if __name__ == "__main__":
         outname="fit_to_binding_data",
         overwrite=bool(args.overwrite),
         merge_copies=bool(args.merge_copies),
+        single_width=SINGLE_WIDTH,
     )

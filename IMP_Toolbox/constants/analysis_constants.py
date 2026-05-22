@@ -13,3 +13,4 @@ EXPECTED_MOLNAME_FORMATS = [
 ]
 F_DTYPES = {16: np.float16, 32: np.float32, 64: np.float64}
 I_DTYPES = {8: np.int8, 16: np.int16, 32: np.int32, 64: np.int64}
+SINGLE_WIDTH = 1.3
