@@ -654,7 +654,7 @@ class PairwiseMaps:
             pairwise_maps = self.merge_maps_by_copies(
                 pairwise_maps=pairwise_maps,
                 map_type=map_type,
-                operation="or" if binarize_map else "average",
+                operation="or" if binarize_map else "max",
                 binarize_map=binarize_map,
             )
 
@@ -871,7 +871,7 @@ class PairwiseMaps:
             ("average", False): lambda v: np.mean(v, axis=0).astype(self.f_dtype),
             ("or", True): lambda v: np.logical_or.reduce(v, axis=0).astype(self.i_dtype),
             ("min", False): lambda v: np.min(np.stack(v, axis=0), axis=0).astype(self.f_dtype),
-            # ("max", False): lambda v: np.max(np.stack(v, axis=0), axis=0),
+            ("max", False): lambda v: np.max(np.stack(v, axis=0), axis=0).astype(self.f_dtype),
         }.get(
             (operation, binarize_map),
             lambda v: raise_invalid_operation_error(operation)
