@@ -4,6 +4,7 @@ import re
 import os
 import time
 from typing import Dict, List, Optional, Tuple
+from scipy.spatial.distance import pdist, squareform
 import tqdm
 import pandas as pd
 from pathlib import Path
@@ -1435,6 +1436,338 @@ class PairwiseMaps:
 
         return dmap, cmap
 
+class PairwiseContactMaps:
+
+    mol_pairs: list
+    """ List of enriched molecule pairs. See `MoleculePairs` class for details."""
+
+    xyzr_parser: XYZRParser
+    """ XYZRParser object containing the parsed XYZR data and related information. """
+
+    xyzr_mat: np.ndarray
+    """ The raw XYZR data as a numpy array of shape (num_beads, num_frames, 4). """
+
+    xyzr_keys: list
+    """ List of bead keys in the format "MOL_COPYIDX_RESNUM" or "MOL_COPYIDX_RESSTART-RESEND",
+    corresponding to the rows in xyzr_mat. """
+
+    molwise_residues: dict
+    """ Dictionary mapping molecule names to sets of residue numbers. Format: {
+        "MOL1_COPYIDX": [res1, res2, ...],
+        "MOL2_COPYIDX": [res1, res2, ...],
+        ...
+    } """
+
+    molwise_xyzr_keys: dict
+    """ Dictionary mapping molecule names to lists of bead keys. Format: {
+        "MOL1_COPYIDX": ["MOL1_COPYIDX_RESSTART-RESEND", ...],
+        "MOL2_COPYIDX": ["MOL2_COPYIDX_RESSTART-RESEND", ...],
+        ...
+    } """
+
+    self_interaction: str
+    """ String indicating how to handle self-interactions. Should be one of:
+    - "allow_all": allow interactions between all molecule pairs, including
+                   self-pairs and copy pairs.
+    - "allow_none": disallow interactions between any molecule pairs of the same
+                    molecule, including self-pairs and copy pairs.
+    - "allow_copies": allow interactions between different copies of the same
+                      molecule, but disallow self-pairs. (default)
+    """
+
+    unique_mols: set
+    """ Set of unique molecule names (without copy index) present in the model. """
+
+    f_dtype: np.dtype
+    """ The floating point data type to use for the distance and contact maps. """
+
+    i_dtype: np.dtype
+    """ The integer data type to use for the binary contact maps. """
+
+    contact_cutoff: float
+    """ The cutoff distance used for binarization of the maps, which will be
+    passed to the `get_binary_map` function if binarization is specified.
+    See :func:`get_binary_map` for more details.
+    """
+
+    def __init__(
+        self,
+        mol_pairs: list,
+        xyzr_parser: XYZRParser,
+        cutoff: float,
+        merge_copies: bool = False,
+        self_interaction: bool = False,
+        f_dtype: np.dtype = np.float64,
+        i_dtype: np.dtype = np.int32,
+    ):
+
+        self.mol_pairs = mol_pairs
+        self.grouped_mol_pairs = MoleculePairs.get_grouped_mol_pairs(
+            mol_pairs=self.mol_pairs
+        )
+        self.xyzr_parser = xyzr_parser
+        self.xyzr_mat = xyzr_parser.xyzr_mat
+        self.xyzr_keys = xyzr_parser.xyzr_keys
+        self.num_frames = xyzr_parser.xyzr_mat.shape[1]
+        self.molwise_residues = xyzr_parser.molwise_residues
+        self.molwise_xyzr_keys = xyzr_parser.molwise_xyzr_keys
+        self.merge_copies = merge_copies
+        self.self_interaction = self_interaction
+        self.unique_mols = xyzr_parser.unique_mols
+        self.f_dtype = f_dtype
+        self.i_dtype = i_dtype
+        self.contact_cutoff = cutoff
+        self.modelwise_cmaps = {}
+
+    @staticmethod
+    def contact_map_worker(
+        batch_xyz: np.ndarray,
+        radii_sum: np.ndarray,
+        contact_cutoff: float,
+        grouped_mol_pairs: Dict[str, set],
+        merge_copies: bool,
+        f_dtype: np.dtype,
+        i_dtype: np.dtype,
+        molwise_xyzr_keys: dict,
+        molwise_residues: dict,
+        xyzr_keys: list,
+    ) -> Dict[str, np.ndarray]:
+
+        batchwise_cmaps = {}
+
+        for frame_id in range(batch_xyz.shape[1]):
+            pairwise_cmaps = {}
+            frame_coords = batch_xyz[:, frame_id, :].astype(f_dtype)
+            diffs = pdist(frame_coords)
+            frame_dmap = squareform(diffs, checks=False).astype(f_dtype)
+            np.subtract(
+                frame_dmap,
+                radii_sum,
+                out=frame_dmap,
+                dtype=f_dtype,
+            )
+            frame_dmap[frame_dmap < 0.0] = 0.0
+            frame_cmap = (frame_dmap <= contact_cutoff).astype(i_dtype)
+
+            for base_pair, copy_pairs in grouped_mol_pairs.items():
+
+                for _m1, _m2 in copy_pairs:
+
+                    pair_name, pair_cmap = PairwiseContactMaps.extract_copy_pair_contact_map(
+                        frame_cmap=frame_cmap,
+                        m1=_m1,
+                        m2=_m2,
+                        molwise_xyzr_keys=molwise_xyzr_keys,
+                        molwise_residues=molwise_residues,
+                        xyzr_keys=xyzr_keys,
+                        merge_copies=merge_copies,
+                    )
+
+                    if pair_name not in pairwise_cmaps:
+                        cmap_m1_m2 = np.zeros_like(pair_cmap, dtype=i_dtype)
+
+                    np.logical_or(
+                        pair_cmap,
+                        cmap_m1_m2,
+                        out=cmap_m1_m2,
+                    )
+                    pairwise_cmaps[pair_name] = cmap_m1_m2
+
+                    if merge_copies is True:
+                        continue
+
+                    PairwiseContactMaps.update_cmaps(
+                        cmaps_to_update=batchwise_cmaps,
+                        cmaps_to_add=pairwise_cmaps,
+                        pair_name=pair_name,
+                        i_dtype=i_dtype,
+                    )
+
+                if merge_copies is False:
+                    continue
+
+                PairwiseContactMaps.update_cmaps(
+                    cmaps_to_update=batchwise_cmaps,
+                    cmaps_to_add=pairwise_cmaps,
+                    pair_name=base_pair,
+                    i_dtype=i_dtype,
+                )
+
+        return batchwise_cmaps
+
+    @staticmethod
+    def update_cmaps(
+        cmaps_to_update,
+        cmaps_to_add,
+        pair_name,
+        i_dtype=np.int32,
+    ):
+
+        if pair_name not in cmaps_to_update:
+            cmaps_to_update[pair_name] = np.zeros_like(cmaps_to_add[pair_name], dtype=i_dtype)
+
+        np.add(
+            cmaps_to_add[pair_name].astype(i_dtype),
+            cmaps_to_update[pair_name].astype(i_dtype),
+            out=cmaps_to_update[pair_name], dtype=i_dtype
+        )
+
+    @staticmethod
+    def extract_copy_pair_contact_map(
+        frame_cmap,
+        m1,
+        m2,
+        molwise_xyzr_keys,
+        molwise_residues,
+        xyzr_keys,
+        merge_copies=False,
+    ):
+
+        _base1, _cp_idx1, range1 = re.match(REGEX_MOLNAME, m1).groups()
+        _base2, _cp_idx2, range2 = re.match(REGEX_MOLNAME, m2).groups()
+
+        pair_name = f"{m1}{PAIR_SEP}{m2}"
+
+        mol1 = XYZRParser.get_mol_name(m1, only_base=False)
+        mol2 = XYZRParser.get_mol_name(m2, only_base=False)
+
+        res_range1 = (
+            get_res_range_from_key(range1)
+            if range1 is not None else molwise_residues[mol1]
+        )
+
+        idx1 = XYZRParser.get_bead_indices(mol1, res_range1, xyzr_keys)
+
+        res_range2 = (
+            get_res_range_from_key(range2)
+            if range2 is not None else molwise_residues[mol2]
+        )
+
+        idx2 = XYZRParser.get_bead_indices(mol2, res_range2, xyzr_keys)
+
+        pair_cmap = frame_cmap[np.ix_(idx1, idx2)]
+        pair_cmap = expand_map_to_residue_level(
+            q_map=pair_cmap,
+            molwise_xyzr_keys=molwise_xyzr_keys,
+            pair_name=pair_name,
+        )
+
+        if merge_copies:
+            pair_name = (
+                f"{_base1}{MOL_RANGE_SEP}{range1}" +
+                PAIR_SEP +
+                f"{_base2}{MOL_RANGE_SEP}{range2}"
+            )
+
+        return pair_name, pair_cmap
+
+    def compute_pairwise_contact_maps(
+        self,
+        nproc: int,
+        interaction_map_dir: str,
+        overwrite: bool = False,
+    ) -> tuple[dict, dict]:
+
+        frame_batches = np.array_split(np.arange(self.num_frames), args.nproc)
+
+        radii_data = self.xyzr_mat[:, 0, 3].astype(self.f_dtype)
+        radii_sum = np.zeros(
+            (radii_data.shape[0], radii_data.shape[0]), dtype=self.f_dtype
+        )
+        np.add(
+            radii_data[:, None].copy(),
+            radii_data[None, :].copy(),
+            out=radii_sum,
+        )
+
+        xyz_data = self.xyzr_mat[:, :, :3].astype(self.f_dtype)
+        batchwise_xyz = [
+            xyz_data[:, frame_batch, :3].astype(self.f_dtype)
+            for frame_batch in frame_batches
+        ]
+
+        with ProcessPoolExecutor(max_workers=nproc) as executor:
+            futures = [
+                executor.submit(
+                    PairwiseContactMaps.contact_map_worker,
+                    batch_xyz=xyz_batch,
+                    radii_sum=radii_sum,
+                    contact_cutoff=self.contact_cutoff,
+                    grouped_mol_pairs=self.grouped_mol_pairs,
+                    merge_copies=self.merge_copies,
+                    f_dtype=self.f_dtype,
+                    i_dtype=self.i_dtype,
+                    molwise_xyzr_keys=self.molwise_xyzr_keys,
+                    molwise_residues=self.molwise_residues,
+                    xyzr_keys=self.xyzr_keys,
+                )
+                for xyz_batch in batchwise_xyz
+            ]
+            for future in as_completed(futures):
+
+                batch_cmaps = future.result()
+
+                for pair_name in batch_cmaps.keys():
+
+                    PairwiseContactMaps.update_cmaps(
+                        cmaps_to_update=self.modelwise_cmaps,
+                        cmaps_to_add=batch_cmaps,
+                        pair_name=pair_name,
+                        i_dtype=self.i_dtype,
+                    )
+                    save_map_txt(
+                        q_map=self.modelwise_cmaps[pair_name],
+                        save_dir=interaction_map_dir,
+                        map_name=f"{pair_name}_cmap",
+                        overwrite=overwrite,
+                    )
+
+        self.modelwise_cmaps = {
+            pair_name: cmap / self.num_frames
+            for pair_name, cmap in self.modelwise_cmaps.items()
+        }
+
+    def fetch_pairwise_contact_maps(
+        self,
+        interaction_map_dir: str,
+        nproc: int,
+        overwrite: bool = False,
+    ) -> dict:
+
+        # try to load existing maps from disk if available and overwrite is False
+        if self.merge_copies is True:
+            for base_pair, copy_pairs in self.grouped_mol_pairs.items():
+
+                cmap_file = Path(interaction_map_dir) / f"{base_pair}_cmap.txt"
+                if cmap_file.exists() and overwrite is False:
+                    print(f"Loading existing contact map for {base_pair} from {cmap_file}.")
+                    self.modelwise_cmaps[base_pair] = np.loadtxt(cmap_file, dtype=self.f_dtype)
+                else:
+                    self.compute_pairwise_contact_maps(
+                        nproc=nproc,
+                        interaction_map_dir=interaction_map_dir,
+                        overwrite=overwrite,
+                    )
+                    break
+        else:
+            for _m1, _m2 in self.mol_pairs:
+
+                pair_name = f"{_m1}{PAIR_SEP}{_m2}"
+                cmap_file = Path(interaction_map_dir) / f"{pair_name}_cmap.txt"
+
+                if cmap_file.exists() and overwrite is False:
+                    print(f"Loading existing contact map for {base_pair} from {cmap_file}.")
+                    self.modelwise_cmaps[pair_name] = np.loadtxt(cmap_file, dtype=self.f_dtype)
+                else:
+                    self.compute_pairwise_contact_maps(
+                        nproc=nproc,
+                        interaction_map_dir=interaction_map_dir,
+                        overwrite=overwrite,
+                    )
+                    break
+
+        return self.modelwise_cmaps
+
 class Interaction:
     """ Class for computing interaction maps for selected molecule pairs."""
 
@@ -1512,74 +1845,28 @@ class Interaction:
             filter_by=self.sel_mol_pairs,
         )
         self.mol_pairs = mol_pair_handler.mol_pairs
-        self.pairwise_maps_handler = PairwiseMaps(
+
+        self.pairwise_maps_handler = PairwiseContactMaps(
             mol_pairs=self.mol_pairs,
             xyzr_parser=xyzr_parser,
             cutoff=cutoff,
+            merge_copies=merge_copies,
             self_interaction=self_interaction,
             f_dtype=f_dtype,
             i_dtype=i_dtype,
         )
 
-    def compute_interaction_maps(
+    def analyse_interactions(
         self,
         interaction_map_dir: str,
         nproc: int,
         overwrite: bool = False,
-        binarize_dmap: bool = False,
-        binarize_cmap: bool = False,
     ) -> None:
-        """ Compute pairwise distance and contact maps for the selected molecule pairs.
 
-        ## Arguments:
-
-        - **interaction_map_dir (str)**:<br />
-            The directory where the computed interaction maps will be saved.
-
-        - **nproc (int)**:<br />
-            The number of processes to use for parallel computation of the maps.
-
-        - **overwrite (bool, optional):**:<br />
-            Whether to overwrite existing map files in the interaction_map_dir. If False,
-            the function will load existing maps from disk if they are available, and skip
-            recomputation. Note that the plots are always overwritten to reflect the current
-            binarization settings, but the raw maps are not recomputed if the files already exist.
-
-        - **binarize_dmap (bool, optional):**:<br />
-            Whether to binarize the distance maps based on the cutoff. If True, the distance
-            maps will be converted to binary maps using the `get_binary_map` function, where a
-            contact is defined as present if the distance is less than or equal to the cutoff.
-            If False, the distance maps will not be binarized and will retain their original values
-            (e.g. average distances). (default: False)
-
-        - **binarize_cmap (bool, optional):**:<br />
-            Whether to binarize the contact maps based on the cutoff. If True, the contact maps
-            will be converted to binary maps using the `get_binary_map` function, where a contact
-            is defined as present if the contact frequency is greater than or equal to the cutoff.
-            If False, the contact maps will not be binarized and will retain their original values
-            (e.g. average contact frequencies). (default: False)
-        """
-        (
-            pairwise_dmaps,
-            pairwise_cmaps
-        ) = self.pairwise_maps_handler.fetch_pairwise_maps(
+        modelwise_cmaps = self.pairwise_maps_handler.fetch_pairwise_contact_maps(
             interaction_map_dir=interaction_map_dir,
             nproc=nproc,
             overwrite=overwrite,
-        )
-
-        self.pairwise_dmaps = self.pairwise_maps_handler.process_pairwise_maps(
-            pairwise_maps=pairwise_dmaps,
-            map_type="dmap",
-            merge_copies=self.merge_copies,
-            binarize_map=binarize_dmap,
-        )
-
-        self.pairwise_cmaps = self.pairwise_maps_handler.process_pairwise_maps(
-            pairwise_maps=pairwise_cmaps,
-            map_type="cmap",
-            merge_copies=self.merge_copies,
-            binarize_map=binarize_cmap,
         )
 
         if self.merge_copies:
@@ -1587,7 +1874,7 @@ class Interaction:
             self.molwise_residues = self.xyzr_parser.molwise_residues
 
         self.map_slices = self.generate_map_slices(
-            pairwise_keys=list(self.pairwise_dmaps.keys()),
+            pairwise_keys=list(modelwise_cmaps.keys()),
         )
 
     def generate_map_slices(
@@ -2095,7 +2382,6 @@ def main(
     cutoff1: float,
     cutoff2: float,
     interaction_map_dir: str,
-    binarize_dmap: bool,
     binarize_cmap: bool,
     plotting_lib: str = "matplotlib",
     input: str = None,
@@ -2118,27 +2404,14 @@ def main(
         i_dtype=i_dtype,
     )
 
-    interaction_.compute_interaction_maps(
+    interaction_.analyse_interactions(
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
         overwrite=overwrite,
-        binarize_dmap=binarize_dmap,
-        binarize_cmap=binarize_cmap,
     )
 
     interaction_.save_output(
-        pairwise_maps=interaction_.pairwise_dmaps,
-        interaction_map_dir=interaction_map_dir,
-        nproc=nproc,
-        cutoff=cutoff1,
-        binarize_map=binarize_dmap,
-        map_type="dmap",
-        output_type="plots",
-        plotting_lib=plotting_lib,
-    )
-
-    interaction_.save_output(
-        pairwise_maps=interaction_.pairwise_cmaps,
+        pairwise_maps=interaction_.pairwise_maps_handler.modelwise_cmaps,
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
         cutoff=cutoff2,
@@ -2268,13 +2541,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     ############################################################################
 
+    start_t = time.time()
+
     main(
         xyzr_file=args.xyzr_file,
         nproc=args.nproc,
         cutoff1=args.dist_cutoff,
         cutoff2=args.frac_cutoff,
         interaction_map_dir=args.interaction_map_dir,
-        binarize_dmap=args.binarize_dmap,
         binarize_cmap=args.binarize_cmap,
         plotting_lib=args.plotting,
         input=args.input,
@@ -2284,3 +2558,6 @@ if __name__ == "__main__":
         f_dtype=F_DTYPES.get(args.float_dtype, np.float64),
         i_dtype=I_DTYPES.get(args.int_dtype, np.int32),
     )
+
+    end_t = time.time()
+    print(f"Total execution time: {end_t - start_t:.2f} seconds")
