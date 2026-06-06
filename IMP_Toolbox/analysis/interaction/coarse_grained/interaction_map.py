@@ -163,6 +163,7 @@ class Molecules:
             # print(self.extra_attrs_keys)
         else:
             self.molecules = sorted(self.unique_mols)
+
     def process_molecules(self, filter_by: list = []) -> List[str]:
 
         self.enrich_molecules()
@@ -310,9 +311,6 @@ class MoleculePairs:
     unique_mols: set
     """ Set of unique molecule names (without copy index) present in the model. """
 
-    unique_mol_pairs: set
-    """ Set of unique molecule pairs (without copy index) present in the model. """
-
     mol_pairs: list
     """ List of tuples containing the molecule pairs in the format
     (MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND).
@@ -341,6 +339,42 @@ class MoleculePairs:
             self.mol_pairs = list(
                 combinations_with_replacement(sorted(self.unique_mols), 2)
             )
+
+    @staticmethod
+    def get_grouped_mol_pairs(mol_pairs: list) -> Dict[str, set]:
+        """ Group molecule pairs by their base molecule names and residuerange,
+        ignoring copy indices.
+
+        ## Arguments:
+
+        - **mol_pairs (list)**:<br />
+            A list of tuples containing the molecule pairs in the format
+            (MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND).
+
+        ## Returns:
+
+        - **dict**:<br />
+            A dictionary mapping molecule pair names (without copy indices) to
+            sets of molecule pairs (with copy indices) that belong to that pair
+            name. The keys of the dictionary are in the format:
+            "MOL1:RESSTART-RESEND:MOL2:RESSTART-RESEND" and the values are sets
+            of tuples in the format:
+            (MOL1_COPYIDX:RESSTART-RESEND, MOL2_COPYIDX:RESSTART-RESEND).
+        """
+
+        grouped_mol_pairs = defaultdict(set)
+
+        for m1, m2 in mol_pairs:
+            base1, _, range1 = re.match(REGEX_MOLNAME, m1).groups()
+            base2, _, range2 = re.match(REGEX_MOLNAME, m2).groups()
+            pair_name = (
+                f"{base1}{MOL_RANGE_SEP}{range1}" +
+                f"{PAIR_SEP}" +
+                f"{base2}{MOL_RANGE_SEP}{range2}"
+            )
+            grouped_mol_pairs[pair_name].add((m1, m2))
+
+        return grouped_mol_pairs
 
     def process_molecule_pairs(self, filter_by: list = []) -> List[tuple]:
         """ Process and enrich molecule pairs.
@@ -519,6 +553,168 @@ class MoleculePairs:
                 for attr in self.extra_attrs
             ]
 
+def explode_map(
+    q_map: np.ndarray,
+    mol: str,
+    molwise_xyzr_keys: Dict[str, list],
+    by: str = "row",
+) -> np.ndarray:
+    """ Expand a bead-level distance/contact map to residue-level map along
+    the specified axis.
+
+    ## Arguments:
+
+    - **q_map (np.ndarray)**:<br />
+        The distance/contact map to be expanded.
+
+    - **mol (str)**:<br />
+        The molecule name for which the map is being expanded (e.g. "MOL_COPYIDX").
+
+    - **by (str, optional):**:<br />
+        The axis along which to expand the map. Should be either "row" or "col".
+
+    ## Returns:
+
+    - **np.ndarray**:<br />
+        The expanded distance/contact map.
+    """
+
+    assert q_map.ndim == 2, "q_map must be a 2D array."
+
+    repeat_ = {
+        "row": lambda q, i: q[i, :],
+        "col": lambda q, i: q[:, i],
+    }
+
+    axis_ = {"row": 0, "col": 1}
+
+    special_keys = [
+        (key.rsplit("_", 1)[1], idx)
+        for idx, key in enumerate(molwise_xyzr_keys[mol])
+        if "-" in key
+    ]
+    dup_attrs = []
+
+    for key, attr_idx in special_keys:
+        num_repeats = len(get_res_range_from_key(key))
+        to_add = np.tile(repeat_[by](q_map, attr_idx), (num_repeats - 1, 1))
+        dup_attrs.append((to_add, attr_idx))
+
+    for to_add, attr_idx in reversed(dup_attrs):
+        q_map = np.insert(q_map, attr_idx + 1, to_add, axis=axis_[by])
+
+    return q_map
+
+def expand_map_to_residue_level(
+    q_map: np.ndarray,
+    molwise_xyzr_keys: dict,
+    pair_name: str,
+) -> np.ndarray:
+    """ Expand a bead-level distance/contact map to residue-level map.
+
+    ## Arguments:
+
+    - **q_map (np.ndarray)**:<br />
+        Original distance/contact map.
+
+    - **pair_name (str)**:<br />
+        The name of the molecule pair. (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
+
+    ## Returns:
+
+    - **np.ndarray**:<br />
+        Expanded distance/contact map.
+    """
+
+    _m1, _m2 = pair_name.split(PAIR_SEP)
+    base1, cp_idx1, _ = re.match(REGEX_MOLNAME, _m1).groups()
+    base2, cp_idx2, _ = re.match(REGEX_MOLNAME, _m2).groups()
+    mol1 = f"{base1}{MOL_COPY_SEP}{cp_idx1}"
+    mol2 = f"{base2}{MOL_COPY_SEP}{cp_idx2}"
+
+    # expand the maps to include all residues in the selection
+    q_map = explode_map(q_map, mol1, molwise_xyzr_keys, by="row")
+    q_map = explode_map(q_map, mol2, molwise_xyzr_keys, by="col")
+
+    return q_map
+
+def get_binary_map(
+    q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
+    contact_cutoff: float,
+    map_type: str = "dmap",
+    i_dtype: np.dtype = np.int32,
+) -> npt.NDArray[np.integer] | npt.NDArray[np.floating]:
+    """ Convert the distance or contact map to binary map based on cutoff.
+
+    ## Arguments:
+
+    - **q_map (npt.NDArray[np.integer] | npt.NDArray[np.floating])**:<br />
+        The distance or contact map to be binarized.
+
+    - **contact_cutoff (float)**:<br />
+        The cutoff value used for binarization.
+        - For distance maps, this is the maximum distance for a pair to be
+        considered in contact.
+        - For contact maps, this is the minimum fraction of frames which should
+        have the pair in contact for it to be considered a contact.
+
+    - **map_type (str, optional):**:<br />
+        The type of map being binarized.
+        Either "dmap" for distance maps or "cmap" for contact maps.
+
+    - **i_dtype (np.dtype, optional):**:<br />
+        The integer data type to be used for the binary map.
+
+    ## Returns:
+
+    - **npt.NDArray[np.integer] | npt.NDArray[np.floating]**:<br />
+        The binary map.
+    """
+
+    if map_type == "dmap":
+        q_map[q_map < contact_cutoff] = i_dtype(1)
+        q_map[q_map >= contact_cutoff] = i_dtype(0)
+
+    elif map_type == "cmap":
+        q_map[q_map >= contact_cutoff] = i_dtype(1)
+        q_map[q_map < contact_cutoff] = i_dtype(0)
+
+    q_map = q_map.astype(i_dtype)
+
+    return q_map
+
+def save_map_txt(
+    q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
+    save_dir: str,
+    map_name: str,
+    overwrite: bool = False
+):
+    """ Save a distance or contact map as a text file.
+
+    ## Arguments:
+
+    - **q_map (npt.NDArray[np.int_] | npt.NDArray[np.floating])**:<br />
+        The distance or contact map to be saved as a text file.
+
+    - **save_dir (str)**:<br />
+        The directory where the text file will be saved.
+
+    - **map_name (str)**:<br />
+        The name of the map, which will be used as the filename (without extension).
+
+    - **overwrite (bool, optional):**:<br />
+        Whether to overwrite the file if it already exists.
+    """
+
+    save_path = os.path.join(save_dir, f"{map_name}.txt")
+
+    if not os.path.exists(save_path) or overwrite:
+        np.savetxt(
+            save_path,
+            q_map,
+            fmt="%.6f"
+        )
+
 class PairwiseMaps:
     """ Class to handle pairwise distance and contact maps for given molecule pairs."""
 
@@ -641,8 +837,9 @@ class PairwiseMaps:
         ############################################################################
         for pair_name, pairwise_map in pairwise_maps.items():
 
-            pairwise_maps[pair_name] = self.expand_map_to_residue_level(
+            pairwise_maps[pair_name] = expand_map_to_residue_level(
                 q_map=pairwise_map.astype(self.f_dtype),
+                molwise_xyzr_keys=self.molwise_xyzr_keys,
                 pair_name=pair_name
             )
 
@@ -663,7 +860,7 @@ class PairwiseMaps:
             for pair_name, pairwise_map in pairwise_maps.items():
 
                 if binarize_map:
-                    pairwise_maps[pair_name] = PairwiseMaps.get_binary_map(
+                    pairwise_maps[pair_name] = get_binary_map(
                         q_map=pairwise_map.astype(self.f_dtype),
                         contact_cutoff=self.contact_cutoff,
                         map_type=map_type,
@@ -674,89 +871,6 @@ class PairwiseMaps:
                     pairwise_maps[pair_name] = pairwise_map.astype(self.f_dtype)
 
         return pairwise_maps
-
-    def expand_map_to_residue_level(
-        self,
-        q_map: np.ndarray,
-        pair_name: str
-    ) -> np.ndarray:
-        """ Expand a bead-level distance/contact map to residue-level map.
-
-        ## Arguments:
-
-        - **q_map (np.ndarray)**:<br />
-            Original distance/contact map.
-
-        - **pair_name (str)**:<br />
-            The name of the molecule pair. (e.g. "MOL1_COPYIDX:MOL2_COPYIDX")
-
-        ## Returns:
-
-        - **np.ndarray**:<br />
-            Expanded distance/contact map.
-        """
-
-        _m1, _m2 = pair_name.split(PAIR_SEP)
-        mol1 = self.xyzr_parser.get_mol_name(_m1, only_base=False)
-        mol2 = self.xyzr_parser.get_mol_name(_m2, only_base=False)
-
-        # expand the maps to include all residues in the selection
-        q_map = self.explode_map(q_map, mol1, by="row")
-        q_map = self.explode_map(q_map, mol2, by="col")
-
-        return q_map
-
-    def explode_map(
-        self,
-        q_map: np.ndarray,
-        mol: str,
-        by: str = "row",
-    ) -> np.ndarray:
-        """ Expand a bead-level distance/contact map to residue-level map along
-        the specified axis.
-
-        ## Arguments:
-
-        - **q_map (np.ndarray)**:<br />
-            The distance/contact map to be expanded.
-
-        - **mol (str)**:<br />
-            The molecule name for which the map is being expanded (e.g. "MOL_COPYIDX").
-
-        - **by (str, optional):**:<br />
-            The axis along which to expand the map. Should be either "row" or "col".
-
-        ## Returns:
-
-        - **np.ndarray**:<br />
-            The expanded distance/contact map.
-        """
-
-        assert q_map.ndim == 2, "q_map must be a 2D array."
-
-        repeat_ = {
-            "row": lambda q, i: q[i, :],
-            "col": lambda q, i: q[:, i],
-        }
-
-        axis_ = {"row": 0, "col": 1}
-
-        special_keys = [
-            (key.rsplit("_", 1)[1], idx)
-            for idx, key in enumerate(self.molwise_xyzr_keys[mol])
-            if "-" in key
-        ]
-        dup_attrs = []
-
-        for key, attr_idx in special_keys:
-            num_repeats = len(get_res_range_from_key(key))
-            to_add = np.tile(repeat_[by](q_map, attr_idx), (num_repeats - 1, 1))
-            dup_attrs.append((to_add, attr_idx))
-
-        for to_add, attr_idx in reversed(dup_attrs):
-            q_map = np.insert(q_map, attr_idx + 1, to_add, axis=axis_[by])
-
-        return q_map
 
     def prepare_xyzr_batches(
         self,
@@ -796,18 +910,12 @@ class PairwiseMaps:
             if res_range is not None else self.molwise_residues[mol_name]
         )
 
-        idx = sorted([
-                i for i, k in enumerate(self.xyzr_keys)
-                if k.startswith(mol_name) and len(get_res_range_from_key(
-                    k.rsplit("_", 1)[1],
-                    return_type="set"
-                ).intersection(res_range)) > 0
-            ])
+        idx = XYZRParser.get_bead_indices(mol_name, res_range, self.xyzr_keys)
         xyzr = self.xyzr_mat[idx, :, :].astype(self.f_dtype)
         xyzr_batches = [
-                xyzr[:, f_batch, :].astype(self.f_dtype)
-                for f_batch in frame_batches
-            ]
+            xyzr[:, f_batch, :].astype(self.f_dtype)
+            for f_batch in frame_batches
+        ]
 
         del xyzr
 
@@ -892,7 +1000,7 @@ class PairwiseMaps:
             _map = pairwise_maps[pair_name].copy()
 
             if binarize_map is True:
-                _map = PairwiseMaps.get_binary_map(
+                _map = get_binary_map(
                     q_map=_map,
                     contact_cutoff=self.contact_cutoff,
                     map_type=map_type,
@@ -907,52 +1015,6 @@ class PairwiseMaps:
         }
 
         return merged_pairwise_maps
-
-    @staticmethod
-    def get_binary_map(
-        q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
-        contact_cutoff: float,
-        map_type: str = "dmap",
-        i_dtype: np.dtype = np.int32,
-    ) -> npt.NDArray[np.integer] | npt.NDArray[np.floating]:
-        """ Convert the distance or contact map to binary map based on cutoff.
-
-        ## Arguments:
-
-        - **q_map (npt.NDArray[np.integer] | npt.NDArray[np.floating])**:<br />
-            The distance or contact map to be binarized.
-
-        - **contact_cutoff (float)**:<br />
-            The cutoff value used for binarization.
-            - For distance maps, this is the maximum distance for a pair to be
-            considered in contact.
-            - For contact maps, this is the minimum fraction of frames which should
-            have the pair in contact for it to be considered a contact.
-
-        - **map_type (str, optional):**:<br />
-            The type of map being binarized.
-            Either "dmap" for distance maps or "cmap" for contact maps.
-
-        - **i_dtype (np.dtype, optional):**:<br />
-            The integer data type to be used for the binary map.
-
-        ## Returns:
-
-        - **npt.NDArray[np.integer] | npt.NDArray[np.floating]**:<br />
-            The binary map.
-        """
-
-        if map_type == "dmap":
-            q_map[q_map < contact_cutoff] = i_dtype(1)
-            q_map[q_map >= contact_cutoff] = i_dtype(0)
-
-        elif map_type == "cmap":
-            q_map[q_map >= contact_cutoff] = i_dtype(1)
-            q_map[q_map < contact_cutoff] = i_dtype(0)
-
-        q_map = q_map.astype(i_dtype)
-
-        return q_map
 
     def fetch_pairwise_distances(
         self,
@@ -1203,14 +1265,14 @@ class PairwiseMaps:
                 cmap_m1_m2.astype(self.i_dtype) / self.f_dtype(self.num_frames)
             )
 
-            PairwiseMaps.save_map_txt(
+            save_map_txt(
                 q_map=pairwise_dmaps[pair_name],
                 save_dir=interaction_map_dir,
                 map_name=f"{pair_name}_dmap",
                 overwrite=overwrite,
             )
 
-            PairwiseMaps.save_map_txt(
+            save_map_txt(
                 q_map=pairwise_cmaps[pair_name],
                 save_dir=interaction_map_dir,
                 map_name=f"{pair_name}_cmap",
@@ -1372,39 +1434,6 @@ class PairwiseMaps:
             del temp_dmap, temp_cmap
 
         return dmap, cmap
-
-    @staticmethod
-    def save_map_txt(
-        q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
-        save_dir: str,
-        map_name: str,
-        overwrite: bool = False
-    ):
-        """ Save a distance or contact map as a text file.
-
-        ## Arguments:
-
-        - **q_map (npt.NDArray[np.int_] | npt.NDArray[np.floating])**:<br />
-            The distance or contact map to be saved as a text file.
-
-        - **save_dir (str)**:<br />
-            The directory where the text file will be saved.
-
-        - **map_name (str)**:<br />
-            The name of the map, which will be used as the filename (without extension).
-
-        - **overwrite (bool, optional):**:<br />
-            Whether to overwrite the file if it already exists.
-        """
-
-        save_path = os.path.join(save_dir, f"{map_name}.txt")
-
-        if not os.path.exists(save_path) or overwrite:
-            np.savetxt(
-                save_path,
-                q_map,
-                fmt="%.6f"
-            )
 
 class Interaction:
     """ Class for computing interaction maps for selected molecule pairs."""
@@ -1717,7 +1746,7 @@ class Interaction:
         if "patches" in output_types:
             if not binarize_map:
                 pairwise_maps = {
-                    pair_name: PairwiseMaps.get_binary_map(
+                    pair_name: get_binary_map(
                         q_map=pairwise_maps[pair_name].astype(self.f_dtype),
                         contact_cutoff=cutoff,
                         map_type=map_type,
