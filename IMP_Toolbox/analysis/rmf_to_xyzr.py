@@ -439,6 +439,33 @@ class XYZRParser:
 
         return molwise_residues
 
+    def _get_molwise_residue_indices(self) -> Dict[str, list]:
+        """ Get molecule-wise residue indices corresponding to the bead keys.
+
+        ## Returns:
+
+        - **dict**:<br />
+            A dictionary mapping each unique molecule (MOL_COPYIDX) to a sorted list
+            of all residue indices represented.
+            Format: {
+                "MOL1_COPYIDX": [residue indices],
+                "MOL2_COPYIDX": [residue indices],
+                ...
+            }
+        """
+
+        if not hasattr(self, "molwise_residues"):
+            self.molwise_residues = self._get_molwise_residues()
+
+        return {
+            mol: sorted([
+                i for i, bead_k in enumerate(self.xyzr_keys)
+                if bead_k.startswith(mol) and len(get_res_range_from_key(
+                    bead_k.rsplit("_", 1)[1],
+                ).intersection(res_nums)) > 0
+            ]) for mol, res_nums in self.molwise_residues.items()
+        }
+
     def merge_residue_selection_by_copies(self) -> dict:
         """ Merge moleculwise residue dictionary across molecule copies.
 
@@ -612,6 +639,16 @@ class XYZRParser:
             return base
 
         return f"{base}{MOL_COPY_SEP}{cp_idx}"
+
+    @staticmethod
+    def get_bead_indices(mol, res_range, xyzr_keys):
+        return sorted([
+            i for i, k in enumerate(xyzr_keys)
+            if k.startswith(mol) and len(get_res_range_from_key(
+                k.rsplit("_", 1)[1],
+                return_type="set"
+            ).intersection(res_range)) > 0
+        ])
 
 if __name__ == "__main__":
 
