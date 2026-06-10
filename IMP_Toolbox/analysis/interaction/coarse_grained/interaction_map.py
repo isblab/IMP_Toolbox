@@ -798,6 +798,7 @@ class PairwiseMaps:
         self,
         pairwise_maps: dict,
         map_type: str,
+        merge_operation: str = "average",
         merge_copies: bool = False,
         binarize_map: bool = False,
     ) -> Dict[str, np.ndarray]:
@@ -852,7 +853,7 @@ class PairwiseMaps:
             pairwise_maps = self.merge_maps_by_copies(
                 pairwise_maps=pairwise_maps,
                 map_type=map_type,
-                operation="or" if binarize_map else "max",
+                operation="or" if binarize_map else merge_operation,
                 binarize_map=binarize_map,
             )
 
@@ -1915,6 +1916,7 @@ class Interaction:
         self.pairwise_dmaps = self.pairwise_maps_handler.process_pairwise_maps(
             pairwise_maps=pairwise_dmaps,
             map_type="dmap",
+            merge_operation="average",
             merge_copies=self.merge_copies,
             binarize_map=binarize_dmap,
         )
@@ -1922,6 +1924,7 @@ class Interaction:
         self.pairwise_cmaps = self.pairwise_maps_handler.process_pairwise_maps(
             pairwise_maps=pairwise_cmaps,
             map_type="cmap",
+            merge_operation="max",
             merge_copies=self.merge_copies,
             binarize_map=binarize_cmap,
         )
