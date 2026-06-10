@@ -1846,27 +1846,84 @@ class Interaction:
         )
         self.mol_pairs = mol_pair_handler.mol_pairs
 
-        self.pairwise_maps_handler = PairwiseContactMaps(
+        # self.pairwise_maps_handler = PairwiseContactMaps(
+        #     mol_pairs=self.mol_pairs,
+        #     xyzr_parser=xyzr_parser,
+        #     cutoff=cutoff,
+        #     merge_copies=merge_copies,
+        #     self_interaction=self_interaction,
+        #     f_dtype=f_dtype,
+        #     i_dtype=i_dtype,
+        # )
+
+        self.pairwise_maps_handler = PairwiseMaps(
             mol_pairs=self.mol_pairs,
             xyzr_parser=xyzr_parser,
             cutoff=cutoff,
-            merge_copies=merge_copies,
             self_interaction=self_interaction,
             f_dtype=f_dtype,
             i_dtype=i_dtype,
         )
 
-    def analyse_interactions(
+    def compute_interaction_maps(
         self,
         interaction_map_dir: str,
         nproc: int,
         overwrite: bool = False,
+        binarize_dmap: bool = False,
+        binarize_cmap: bool = False,
     ) -> None:
+        """ Compute pairwise distance and contact maps for the selected molecule pairs.
 
-        modelwise_cmaps = self.pairwise_maps_handler.fetch_pairwise_contact_maps(
+        ## Arguments:
+
+        - **interaction_map_dir (str)**:<br />
+            The directory where the computed interaction maps will be saved.
+
+        - **nproc (int)**:<br />
+            The number of processes to use for parallel computation of the maps.
+
+        - **overwrite (bool, optional):**:<br />
+            Whether to overwrite existing map files in the interaction_map_dir. If False,
+            the function will load existing maps from disk if they are available, and skip
+            recomputation. Note that the plots are always overwritten to reflect the current
+            binarization settings, but the raw maps are not recomputed if the files already exist.
+
+        - **binarize_dmap (bool, optional):**:<br />
+            Whether to binarize the distance maps based on the cutoff. If True, the distance
+            maps will be converted to binary maps using the `get_binary_map` function, where a
+            contact is defined as present if the distance is less than or equal to the cutoff.
+            If False, the distance maps will not be binarized and will retain their original values
+            (e.g. average distances). (default: False)
+
+        - **binarize_cmap (bool, optional):**:<br />
+            Whether to binarize the contact maps based on the cutoff. If True, the contact maps
+            will be converted to binary maps using the `get_binary_map` function, where a contact
+            is defined as present if the contact frequency is greater than or equal to the cutoff.
+            If False, the contact maps will not be binarized and will retain their original values
+            (e.g. average contact frequencies). (default: False)
+        """
+        (
+            pairwise_dmaps,
+            pairwise_cmaps
+        ) = self.pairwise_maps_handler.fetch_pairwise_maps(
             interaction_map_dir=interaction_map_dir,
             nproc=nproc,
             overwrite=overwrite,
+        )
+
+        self.pairwise_dmaps = self.pairwise_maps_handler.process_pairwise_maps(
+            pairwise_maps=pairwise_dmaps,
+            map_type="dmap",
+            merge_copies=self.merge_copies,
+            binarize_map=binarize_dmap,
+        )
+
+        self.pairwise_cmaps = self.pairwise_maps_handler.process_pairwise_maps(
+            pairwise_maps=pairwise_cmaps,
+            map_type="cmap",
+            merge_copies=self.merge_copies,
+            binarize_map=binarize_cmap,
         )
 
         if self.merge_copies:
@@ -1874,8 +1931,29 @@ class Interaction:
             self.molwise_residues = self.xyzr_parser.molwise_residues
 
         self.map_slices = self.generate_map_slices(
-            pairwise_keys=list(modelwise_cmaps.keys()),
+            pairwise_keys=list(self.pairwise_dmaps.keys()),
         )
+
+    # def analyse_interactions(
+    #     self,
+    #     interaction_map_dir: str,
+    #     nproc: int,
+    #     overwrite: bool = False,
+    # ) -> None:
+
+    #     modelwise_cmaps = self.pairwise_maps_handler.fetch_pairwise_contact_maps(
+    #         interaction_map_dir=interaction_map_dir,
+    #         nproc=nproc,
+    #         overwrite=overwrite,
+    #     )
+
+    #     if self.merge_copies:
+    #         self.xyzr_parser.merge_residue_selection_by_copies()
+    #         self.molwise_residues = self.xyzr_parser.molwise_residues
+
+    #     self.map_slices = self.generate_map_slices(
+    #         pairwise_keys=list(modelwise_cmaps.keys()),
+    #     )
 
     def generate_map_slices(
         self,
@@ -2382,6 +2460,7 @@ def main(
     cutoff1: float,
     cutoff2: float,
     interaction_map_dir: str,
+    binarize_dmap: bool,
     binarize_cmap: bool,
     plotting_lib: str = "matplotlib",
     input: str = None,
@@ -2404,14 +2483,33 @@ def main(
         i_dtype=i_dtype,
     )
 
-    interaction_.analyse_interactions(
+    # interaction_.analyse_interactions(
+    #     interaction_map_dir=interaction_map_dir,
+    #     nproc=nproc,
+    #     overwrite=overwrite,
+    # )
+
+    interaction_.compute_interaction_maps(
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
         overwrite=overwrite,
+        binarize_dmap=binarize_dmap,
+        binarize_cmap=binarize_cmap,
     )
 
     interaction_.save_output(
-        pairwise_maps=interaction_.pairwise_maps_handler.modelwise_cmaps,
+        pairwise_maps=interaction_.pairwise_dmaps,
+        interaction_map_dir=interaction_map_dir,
+        nproc=nproc,
+        cutoff=cutoff1,
+        binarize_map=binarize_dmap,
+        map_type="dmap",
+        output_type="plots",
+        plotting_lib=plotting_lib,
+    )
+
+    interaction_.save_output(
+        pairwise_maps=interaction_.pairwise_cmaps,
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
         cutoff=cutoff2,
@@ -2549,6 +2647,7 @@ if __name__ == "__main__":
         cutoff1=args.dist_cutoff,
         cutoff2=args.frac_cutoff,
         interaction_map_dir=args.interaction_map_dir,
+        binarize_dmap=args.binarize_dmap,
         binarize_cmap=args.binarize_cmap,
         plotting_lib=args.plotting,
         input=args.input,
