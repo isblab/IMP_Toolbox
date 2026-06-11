@@ -641,7 +641,7 @@ def expand_map_to_residue_level(
 
 def get_binary_map(
     q_map: npt.NDArray[np.integer] | npt.NDArray[np.floating],
-    contact_cutoff: float,
+    binarization_cutoff: float,
     map_type: str = "dmap",
     i_dtype: np.dtype = np.int32,
 ) -> npt.NDArray[np.integer] | npt.NDArray[np.floating]:
@@ -652,7 +652,7 @@ def get_binary_map(
     - **q_map (npt.NDArray[np.integer] | npt.NDArray[np.floating])**:<br />
         The distance or contact map to be binarized.
 
-    - **contact_cutoff (float)**:<br />
+    - **binarization_cutoff (float)**:<br />
         The cutoff value used for binarization.
         - For distance maps, this is the maximum distance for a pair to be
         considered in contact.
@@ -673,12 +673,12 @@ def get_binary_map(
     """
 
     if map_type == "dmap":
-        q_map[q_map < contact_cutoff] = i_dtype(1)
-        q_map[q_map >= contact_cutoff] = i_dtype(0)
+        q_map[q_map < binarization_cutoff] = i_dtype(1)
+        q_map[q_map >= binarization_cutoff] = i_dtype(0)
 
     elif map_type == "cmap":
-        q_map[q_map >= contact_cutoff] = i_dtype(1)
-        q_map[q_map < contact_cutoff] = i_dtype(0)
+        q_map[q_map >= binarization_cutoff] = i_dtype(1)
+        q_map[q_map < binarization_cutoff] = i_dtype(0)
 
     q_map = q_map.astype(i_dtype)
 
@@ -766,8 +766,14 @@ class PairwiseMaps:
     """ The integer data type to use for the binary contact maps. """
 
     contact_cutoff: float
-    """ The cutoff distance used for binarization of the maps, which will be
+    """ The cutoff distance used for binarization of the distance maps, which will be
     passed to the `get_binary_map` function if binarization is specified.
+    See :func:`get_binary_map` for more details.
+    """
+
+    fraction_cutoff: float
+    """ The cutoff fraction used for binarization of the contact maps, which will
+    be passed to the `get_binary_map` function if binarization is specified.
     See :func:`get_binary_map` for more details.
     """
 
@@ -775,7 +781,8 @@ class PairwiseMaps:
         self,
         mol_pairs: list,
         xyzr_parser: XYZRParser,
-        cutoff: float,
+        contact_cutoff: float,
+        fraction_cutoff: float,
         self_interaction: bool = False,
         f_dtype: np.dtype = np.float64,
         i_dtype: np.dtype = np.int32,
@@ -792,7 +799,8 @@ class PairwiseMaps:
         self.unique_mols = xyzr_parser.unique_mols
         self.f_dtype = f_dtype
         self.i_dtype = i_dtype
-        self.contact_cutoff = cutoff
+        self.contact_cutoff = contact_cutoff
+        self.fraction_cutoff = fraction_cutoff
 
     def process_pairwise_maps(
         self,
@@ -834,6 +842,8 @@ class PairwiseMaps:
             A dictionary of processed interaction maps per molecule pair.
         """
 
+        assert map_type in ["dmap", "cmap"], "map_type must be either 'dmap' or 'cmap'"
+
         ############################################################################
         # Expand the maps to residue-level for plotting and patch extraction.
         ############################################################################
@@ -864,7 +874,7 @@ class PairwiseMaps:
                 if binarize_map:
                     pairwise_maps[pair_name] = get_binary_map(
                         q_map=pairwise_map.astype(self.f_dtype),
-                        contact_cutoff=self.contact_cutoff,
+                        binarization_cutoff=self.contact_cutoff if map_type=="dmap" else self.fraction_cutoff,
                         map_type=map_type,
                         i_dtype=self.i_dtype
                     )
@@ -1004,7 +1014,7 @@ class PairwiseMaps:
             if binarize_map is True:
                 _map = get_binary_map(
                     q_map=_map,
-                    contact_cutoff=self.contact_cutoff,
+                    binarization_cutoff=self.contact_cutoff if map_type=="dmap" else self.fraction_cutoff,
                     map_type=map_type,
                     i_dtype=self.i_dtype,
                 )
@@ -1788,6 +1798,13 @@ class Interaction:
     See :func:`get_binary_map` for more details.
     """
 
+    fraction_cutoff: float
+    """ The cutoff for the fraction of frames in which a contact is present, used for
+    binarization of the contact maps. This will be passed to the `get_binary_map`
+    function if binarization of contact maps is specified. See :func:`get_binary_map`
+    for more details.
+    """
+
     f_dtype: np.dtype
     """ The floating point data type to use for the distance/contact maps. """
 
@@ -1811,7 +1828,8 @@ class Interaction:
     def __init__(
         self,
         xyzr_parser: XYZRParser,
-        cutoff: float,
+        contact_cutoff: float,
+        fraction_cutoff: float,
         input: str = None,
         merge_copies=False,
         self_interaction: str = "allow_none",
@@ -1825,7 +1843,8 @@ class Interaction:
         self.xyzr_parser = xyzr_parser
         self.molwise_residues = xyzr_parser.molwise_residues
 
-        self.contact_cutoff = cutoff
+        self.contact_cutoff = contact_cutoff
+        self.fraction_cutoff = fraction_cutoff
         self.f_dtype = f_dtype
         self.i_dtype = i_dtype
         self.merge_copies = merge_copies
@@ -1860,7 +1879,8 @@ class Interaction:
         self.pairwise_maps_handler = PairwiseMaps(
             mol_pairs=self.mol_pairs,
             xyzr_parser=xyzr_parser,
-            cutoff=cutoff,
+            contact_cutoff=self.contact_cutoff,
+            fraction_cutoff=self.fraction_cutoff,
             self_interaction=self_interaction,
             f_dtype=f_dtype,
             i_dtype=i_dtype,
@@ -2116,7 +2136,7 @@ class Interaction:
                 pairwise_maps = {
                     pair_name: get_binary_map(
                         q_map=pairwise_maps[pair_name].astype(self.f_dtype),
-                        contact_cutoff=cutoff,
+                        binarization_cutoff=cutoff,
                         map_type=map_type,
                         i_dtype=self.i_dtype,
                     )
@@ -2460,8 +2480,8 @@ class Interaction:
 def main(
     xyzr_file: str,
     nproc: int,
-    cutoff1: float,
-    cutoff2: float,
+    contact_cutoff: float,
+    fraction_cutoff: float,
     interaction_map_dir: str,
     binarize_dmap: bool,
     binarize_cmap: bool,
@@ -2478,7 +2498,8 @@ def main(
 
     interaction_ = Interaction(
         xyzr_parser=XYZRParser(xyzr_file=xyzr_file),
-        cutoff=cutoff1,
+        contact_cutoff=contact_cutoff,
+        fraction_cutoff=fraction_cutoff,
         input=input,
         self_interaction=self_interaction,
         merge_copies=merge_copies,
@@ -2504,7 +2525,7 @@ def main(
         pairwise_maps=interaction_.pairwise_dmaps,
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
-        cutoff=cutoff1,
+        cutoff=contact_cutoff,
         binarize_map=binarize_dmap,
         map_type="dmap",
         output_type="plots",
@@ -2515,7 +2536,7 @@ def main(
         pairwise_maps=interaction_.pairwise_cmaps,
         interaction_map_dir=interaction_map_dir,
         nproc=nproc,
-        cutoff=cutoff2,
+        cutoff=fraction_cutoff,
         binarize_map=binarize_cmap,
         map_type="cmap",
         output_type="plots+patches",
@@ -2563,14 +2584,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--dist_cutoff",
+        "--contact_cutoff",
         default=10.0,
         type=float,
         help="Cutoff distance (in Å) for contact/distance map calculation.",
     )
 
     parser.add_argument(
-        "--frac_cutoff",
+        "--fraction_cutoff",
         default=0.25,
         type=float,
         help="Fraction cutoff for contact map binarization.",
@@ -2647,8 +2668,8 @@ if __name__ == "__main__":
     main(
         xyzr_file=args.xyzr_file,
         nproc=args.nproc,
-        cutoff1=args.dist_cutoff,
-        cutoff2=args.frac_cutoff,
+        contact_cutoff=args.contact_cutoff,
+        fraction_cutoff=args.fraction_cutoff,
         interaction_map_dir=args.interaction_map_dir,
         binarize_dmap=args.binarize_dmap,
         binarize_cmap=args.binarize_cmap,
