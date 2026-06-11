@@ -940,8 +940,8 @@ def interaction_map(
     xyzr_file: str,
     interaction_map_dir: str,
     nproc: int = 24,
-    dist_cutoff: float = 10.0,
-    frac_cutoff: float = 0.25,
+    contact_cutoff: float = 10.0,
+    fraction_cutoff: float = 0.25,
     plotting: str = "matplotlib",
     merge_copies: bool = False,
     binarize_cmap: bool = False,
@@ -968,14 +968,14 @@ def interaction_map(
     - **nproc (int, optional):**:<br />
         Number of cores to use for parallel processing. Defaults to 24.
 
-    - **dist_cutoff (float, optional):**:<br />
+    - **contact_cutoff (float, optional):**:<br />
         Distance cutoff (in Angstroms) for defining contacts in the contact map.
         Beads that are within this distance cutoff are considered to be in contact.
         Defaults to 10.0 Angstroms.
 
-    - **frac_cutoff (float, optional):**:<br />
+    - **fraction_cutoff (float, optional):**:<br />
         Minimum fraction of frames for a contact to be included in the final contact map.
-        For example, if frac_cutoff is 0.25, then only contacts that are
+        For example, if fraction_cutoff is 0.25, then only contacts that are
         present in at least 25% of the frames will be included in the final contact map.
         Defaults to 0.25.
 
@@ -1023,8 +1023,8 @@ def interaction_map(
         "python", script_path,
         "--xyzr_file", xyzr_file,
         "--nproc", nproc,
-        "--dist_cutoff", dist_cutoff,
-        "--frac_cutoff", frac_cutoff,
+        "--contact_cutoff", contact_cutoff,
+        "--fraction_cutoff", fraction_cutoff,
         "--interaction_map_dir", interaction_map_dir,
         "--plotting", plotting,
         "--float_dtype", float_dtype,
@@ -1680,8 +1680,8 @@ if __name__ == "__main__":
             xyzr_file=xyzr_output_path,
             interaction_map_dir=interaction_map_dir,
             nproc=24,
-            dist_cutoff=10.0,
-            frac_cutoff=0.25,
+            contact_cutoff=10.0,
+            fraction_cutoff=0.25,
             plotting="matplotlib",
             merge_copies=False,
             binarize_cmap=False,
