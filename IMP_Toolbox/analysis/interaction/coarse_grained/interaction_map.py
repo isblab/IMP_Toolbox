@@ -210,7 +210,7 @@ class Molecules:
 
         enriched_molecules = []
         for m in self.molecules:
-            _enriched = self.enrich_molecule(m)
+            _enriched = self.enrich_molecule(m, fix_range=True)
             enriched_molecules.extend(_enriched)
 
         self.molecules = sorted(set(enriched_molecules))
@@ -222,7 +222,7 @@ class Molecules:
         for attr in self.extra_attrs:
             enriched_attr = {
                 en_m: val for m, val in attr.items()
-                for en_m in self.enrich_molecule(m)
+                for en_m in self.enrich_molecule(m, fix_range=True)
             }
             enriched_attrs.append(enriched_attr)
 
@@ -260,7 +260,7 @@ class Molecules:
             False: lambda mol, specified_range: None,
         }
 
-    def enrich_molecule(self, m):
+    def enrich_molecule(self, m, fix_range: bool = False) -> List[str]:
 
         enriched_molecules = []
 
@@ -281,8 +281,15 @@ class Molecules:
         for cpy in copies_m:
 
             condition = sel is not None and sel != ""
-            self._range_checker[condition](cpy, sel)
-            enriched_molecules.append(self._enricher[condition](cpy, sel))
+            if fix_range:
+                valid_range = set(self.molwise_residues[cpy])
+                specified_range_set = set(get_res_range_from_key(sel))
+                common_range = valid_range.intersection(specified_range_set)
+                common_range_key = get_key_from_res_range(common_range)
+            else:
+                self._range_checker[condition](cpy, sel)
+                common_range_key = sel
+            enriched_molecules.append(self._enricher[condition](cpy, common_range_key))
 
         return enriched_molecules
 
