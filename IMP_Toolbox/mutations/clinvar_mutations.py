@@ -1069,6 +1069,7 @@ def process_clinvar_variant_data(
     protein_uniprot_map: dict,
     protein_gene_map: dict,
     protein_sequences: dict,
+    modeled_ranges: dict,
     clinvar_output_dir: str,
     pairwise_alignments_dir: str,
     include_VUS: bool = False,
@@ -1076,6 +1077,7 @@ def process_clinvar_variant_data(
     alpha_missense_dir: str = "",
     af_missense_mode: str = "online",
     af_missense_tsv: str = "",
+    overwrite: bool = False,
 ) -> pd.DataFrame:
     """ A wrapper function to process ClinVar variant data for a set of proteins.
 
@@ -1142,14 +1144,14 @@ def process_clinvar_variant_data(
             alpha_missense_dir,
             uniprot_bases,
             mode=af_missense_mode,
-            overwrite=False,
+            overwrite=overwrite,
             af_missense_tsv=af_missense_tsv,
         )
 
         export_af_missense_data(
             alpha_missense_dir,
             af_missense_df_gen,
-            overwrite=False,
+            overwrite=overwrite,
         )
 
     if include_VUS:
@@ -1206,7 +1208,7 @@ def process_clinvar_variant_data(
 
             afm_psa_map = afm_pairwise_alignment.fetch_pairwise_alingment_map(
                 pairwise_alignment_file=AF_MISSENSE_PAIR_ALN_FASTA,
-                overwrite=False,
+                overwrite=overwrite,
             )
 
             # warn if sequences not identical
@@ -1247,7 +1249,7 @@ def process_clinvar_variant_data(
             input_data=g_name,
             api_parameters=api_parameters,
             ignore_error=False,
-            overwrite=False,
+            overwrite=overwrite,
         )
 
         if len(variant_ids) == 0:
@@ -1262,7 +1264,7 @@ def process_clinvar_variant_data(
             input_data=variant_ids,
             api_parameters=CLINVAR_TEMPLATE_QUERY_DETAIL,
             ignore_error=False,
-            overwrite=False,
+            overwrite=overwrite,
         )
 
         if len(clinvar_variants) == 0:
@@ -1334,6 +1336,12 @@ def process_clinvar_variant_data(
         return pd.DataFrame(columns=cols_to_add.keys())
 
     df = pd.DataFrame(df_rows)
+
+    df = filter_variants_by_modeled_ranges(
+        df=df,
+        modeled_ranges=modeled_ranges,
+        ignore_warnings=True,
+    )
     df["residue_number"] = df["p_mutation"].apply(
         split_missense_mutation, return_type="res_num", ignore_warnings=True
     )
@@ -1343,6 +1351,58 @@ def process_clinvar_variant_data(
     df = df.rename(columns=cols_to_add)
 
     return df
+
+def filter_variants_by_modeled_ranges(
+    df: pd.DataFrame,
+    modeled_ranges: dict,
+    ignore_warnings: bool = True,
+) -> pd.DataFrame:
+    """ Filter variants based on modeled ranges.
+
+    ## Arguments:
+
+    - **df (pd.DataFrame)**:<br />
+        DataFrame containing variant information.
+
+    - **modeled_ranges (dict)**:<br />
+        Dictionary mapping protein names to their modeled residue ranges.
+
+    - **ignore_warnings (bool, optional)**:<br />
+        Whether to ignore warnings. Defaults to True.
+
+    ## Returns:
+
+    - **pd.DataFrame**:<br />
+        Filtered DataFrame containing only variants within the modeled ranges.
+    """
+
+    if not isinstance(modeled_ranges, dict) or len(modeled_ranges) == 0:
+        warnings.warn("Modeled ranges not provided or empty. Skipping filtering.")
+        return df
+
+    filtered_rows = []
+    for _, row in df.iterrows():
+        g_name = row["gene"]
+        res_num = split_missense_mutation(
+            p_mutation=row["p_mutation"],
+            return_type="res_num",
+            ignore_warnings=ignore_warnings,
+        )
+
+        if res_num is None:
+            warnings.warn(f"Residue number not found for {row['p_mutation']}. Skipping.")
+            continue
+
+        modeled_range = modeled_ranges.get(g_name, None)
+
+        if modeled_range is None:
+            warnings.warn(f"Modeled range not found for {g_name}. Skipping.")
+            continue
+
+        if modeled_range[0] <= res_num <= modeled_range[1]:
+            filtered_rows.append(row)
+
+    return pd.DataFrame(filtered_rows)
 
 if __name__ == "__main__":
 
@@ -1416,6 +1476,7 @@ if __name__ == "__main__":
         protein_uniprot_map=protein_uniprot_map,
         protein_gene_map=protein_gene_map,
         protein_sequences=protein_sequences,
+        modeled_ranges={},
         clinvar_output_dir=args.clinvar_output_dir,
         pairwise_alignments_dir=args.pairwise_alignments_dir,
         include_VUS=args.include_VUS,
