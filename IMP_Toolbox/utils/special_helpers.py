@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import psa
 import warnings
+import string
 import Bio
 import Bio.PDB
 import Bio.PDB.Structure
@@ -15,6 +16,87 @@ from IMP_Toolbox.utils.obj_helpers import (
 )
 from IMP_Toolbox.utils.file_helpers import read_fasta
 
+def chain_id_gen():
+    """ Generator to sequentially generate 52 alphabets to use as Chain IDs
+
+    TODO: Extend to more than 52 chains if needed
+
+    ## Yields:
+
+    - **str**:<br />
+        Chain ID
+
+    ## Examples:
+
+    >>> gen = chain_id_gen()
+    >>> _chains= []
+    >>> for _ in range(52):
+    ...     _chains.append(next(gen))
+    >>> print("".join(_chains))
+    ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+    """
+
+    for i in (list(string.ascii_uppercase)):
+        yield i
+    for i in (list(string.ascii_lowercase)):
+        yield i
+
+def parse_topology_file(topology_file: str) -> dict:
+    """ Get molecule-chain map from the IMP topology file.
+
+    A molecule is the molecule name and copy index (e.g. Pkp2a.0)
+
+    ## Arguments:
+
+    - **topology_file (str)**:<br />
+        Path to the input topology file used for the IMP.
+
+    ## Returns:
+
+    - **dict**:<br />
+        A dictionary mapping molecule names to chain IDs.
+    """
+
+    with open(topology_file, "r") as f:
+        lines = f.readlines()
+
+    start_parsing = False
+    fields = []
+    gen = chain_id_gen()
+    chain_map = {}
+    resolution_map = {}
+    for line in lines:
+        line_parts = line.strip().split("|")
+        line_parts = [part.strip() for part in line_parts]
+        if len(line_parts) <= 1:
+            continue
+        line_parts = line_parts[1:-1]
+        # print(line_parts)
+        if line_parts[0].strip() == "molecule_name":
+            start_parsing = True
+            fields = [field.strip() for field in line_parts]
+            # print(fields)
+            continue
+        if start_parsing:
+            values = [value.strip() for value in line_parts]
+            molecule_info = dict(zip(fields, values))
+            # print(molecule_info)
+            res_range = molecule_info["residue_range"].replace(",", "-")
+            res_range = get_res_range_from_key(res_range)
+            resolution = molecule_info["bead_size"]
+            pdb_fn = molecule_info["pdb_fn"]
+            if pdb_fn != "BEADS":
+                resolution = "1," + resolution
+            copy_name = molecule_info["molecule_name"].replace(".", "_")
+            if copy_name not in chain_map:
+                chain_id = next(gen)
+                # print(molecule_info["molecule_name"], "->", chain_id)
+                chain_map[copy_name] = chain_id
+                resolution_map[copy_name] = {res: resolution for res in res_range}
+            else:
+                resolution_map[copy_name].update({res: resolution for res in res_range})
+
+    return chain_map, resolution_map
 
 
 def make_protein(protein_name, seq_start, seq_end, *kwargs):
