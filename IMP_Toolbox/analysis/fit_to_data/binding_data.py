@@ -59,7 +59,8 @@ class BindingData:
         self.pairwise_maps_handler = PairwiseMaps(
             mol_pairs=self.sel_mol_pairs,
             xyzr_parser=xyzr_parser,
-            cutoff=10,
+            contact_cutoff=10,
+            fraction_cutoff=0.25,
             self_interaction=self_interaction,
             f_dtype=f_dtype,
             i_dtype=i_dtype,
@@ -158,7 +159,7 @@ class BindingData:
         ax.vlines(inds, quartile1, quartile3, color='k', linestyle='-', lw=5)
         ax.vlines(inds, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
-        ax.axhline(y=5, color='g', linestyle='--', label='5 Å Threshold')
+        ax.axhline(y=6, color='g', linestyle='--', label='6 Å Threshold')
 
         ax.set_xticks(np.arange(1, len(label_names) + 1))
         ax.set_xticklabels(label_names, rotation=45, ha='right', fontsize=7)

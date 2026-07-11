@@ -137,6 +137,7 @@ def get_res_range_from_key(
     """
 
     res_range_list = []
+    res_range = str(res_range).strip()
 
     for res_range in res_range.split(","):
 
