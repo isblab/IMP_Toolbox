@@ -19,7 +19,11 @@ from .best_structure import (
     make_best_structures_df,
 )
 
-from .split import (
+from .tools import (
     split_structure_by_chain,
     get_per_chain_residues,
+    pdb_to_mmcif,
+    mmcif_to_pdb,
+    transform_pdb,
+    save_structure_obj,
 )
