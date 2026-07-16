@@ -130,6 +130,8 @@ def get_burial_info(
             df_rows.append(df_dict)
 
     column_order = ["chain_id", "res_num", "amino_acid", "secondary_structure", "rsa_val"]
+    if isinstance(entity_chain_map, dict):
+        column_order = ["entity", "chain_id", "res_num", "amino_acid", "secondary_structure", "rsa_val"]
 
     if include_residue_depth:
         column_order.extend(["residue_depth", "residue_cab_depth"])
@@ -150,17 +152,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--rsa_threshold_core",
-        type=float,
-        default=0.2,
-        help="Relative solvent accessibility threshold for classifying residues as core.",
-    )
-
-    parser.add_argument(
-        "--rsa_threshold_surface",
-        type=float,
-        default=0.2,
-        help="Relative solvent accessibility threshold for classifying residues as surface.",
+        "--output_csv",
+        type=str,
+        required=True,
+        help="Path to the output CSV file.",
     )
 
     parser.add_argument(
@@ -187,4 +182,5 @@ if __name__ == "__main__":
         # residue_selector={"A": [670]},
         msms_executable=args.msms_executable,
     )
-    print(df.head())
+    # print(df.head())
+    df.to_csv(args.output_csv, index=False)
