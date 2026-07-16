@@ -8,6 +8,7 @@ from IMP_Toolbox.constants.ptm_constants import API_URLS
 def get_ptmd_data(
     savedir: str,
     key: str = "ptmd_total",
+    reextract: bool = False,
     overwrite: bool = False,
 ):
 
@@ -18,7 +19,11 @@ def get_ptmd_data(
     savepath = Path(savedir) / f"{key}.zip"
     if savepath.exists() and not overwrite:
         print(f"PTMD data already exists at {savepath}. Skipping download.")
+        if reextract:
+            with zipfile.ZipFile(savepath, "r") as zip_ref:
+                zip_ref.extractall(Path(savedir) / key)
         return
+
     os.makedirs(savedir, exist_ok=True)
 
     print("Downloading PTMD data ...")
