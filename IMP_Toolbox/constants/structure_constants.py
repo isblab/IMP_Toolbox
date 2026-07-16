@@ -14,3 +14,7 @@ class BestStructureCol(StrEnum):
     START = auto()
     END = auto()
     RESOLUTION = auto()
+
+class ProteinCoreCriteria:
+    rsa_threshold = 0.2
+    residue_depth_threshold = 4.0
