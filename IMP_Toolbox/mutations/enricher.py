@@ -1,5 +1,6 @@
 import os
 import tempfile
+import numpy as np
 import pandas as pd
 import Bio.PDB.Structure
 from pathlib import Path
@@ -54,7 +55,7 @@ class VariantsEnricher:
         self.gene_protein_map = {v: k for k, v in protein_gene_map.items()}
         self.protein_uniprot_map = protein_uniprot_map
         self.interaction_map_dir = interaction_map_dir
-        self.msms_executable = msms_executable
+        self.msms_executable = os.path.expandvars(msms_executable)
         self.include_ptm = include_ptm
         self.include_vus = include_vus
         self.af_missense_cutoff = af_missense_cutoff
@@ -95,6 +96,17 @@ class VariantsEnricher:
 
         self.alpha_missense_dir = alpha_missense_dir
         self.pairwise_alignments_dir = pairwise_alignments_dir
+
+    @property
+    def variants_are_enriched(self):
+        """ Check if the variants have been enriched with structural information.
+
+        ## Returns:
+
+        - **bool**:<br />
+            True if the variants have been enriched, False otherwise.
+        """
+        return len(self.enriched_variants) > 0
 
     def enrich_variants(self):
         """
@@ -445,6 +457,7 @@ class VariantsEnricher:
                 mutation=mutation,
                 gene=gene,
                 disease=disease,
+                af_missense_score=afm_s
             )
 
     def enrich_variant_annotations(
@@ -459,6 +472,7 @@ class VariantsEnricher:
         mutation: str,
         gene: str,
         disease: str,
+        af_missense_score: float,
     ):
         """ Enrich the annotations for a specific variant with structural information.
 
@@ -535,6 +549,7 @@ class VariantsEnricher:
                 "Residue Depth": set(),
                 "CAB Depth": set(),
                 "PTM": set(),
+                "AlphaMissense Score": set(),
             }
         ptm_annot = entity_ptm_df[entity_ptm_df["Position"] == res_num]
         ptm_types = ptm_annot["Type"].tolist()
@@ -575,6 +590,7 @@ class VariantsEnricher:
         self.enriched_variants[_key_]["Affected Interfaces"].update(affected_interfaces)
         self.enriched_variants[_key_]["Disease association"].update(diseases)
         self.enriched_variants[_key_]["Mutation"].add(mutation)
+        self.enriched_variants[_key_]["AlphaMissense Score"].add(str(af_missense_score))
 
         if res_num in rigid_body_ranges.get(ch_id, []):
             self.enriched_variants[_key_]["Rigid Body"].add(Path(temp_structure_path).stem)
@@ -693,6 +709,53 @@ class VariantsEnricher:
                     mutated_residues[ch_id].add(res_num)
 
         return mutated_residues
+
+    def get_enriched_variants_df(
+        self,
+        include_ptm: bool = False,
+    ):
+
+        if not self.variants_are_enriched:
+            raise ValueError("Variants have not been enriched yet. Please run enrich_variants() first.")
+
+        for (gene, res_num), info_dict in self.enriched_variants.items():
+
+            info_dict["Mutation"] = "\n".join(info_dict["Mutation"])
+            info_dict["Affected Interfaces"] = "\n".join(info_dict["Affected Interfaces"])
+            info_dict["Disease association"] = "\n".join([x for x in info_dict["Disease association"] if isinstance(x, str)])
+            info_dict["Rigid Body"] = "\n".join(info_dict["Rigid Body"])
+            info_dict["Secondary Structure"] = "\n".join(info_dict["Secondary Structure"])
+            info_dict["PTM"] = "\n".join(info_dict["PTM"])
+
+            # NOTE: averaging RSA, Residue depth and CAB depth is fine here for different chains of same protein
+            # since the structures of these chains are almost identical in the case of cardiac desmosome
+            # but if applying this code to other systems, consider whether this is appropriate or not
+            info_dict["RSA Value"] = np.mean([float(x) for x in list(info_dict["RSA Value"])]) if len(info_dict["RSA Value"])>0 else None
+            info_dict["Residue Depth"] = np.mean([float(x) for x in list(info_dict["Residue Depth"])]) if len(info_dict["Residue Depth"])>0 else None
+            info_dict["CAB Depth"] = np.mean([float(x) for x in list(info_dict["CAB Depth"])]) if len(info_dict["CAB Depth"])>0 else None
+            info_dict["AlphaMissense Score"] = np.mean([float(x) for x in list(info_dict["AlphaMissense Score"])]) if len(info_dict["AlphaMissense Score"])>0 else None
+
+        df_ = pd.DataFrame(self.enriched_variants.values())
+
+        df_combined = df_.copy()
+        df_combined["Affected Interfaces or Core"] = df_combined.apply(
+            lambda row: modify_affected_interface_val(row),
+            axis=1
+        )
+
+        df_combined["AlphaMissense Score"] = df_combined["AlphaMissense Score"].round(4)
+
+        # del df_combined["Residue Number"]
+        # del df_combined["RSA Value"]
+        # del df_combined["Residue Depth"]
+        del df_combined["CAB Depth"]
+        del df_combined["Rigid Body"]
+        del df_combined["Secondary Structure"]
+        del df_combined["Affected Interfaces"]
+        if include_ptm is False:
+            del df_combined["PTM"]
+
+        return df_combined
 
 def modify_affected_interface_val(row):
     if (
