@@ -18,3 +18,10 @@ class BestStructureCol(StrEnum):
 class ProteinCoreCriteria:
     rsa_threshold = 0.2
     residue_depth_threshold = 4.0
+
+RES_COLOR_MAP = {
+    "interface": "magenta",
+    "core": "blue",
+    "exposed": "limegreen",
+    "ptm": "yellow",
+}
