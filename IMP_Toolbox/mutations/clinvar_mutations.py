@@ -1382,7 +1382,7 @@ def filter_variants_by_modeled_ranges(
 
     filtered_rows = []
     for _, row in df.iterrows():
-        g_name = row["gene"]
+        p_name = row["protein"]
         res_num = split_missense_mutation(
             p_mutation=row["p_mutation"],
             return_type="res_num",
@@ -1393,10 +1393,10 @@ def filter_variants_by_modeled_ranges(
             warnings.warn(f"Residue number not found for {row['p_mutation']}. Skipping.")
             continue
 
-        modeled_range = modeled_ranges.get(g_name, None)
+        modeled_range = modeled_ranges.get(p_name, None)
 
         if modeled_range is None:
-            warnings.warn(f"Modeled range not found for {g_name}. Skipping.")
+            warnings.warn(f"Modeled range not found for {p_name}. Skipping.")
             continue
 
         if modeled_range[0] <= res_num <= modeled_range[1]:

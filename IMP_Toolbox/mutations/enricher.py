@@ -539,6 +539,7 @@ class VariantsEnricher:
         if _key_ not in self.enriched_variants:
             self.enriched_variants[_key_] = {
                 "Gene": gene,
+                "Protein": entity_,
                 "Residue Number": res_num,
                 "Mutation": set(),
                 "Affected Interfaces": set(),
@@ -726,6 +727,7 @@ class VariantsEnricher:
             info_dict["Rigid Body"] = "\n".join(info_dict["Rigid Body"])
             info_dict["Secondary Structure"] = "\n".join(info_dict["Secondary Structure"])
             info_dict["PTM"] = "\n".join(info_dict["PTM"])
+            info_dict["AlphaMissense Score"] = "\n".join([str(x) for x in list(info_dict["AlphaMissense Score"])])
 
             # NOTE: averaging RSA, Residue depth and CAB depth is fine here for different chains of same protein
             # since the structures of these chains are almost identical in the case of cardiac desmosome
@@ -733,7 +735,6 @@ class VariantsEnricher:
             info_dict["RSA Value"] = np.mean([float(x) for x in list(info_dict["RSA Value"])]) if len(info_dict["RSA Value"])>0 else None
             info_dict["Residue Depth"] = np.mean([float(x) for x in list(info_dict["Residue Depth"])]) if len(info_dict["Residue Depth"])>0 else None
             info_dict["CAB Depth"] = np.mean([float(x) for x in list(info_dict["CAB Depth"])]) if len(info_dict["CAB Depth"])>0 else None
-            info_dict["AlphaMissense Score"] = np.mean([float(x) for x in list(info_dict["AlphaMissense Score"])]) if len(info_dict["AlphaMissense Score"])>0 else None
 
         df_ = pd.DataFrame(self.enriched_variants.values())
 
@@ -742,8 +743,6 @@ class VariantsEnricher:
             lambda row: modify_affected_interface_val(row),
             axis=1
         )
-
-        df_combined["AlphaMissense Score"] = df_combined["AlphaMissense Score"].round(4)
 
         # del df_combined["Residue Number"]
         # del df_combined["RSA Value"]
