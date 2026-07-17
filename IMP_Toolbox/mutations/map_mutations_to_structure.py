@@ -1,5 +1,6 @@
 import textwrap
 import pandas as pd
+from string import Template
 from collections import defaultdict
 from IMP_Toolbox.analysis.rmf_to_xyzr import RMFToXYZRConverter
 from IMP_Toolbox.chimerax.rmf_selection import get_rmf_to_residue_map
@@ -331,6 +332,7 @@ class MutationMapperRMF(MutationMapper):
             xyzr_keys, chain_map, resolution_map
         )
         self.chain_map = chain_map
+        self.resolution_map = resolution_map
         self.rmf_to_residue_map = rmf_to_residue_map
         self.molwise_chain_map = self.get_molwise_chain_map()
 
@@ -402,3 +404,36 @@ class MutationMapperRMF(MutationMapper):
                     self.afm_attr_scores[f"/{chain}:{imp_res_num}"].append(afm_score)
 
         return self.chimerax_res_sels, self.afm_attr_scores
+
+    def define_centroids(
+        self,
+        outpath: str,
+        mutated_regions: list = ["interface", "core", "exposed", "ptm"]
+    ):
+
+        reverse_chain_map = {v: k for k, v in self.chain_map.items()}
+
+        centroid_sel_cmd = Template("define centroid ${selection} radius 2.0 color ${color}")
+        centroids_cmds = []
+        for mutated_region, selections in self.chimerax_res_sels.items():
+            if mutated_region not in mutated_regions:
+                continue
+            for chain, res_nums in selections.items():
+                protein = reverse_chain_map[chain]
+                for res_num in res_nums:
+                    if "," in self.resolution_map[protein][res_num]:
+                        continue
+                    centroid_cmd = centroid_sel_cmd.substitute(
+                        selection=f"$1/{chain}:{res_num}",
+                        color=RES_COLOR_MAP[mutated_region]
+                    )
+                    centroids_cmds.append(centroid_cmd)
+
+        centroids_cmds.append(f"sel $1.1-{len(centroids_cmds)}")
+        centroids_cmds = "\n".join(centroids_cmds)
+
+        if not outpath.endswith(".cxc"):
+            outpath += ".cxc"
+
+        with open(outpath, "w") as f:
+            f.write(centroids_cmds)
