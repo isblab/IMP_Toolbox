@@ -267,7 +267,7 @@ class MutationMapperPDB(MutationMapper):
 
         for idx, row in self.mutation_impact_df.iterrows():
             protein = row["Protein"]
-            if len(self.modeled_ranges) == 2:
+            if len(self.modeled_ranges[protein]) == 2:
                 start, end = self.modeled_ranges[protein]
             else:
                 start, end = 0, 0
@@ -366,7 +366,7 @@ class MutationMapperRMF(MutationMapper):
 
         for idx, row in self.mutation_impact_df.iterrows():
             protein = row["Protein"]
-            if len(self.modeled_ranges) == 2:
+            if len(self.modeled_ranges[protein]) == 2:
                 start, end = self.modeled_ranges[protein]
             else:
                 start, end = 0, 0
