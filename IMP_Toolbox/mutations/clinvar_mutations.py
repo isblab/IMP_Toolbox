@@ -1078,6 +1078,7 @@ def process_clinvar_variant_data(
     af_missense_mode: str = "online",
     af_missense_tsv: str = "",
     overwrite: bool = False,
+    ignore_start_codon_variants: bool = True,
 ) -> pd.DataFrame:
     """ A wrapper function to process ClinVar variant data for a set of proteins.
 
@@ -1345,6 +1346,8 @@ def process_clinvar_variant_data(
     df["residue_number"] = df["p_mutation"].apply(
         split_missense_mutation, return_type="res_num", ignore_warnings=True
     )
+    if ignore_start_codon_variants:
+        df = df[df["residue_number"] != 1]
     df = df.sort_values(by=["gene", "residue_number", "p_mutation"])
     df = df.drop_duplicates(subset=["gene", "p_mutation"]).reset_index(drop=True)
     df = df.drop(columns=["residue_number"])
