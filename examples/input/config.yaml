@@ -1,8 +1,8 @@
-proteins:
-  "Lb2Cas12a":
+protein_uniprot_map:
   "Cdc3": "P39825"
   "Act1": "P10989"
   "Dp1": "P15924-1"
+  "CHD4": "Q14839"
 
 af_jobs:
   Lb2Cas12a_RNA_DNA_complex_8I54_targets: # job cycle

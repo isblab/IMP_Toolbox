@@ -31,6 +31,41 @@ def query_uniprot_api_for_sequences(
     else:
         raise Exception("Error while requesting sequences for given uniprot ids")
 
+def query_uniprot_api_for_lengths(
+    uniprot_ids: list,
+    max_retries: int = 3
+) -> dict:
+    """ Get lengths for given uniprot ids
+
+    ## Arguments:
+
+    - **max_retries (int, optional):**:<br />
+        Number of times to retry the request in case of failure. Defaults to 3.
+
+    ## Returns:
+
+    - **dict**:<br />
+        Dictionary containing lengths for the given uniprot ids
+    """
+
+    joined = ",".join(uniprot_ids)
+    req_sess = request_session(max_retries=max_retries)
+    response = req_sess.get(
+        APIurl.uniprot_rest_api_length.substitute(ids=joined)
+    )
+
+    if response.status_code == 200:
+        print("Successfully fetched lengths for given uniprot ids")
+        response = response.json()
+
+        seq_lengths = {}
+        for entry in response.get("results", []):
+            seq_lengths[entry["primaryAccession"]] = entry["sequence"]["length"]
+        return seq_lengths
+
+    else:
+        raise Exception("Error while requesting lengths for given uniprot ids")
+
 def only_uniprot_id_as_header(
     fasta_str: str | None = None,
     fasta_file: str | None = None,

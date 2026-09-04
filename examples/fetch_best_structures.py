@@ -1,9 +1,7 @@
-# Description: Fetch best structures for given proteins
-# input: json file with protein names and uniprot ids ({protein_name: uniprot_id})
-# output: csv and json files with best structures
-
 import os
 import sys
+import yaml
+import textwrap
 from argparse import ArgumentParser
 from set_up import IMP_TOOLBOX
 sys.path.append(IMP_TOOLBOX)
@@ -15,15 +13,17 @@ from IMP_Toolbox.utils.file_helpers import read_json
 
 if __name__ == "__main__":
 
-    args = ArgumentParser()
+    args = ArgumentParser(description=textwrap.dedent(
+        """ Fetch best structures for given proteins and save them in csv format"""
+    ))
 
     args.add_argument(
         "-i",
         "--input",
         type=str,
         required=False,
-        default="./input/proteins.json",
-        help="Path to input json file containing proteins and their uniprot ids",
+        default="./input/config.yaml",
+        help="Path to input json/yaml file containing proteins and their uniprot ids",
     )
 
     args.add_argument(
@@ -45,7 +45,14 @@ if __name__ == "__main__":
 
     args = args.parse_args()
 
-    proteins_dict = read_json(args.input)
+
+    ext = os.path.splitext(args.input)[1]
+    if ext == ".json":
+        proteins_dict = read_json(args.input)
+    elif ext in [".yaml", ".yml"]:
+        proteins_dict = yaml.load(open(args.input, "r"), Loader=yaml.FullLoader)
+        proteins_dict = proteins_dict["protein_uniprot_map"]
+
     uniprot_ids = list(proteins_dict.values())
     uniprot_ids = [u for u in uniprot_ids if u is not None]
 
@@ -59,6 +66,6 @@ if __name__ == "__main__":
 
     df = make_best_structures_df(
         best_structures=best_structures,
-        uniprot_protein_map=proteins_dict,
+        protein_uniprot_map={v:k for k, v in proteins_dict.items()},
     )
     df.to_csv(args.output, index=False)

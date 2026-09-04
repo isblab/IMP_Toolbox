@@ -1,12 +1,6 @@
-# Description: Fetch sequences for given uniprot ids and save them in fasta format
-# input: json file with protein names and uniprot ids ({protein_name: uniprot_id})
-# output: fasta file with all the sequences
-
-# import sys
 import os
-# from set_up import IMP_TOOLBOX, PRE_PROCESSING
-# sys.path.append(IMP_TOOLBOX)
-# sys.path.append(PRE_PROCESSING)
+import yaml
+import textwrap
 from IMP_Toolbox.utils.file_helpers import read_json
 from argparse import ArgumentParser
 from IMP_Toolbox.sequence.sequence import (
@@ -17,7 +11,9 @@ from IMP_Toolbox.sequence.sequence import (
 
 if __name__ == "__main__":
 
-    args = ArgumentParser()
+    args = ArgumentParser(description=textwrap.dedent(
+        """Fetch sequences for given uniprot ids and save them in fasta format"""
+    ))
 
     args.add_argument(
         "-i",
@@ -25,7 +21,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default="./input/proteins.json",
-        help="Path to input json file containing proteins and their uniprot ids",
+        help="Path to input json/yaml file containing proteins and their uniprot ids",
     )
 
     args.add_argument(
@@ -39,7 +35,13 @@ if __name__ == "__main__":
 
     args = args.parse_args()
 
-    proteins_dict = read_json(args.input)
+    ext = os.path.splitext(args.input)[1]
+    if ext == ".json":
+        proteins_dict = read_json(args.input)
+    elif ext in [".yaml", ".yml"]:
+        proteins_dict = yaml.load(open(args.input, "r"), Loader=yaml.FullLoader)
+        proteins_dict = proteins_dict["protein_uniprot_map"]
+
     uniprot_ids = list(proteins_dict.values())
     uniprot_ids = [u for u in uniprot_ids if u is not None]
 
