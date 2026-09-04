@@ -40,11 +40,21 @@ class APIurl:
         f"{uniprot_rest_api}" +
         "/uniprotkb/accessions?accessions=${ids}&format=fasta"
     )
+    uniprot_rest_api_length = Template(
+        f"{uniprot_rest_api}" +
+        "/uniprotkb/accessions?accessions=${ids}&fields=accession%2Clength&format=json"
+    )
 
     pdbe_graph_api = "https://www.ebi.ac.uk/pdbe/graph-api"
     pdbe_api_best_structures = Template(
         f"{pdbe_graph_api}" +
         "/mappings/best_structures/${uniprot_id}"
+    )
+
+    pdbe_api = "https://www.ebi.ac.uk/pdbe/api/v2/pdb/entry"
+    pdbe_api_poly_coverage = Template(
+        f"{pdbe_api}" +
+        "/polymer_coverage/${pdb_id}/chain/${chain_id}"
     )
 
     emdb_ftp = "https://ftp.ebi.ac.uk/pub/databases/emdb"

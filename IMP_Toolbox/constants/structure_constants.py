@@ -9,6 +9,8 @@ class BestStructureCol(StrEnum):
     CHAIN_ID = auto()
     PDB_ID = auto()
     COVERAGE = auto()
+    MODELED_COVERAGE = auto()
+    MODELED_RESIDUES = auto()
     UNP_START = auto()
     UNP_END = auto()
     START = auto()
