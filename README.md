@@ -42,12 +42,12 @@
 
 - Use the following command in terminal. (change the installation path and conda environment)
   ```bash
-  bash install_imp_conda.sh \\
-    -e imp_omg \\
-    -i ~/IMP_OMG \\
-    -s tarball \\
-    -I 2.24.0 \\
-    -c 16 \\
+  bash install_imp_conda.sh \
+    -e imp_omg \
+    -i ~/IMP_OMG \
+    -s tarball \
+    -I 2.24.0 \
+    -c 16 \
     -P 3.12
   ```
 
