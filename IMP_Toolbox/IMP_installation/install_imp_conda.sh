@@ -167,7 +167,7 @@ fi
 echo $CONDA_DEFAULT_ENV ;
 
 # install required system packages
-
+mkdir -p $install_path ;
 cd $install_path ;
 if [[ -d "./imp-clean" ]]; then
     echo "The imp-clean directory already exists.";
