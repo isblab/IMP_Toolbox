@@ -80,6 +80,9 @@
             <li>
                     <a class="function" href="#fasta_str_to_dict">fasta_str_to_dict</a>
             </li>
+            <li>
+                    <a class="function" href="#fasta_dict_to_str">fasta_dict_to_str</a>
+            </li>
     </ul>
 
 
@@ -250,6 +253,31 @@
 </span><span id="L-148"><a href="#L-148"><span class="linenos">148</span></a>        <span class="k">else</span><span class="p">:</span>
 </span><span id="L-149"><a href="#L-149"><span class="linenos">149</span></a>            <span class="n">fasta_dict</span><span class="p">[</span><span class="n">seq_name</span><span class="p">]</span> <span class="o">+=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
 </span><span id="L-150"><a href="#L-150"><span class="linenos">150</span></a>    <span class="k">return</span> <span class="n">fasta_dict</span>
+</span><span id="L-151"><a href="#L-151"><span class="linenos">151</span></a>
+</span><span id="L-152"><a href="#L-152"><span class="linenos">152</span></a><span class="k">def</span><span class="w"> </span><span class="nf">fasta_dict_to_str</span><span class="p">(</span><span class="n">fasta_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="L-153"><a href="#L-153"><span class="linenos">153</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot; Convert a dictionary of sequences to a FASTA string.</span>
+</span><span id="L-154"><a href="#L-154"><span class="linenos">154</span></a>
+</span><span id="L-155"><a href="#L-155"><span class="linenos">155</span></a><span class="sd">    ## Arguments:</span>
+</span><span id="L-156"><a href="#L-156"><span class="linenos">156</span></a>
+</span><span id="L-157"><a href="#L-157"><span class="linenos">157</span></a><span class="sd">    - **fasta_dict (dict)**:&lt;br /&gt;</span>
+</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a><span class="sd">        Dictionary of sequences.</span>
+</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a>
+</span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a><span class="sd">    ## Returns:</span>
+</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a>
+</span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a><span class="sd">    - **str**:&lt;br /&gt;</span>
+</span><span id="L-163"><a href="#L-163"><span class="linenos">163</span></a><span class="sd">        FASTA string.</span>
+</span><span id="L-164"><a href="#L-164"><span class="linenos">164</span></a>
+</span><span id="L-165"><a href="#L-165"><span class="linenos">165</span></a><span class="sd">    ## Examples:</span>
+</span><span id="L-166"><a href="#L-166"><span class="linenos">166</span></a>
+</span><span id="L-167"><a href="#L-167"><span class="linenos">167</span></a><span class="sd">    &gt;&gt;&gt; fasta_dict = {&#39;seq1&#39;: &#39;ABCD&#39;, &#39;seq2&#39;: &#39;ABCD&#39;}</span>
+</span><span id="L-168"><a href="#L-168"><span class="linenos">168</span></a><span class="sd">    &gt;&gt;&gt; fasta_dict_to_str(fasta_dict)</span>
+</span><span id="L-169"><a href="#L-169"><span class="linenos">169</span></a><span class="sd">    &#39;&gt;seq1\nABCD\n&gt;seq2\nABCD&#39;</span>
+</span><span id="L-170"><a href="#L-170"><span class="linenos">170</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-171"><a href="#L-171"><span class="linenos">171</span></a>
+</span><span id="L-172"><a href="#L-172"><span class="linenos">172</span></a>    <span class="n">fasta_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+</span><span id="L-173"><a href="#L-173"><span class="linenos">173</span></a>    <span class="k">for</span> <span class="n">seq_name</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">fasta_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="L-174"><a href="#L-174"><span class="linenos">174</span></a>        <span class="n">fasta_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&gt;</span><span class="si">{</span><span class="n">seq_name</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">seq</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-175"><a href="#L-175"><span class="linenos">175</span></a>    <span class="k">return</span> <span class="n">fasta_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
 </span></pre></div>
 
 
@@ -551,6 +579,73 @@ Dictionary of sequences.</li>
 <span class="go">{&#39;seq1&#39;: &#39;ABCD&#39;, &#39;seq2&#39;: &#39;ABCD&#39;}</span>
 </code></pre>
 </div>
+</div>
+
+
+                </section>
+                <section id="fasta_dict_to_str">
+                            <input id="fasta_dict_to_str-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">fasta_dict_to_str</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">fasta_dict</span><span class="p">:</span> <span class="nb">dict</span></span><span class="return-annotation">) -> <span class="nb">str</span>:</span></span>
+
+                <label class="view-source-button" for="fasta_dict_to_str-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#fasta_dict_to_str"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="fasta_dict_to_str-153"><a href="#fasta_dict_to_str-153"><span class="linenos">153</span></a><span class="k">def</span><span class="w"> </span><span class="nf">fasta_dict_to_str</span><span class="p">(</span><span class="n">fasta_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="fasta_dict_to_str-154"><a href="#fasta_dict_to_str-154"><span class="linenos">154</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot; Convert a dictionary of sequences to a FASTA string.</span>
+</span><span id="fasta_dict_to_str-155"><a href="#fasta_dict_to_str-155"><span class="linenos">155</span></a>
+</span><span id="fasta_dict_to_str-156"><a href="#fasta_dict_to_str-156"><span class="linenos">156</span></a><span class="sd">    ## Arguments:</span>
+</span><span id="fasta_dict_to_str-157"><a href="#fasta_dict_to_str-157"><span class="linenos">157</span></a>
+</span><span id="fasta_dict_to_str-158"><a href="#fasta_dict_to_str-158"><span class="linenos">158</span></a><span class="sd">    - **fasta_dict (dict)**:&lt;br /&gt;</span>
+</span><span id="fasta_dict_to_str-159"><a href="#fasta_dict_to_str-159"><span class="linenos">159</span></a><span class="sd">        Dictionary of sequences.</span>
+</span><span id="fasta_dict_to_str-160"><a href="#fasta_dict_to_str-160"><span class="linenos">160</span></a>
+</span><span id="fasta_dict_to_str-161"><a href="#fasta_dict_to_str-161"><span class="linenos">161</span></a><span class="sd">    ## Returns:</span>
+</span><span id="fasta_dict_to_str-162"><a href="#fasta_dict_to_str-162"><span class="linenos">162</span></a>
+</span><span id="fasta_dict_to_str-163"><a href="#fasta_dict_to_str-163"><span class="linenos">163</span></a><span class="sd">    - **str**:&lt;br /&gt;</span>
+</span><span id="fasta_dict_to_str-164"><a href="#fasta_dict_to_str-164"><span class="linenos">164</span></a><span class="sd">        FASTA string.</span>
+</span><span id="fasta_dict_to_str-165"><a href="#fasta_dict_to_str-165"><span class="linenos">165</span></a>
+</span><span id="fasta_dict_to_str-166"><a href="#fasta_dict_to_str-166"><span class="linenos">166</span></a><span class="sd">    ## Examples:</span>
+</span><span id="fasta_dict_to_str-167"><a href="#fasta_dict_to_str-167"><span class="linenos">167</span></a>
+</span><span id="fasta_dict_to_str-168"><a href="#fasta_dict_to_str-168"><span class="linenos">168</span></a><span class="sd">    &gt;&gt;&gt; fasta_dict = {&#39;seq1&#39;: &#39;ABCD&#39;, &#39;seq2&#39;: &#39;ABCD&#39;}</span>
+</span><span id="fasta_dict_to_str-169"><a href="#fasta_dict_to_str-169"><span class="linenos">169</span></a><span class="sd">    &gt;&gt;&gt; fasta_dict_to_str(fasta_dict)</span>
+</span><span id="fasta_dict_to_str-170"><a href="#fasta_dict_to_str-170"><span class="linenos">170</span></a><span class="sd">    &#39;&gt;seq1\nABCD\n&gt;seq2\nABCD&#39;</span>
+</span><span id="fasta_dict_to_str-171"><a href="#fasta_dict_to_str-171"><span class="linenos">171</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="fasta_dict_to_str-172"><a href="#fasta_dict_to_str-172"><span class="linenos">172</span></a>
+</span><span id="fasta_dict_to_str-173"><a href="#fasta_dict_to_str-173"><span class="linenos">173</span></a>    <span class="n">fasta_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+</span><span id="fasta_dict_to_str-174"><a href="#fasta_dict_to_str-174"><span class="linenos">174</span></a>    <span class="k">for</span> <span class="n">seq_name</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">fasta_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="fasta_dict_to_str-175"><a href="#fasta_dict_to_str-175"><span class="linenos">175</span></a>        <span class="n">fasta_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&gt;</span><span class="si">{</span><span class="n">seq_name</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">seq</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="fasta_dict_to_str-176"><a href="#fasta_dict_to_str-176"><span class="linenos">176</span></a>    <span class="k">return</span> <span class="n">fasta_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Convert a dictionary of sequences to a FASTA string.</p>
+
+<pre><code>## Arguments:
+
+- **fasta_dict (dict)**:&lt;br /&gt;
+    Dictionary of sequences.
+
+## Returns:
+
+- **str**:&lt;br /&gt;
+    FASTA string.
+
+## Examples:
+
+&gt;&gt;&gt; fasta_dict = {'seq1': 'ABCD', 'seq2': 'ABCD'}
+&gt;&gt;&gt; fasta_dict_to_str(fasta_dict)
+'&gt;seq1
+</code></pre>
+
+<p>ABCD</p>
+
+<blockquote>
+  <p>seq2
+  ABCD'</p>
+</blockquote>
 </div>
 
 
