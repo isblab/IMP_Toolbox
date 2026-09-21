@@ -8,6 +8,8 @@ from IMP_Toolbox.constants.sequence_constants import (
     PSAAttribute,
     PSATerm,
     MolType,
+    QHEAD,
+    SHEAD,
 )
 from IMP_Toolbox.constants.imp_toolbox_constants import (
     FileFormat,
@@ -15,6 +17,7 @@ from IMP_Toolbox.constants.imp_toolbox_constants import (
 )
 from IMP_Toolbox.sequence.sequence import (
     fasta_str_to_dict,
+    fasta_dict_to_str,
 )
 
 class PairwiseSequenceAlignment:
@@ -35,15 +38,25 @@ class PairwiseSequenceAlignment:
     pairwise_alignment: psa.PairwiseAlignment | None
     """ Pairwise alignment object. """
 
+    header1: str = QHEAD
+    """ Header for first sequence in the pairwise alignment. Default is "query 1-{len(seq1)}". """
+
+    header2: str = SHEAD
+    """ Header for second sequence in the pairwise alignment. Default is "subject 1-{len(seq2)}". """
+
     def __init__(
         self,
         seq1: str,
         seq2: str,
         moltype: str = MolType.PROT.value,
-        program: PSAProgram = PSAProgram.STRETCHER
+        program: PSAProgram = PSAProgram.STRETCHER,
+        header1: str | None = None,
+        header2: str | None = None,
     ):
         self.seq1 = seq1
         self.seq2 = seq2
+        self.header1 = header1 if header1 is not None else QHEAD.substitute(end=len(seq1))
+        self.header2 = header2 if header2 is not None else SHEAD.substitute(end=len(seq2))
         self.program = program
         self.moltype = moltype
         self.pairwise_alignment = None
@@ -189,8 +202,15 @@ class PairwiseSequenceAlignment:
             self.verify_alignment_performed()
             os.makedirs(os.path.dirname(save_path),exist_ok=True)
 
+            fasta = self.pairwise_alignment.fasta()
+            aln_dict = fasta_str_to_dict(fasta_str=fasta)
+            out_aln_dict = {
+                self.header1: aln_dict[QHEAD.substitute(end=len(self.seq1))],
+                self.header2: aln_dict[SHEAD.substitute(end=len(self.seq2))],
+            }
+
             with open(save_path, "w") as f:
-                f.write(self.pairwise_alignment.fasta())
+                f.write(fasta_dict_to_str(out_aln_dict))
 
     def get_alignment_attribute(self, attribute: str) -> Any:
         """ Get value of an attribute from PairwiseAlingnment object.

@@ -148,3 +148,28 @@ def fasta_str_to_dict(fasta_str: str) -> dict:
         else:
             fasta_dict[seq_name] += line.strip()
     return fasta_dict
+
+def fasta_dict_to_str(fasta_dict: dict) -> str:
+    """ Convert a dictionary of sequences to a FASTA string.
+
+    ## Arguments:
+
+    - **fasta_dict (dict)**:<br />
+        Dictionary of sequences.
+
+    ## Returns:
+
+    - **str**:<br />
+        FASTA string.
+
+    ## Examples:
+
+    >>> fasta_dict = {'seq1': 'ABCD', 'seq2': 'ABCD'}
+    >>> fasta_dict_to_str(fasta_dict)
+    '>seq1\nABCD\n>seq2\nABCD'
+    """
+
+    fasta_str = ""
+    for seq_name, seq in fasta_dict.items():
+        fasta_str += f">{seq_name}\n{seq}\n"
+    return fasta_str.strip()
