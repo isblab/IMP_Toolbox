@@ -1,0 +1,125 @@
+import os
+import re
+import shutil
+import argparse
+import textwrap
+import subprocess
+import importlib.util
+import pygments.lexers.python
+import pygments.formatters.html
+from pathlib import Path
+from jinja2 import Environment
+from jinja2 import FileSystemLoader
+from pdoc.render_helpers import minify_css
+import pdoc.render
+
+here = Path(__file__).parent
+print(here)
+module_path = here.parent
+print(module_path)
+# module_path = Path(__file__).parent.parent
+docs_path = here / ".." / "docs_"
+network_viz_path = here / "network_viz.py"
+github_pages_url = "https://isblab.github.io/IMP_Toolbox/"
+
+def get_IMP_Toolbox_version():
+    changelog = (here / ".." / "changelog.md").read_text("utf8")
+    # e.g. ## [1.0.0] - 2026/04/06
+    version_regex = r"## \[(\d+\.\d+\.\d+)\]"
+    for line in changelog.splitlines():
+        if line.startswith("## ["):
+            match = re.match(version_regex, line)
+            if match:
+                return match.group(1)
+
+    return "unknown"
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Generate documentation for IMP_Toolbox.")
+
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=str(docs_path),
+        help="Output directory for the generated documentation (default: docs_)."
+    )
+
+    args = parser.parse_args()
+    docs_path = Path(args.output)
+
+    print(get_IMP_Toolbox_version())
+
+    os.makedirs(docs_path, exist_ok=True)
+    subprocess.run(
+        [
+            "python", str(network_viz_path),
+            "--analyse_dirs", str(module_path),
+            "--module_dirs", str(module_path / "IMP_Toolbox"),
+            "--ignore_submodules", str(module_path / "tests"), str(module_path / "docs"), str(module_path / "examples"),
+            "--module_names", "IMP_Toolbox",
+            "--repository_names", "IMP_Toolbox:IMP_Toolbox",
+            "--repository_organization", "isblab",
+            "--output_path", str(here / "network" / "IMP_Toolbox_network.html"),
+            "--template_directory", str(here / "template"),
+        ],
+        check=True
+    )
+
+    spec = importlib.util.find_spec("pdoc")
+    pdoc_path = Path(spec.origin).parent
+
+    env = Environment(
+        loader=FileSystemLoader([pdoc_path / "templates", pdoc_path / "templates" / "default"]),
+        autoescape=True,
+    )
+    env.filters['minify_css'] = minify_css
+    lexer = pygments.lexers.python.PythonLexer()
+    formatter = pygments.formatters.html.HtmlFormatter(style="friendly")
+    pygments_css = formatter.get_style_defs()
+
+    if docs_path.is_dir():
+        shutil.rmtree(docs_path)
+
+    # copy assets
+    # shutil.copytree(here / "assets", docs_path / "assets")
+
+    # Render main docs
+    pdoc.render.configure(
+        edit_url_map={
+            "IMP_Toolbox": "https://github.com/isblab/IMP_Toolbox/blob/main/IMP_Toolbox/",
+        },
+        # favicon = "./assets/IMP_Toolbox_favicon.svg",
+        # logo="./assets/IMP_Toolbox_logo.svg",
+        logo_link=github_pages_url,
+        footer_text=f"IMP_Toolbox v{get_IMP_Toolbox_version()}",
+        mermaid=True,
+        math=True,
+        search=True,
+        show_source = True,
+        template_directory = here / "template",
+    )
+
+    pdoc.pdoc(
+        "IMP_Toolbox",
+        output_directory=docs_path,
+    )
+
+    # Add sitemap.xml
+    with (docs_path / "sitemap.xml").open("w", newline="\n") as f:
+        f.write(
+            textwrap.dedent(
+                """
+        <?xml version="1.0" encoding="utf-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+        """
+            ).strip()
+        )
+        for file in docs_path.glob("**/*.html"):
+            if file.name.startswith("_"):
+                continue
+            filename = str(file.relative_to(docs_path).as_posix()).replace("index.html", "")
+            f.write(f"""\n<url><loc>{github_pages_url}{filename}</loc></url>""")
+        f.write("""\n</urlset>""")

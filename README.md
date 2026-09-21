@@ -8,6 +8,11 @@
 
 - See [Modeling with IMP](https://docs.google.com/document/d/1gaG83RsEBQNemuWwhra0TP0c0jg_WwdeZI1yD_S3RPQ/edit?usp=sharing) for helpful tips while starting.
 
+## Pre-requisites
+
+- Conda or Miniconda (https://www.anaconda.com/docs/getting-started/miniconda/install/linux-install)
+- Fedora OS
+
 ## Installation
 
 - To use IMP_Toolbox, clone this repository
