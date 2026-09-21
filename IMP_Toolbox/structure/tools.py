@@ -4,12 +4,154 @@ import Bio
 import Bio.PDB
 import Bio.PDB.Structure
 import numpy as np
+from typing import Dict
 from Bio.PDB.mmcifio import MMCIFIO
 from Bio.PDB.PDBIO import Select, PDBIO
 from Bio.PDB.Structure import Structure
 from Bio.PDB.Model import Model
 from Bio.PDB import PDBParser, PDBIO
 from Bio.PDB.MMCIFParser import FastMMCIFParser
+
+
+class RenumberResidues:
+    """Class to renumber the residues based on the offset."""
+
+    offset: Dict[str, int]
+    """ Offset describing start residue number for each chain in
+    the predicted structure.\n
+    example: `{'A': 1, 'B': 101}`."""
+
+    def __init__(self, offset: Dict[str, int] = {}):
+        self.offset = offset
+
+    def renumber_structure(
+        self,
+        structure: Bio.PDB.Structure.Structure,
+    ):
+        """Renumber the residues in the structure based on the offset.
+
+        Arguments:
+
+        - **structure (Bio.PDB.Structure.Structure)**:<br />
+            Biopython structure object.
+
+        Returns:
+
+        - **structure (Bio.PDB.Structure.Structure)**:<br />
+            Biopython structure object with renumbered residues.
+        """
+
+        for model in structure:
+            for residue in model.get_residues():
+                chain_id = residue.parent.id
+                h, num, ins = residue.id
+
+                num = self.renumber_chain_res_num(
+                    chain_res_num=num,
+                    chain_id=chain_id,
+                )
+
+                residue.id = (h, num, ins)
+
+        return structure
+
+    def original_chain_res_num(
+        self,
+        chain_res_num: int,
+        chain_id: str,
+    ):
+        """Get the original residue number based on the offset.
+
+        Inverse of `renumber_chain_res_num`.
+
+        Arguments:
+
+        - **chain_res_num (int)**:<br />
+            Residue index (1-indexed) within the chain in the predicted structure.
+
+        - **chain_id (str)**:<br />
+            Chain ID of the residue.
+
+        Returns:
+
+        - **chain_res_num (int)**:<br />
+            Original residue number
+        """
+
+        if chain_id in self.offset:
+            chain_res_num -= (self.offset[chain_id] - 1)
+
+        return chain_res_num
+
+    def renumber_chain_res_num(
+        self,
+        chain_res_num: int,
+        chain_id: str,
+    ):
+        """Renumber the residue number based on the offset.
+
+        Given a residue index (1-indexed) in a chain, this function renumbers it
+        based on the offset provided for that chain.
+
+        Arguments:
+
+        - **chain_res_num (int)**:<br />
+            Residue index (1-indexed) within the chain in the predicted structure.
+
+        - **chain_id (str)**:<br />
+            Chain ID of the residue.
+
+        Returns:
+
+        - **chain_res_num (int)**:<br />
+            Renumbered residue number
+        """
+
+        if chain_id in self.offset:
+            chain_res_num += self.offset[chain_id] - 1
+
+        return chain_res_num
+
+    def renumber_region_of_interest(
+        self,
+        region_of_interest: Dict[str, list],
+    ):
+        """Offset the region of interest to the AF2/3 numbering.
+
+        Region of interest is defined by the user is as per the original numbering
+        (UniProt in case of proteins). \n
+        However, if the prediction is done on a fragment of the protein, the
+        residue numbering in the predicted structure will be different compared to
+        the one provided by the user. \n
+        This function renumbers the region of interest to the numbering of the
+        predicted structure based on the `offset`. \n
+
+        Arguments:
+
+        - **region_of_interest (dict)**:
+            Dictionary containing the region of interest for each chain.
+
+        Returns:
+
+        - **renumbered_region_of_interest (dict)**:
+            Dictionary containing the renumbered region of interest for
+            each chain.
+        """
+
+        renumbered_region_of_interest = {}
+
+        for chain_id in region_of_interest:
+
+            start, end = region_of_interest[chain_id]
+
+            if chain_id in self.offset:
+
+                start = start - (self.offset[chain_id] - 1)
+                end = end - (self.offset[chain_id] - 1)
+
+            renumbered_region_of_interest[chain_id] = [start, end]
+
+        return renumbered_region_of_interest
 
 def transform_pdb(
     structure_path: str,
