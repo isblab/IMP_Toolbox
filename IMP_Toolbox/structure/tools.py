@@ -9,12 +9,30 @@ from Bio.PDB.PDBIO import Select, PDBIO
 from Bio.PDB.Structure import Structure
 from Bio.PDB.Model import Model
 from Bio.PDB import PDBParser, PDBIO
+from Bio.PDB.MMCIFParser import FastMMCIFParser
 
 def transform_pdb(
-    pdb_file: str,
+    structure_path: str,
     out_path: str,
     transform_matrix: np.ndarray,
 ):
+    """ Transform the structure file as per the provided matrix.
+
+    ## Arguments:
+
+    - **structure_path (str)**:<br />
+        Path to the input structure file. Must have a .pdb or .cif extension.
+
+    - **out_path (str)**:<br />
+        Path to the output structure file. The directory will be created if it
+        does not exist.
+
+    - **transform_matrix (np.ndarray)**:<br />
+        4x3 transformation matrix that defines the rotation and translation to
+        be applied to the structure.
+        The first three rows represent the rotation matrix, and the last row
+        represents the translation vector.
+    """
 
     assert transform_matrix.shape == (4, 3), (
         "Transform matrix must be of shape (4, 3)"
@@ -24,9 +42,18 @@ def transform_pdb(
     rotation_matrix = transform_matrix[:3, :]
     translation_vector = transform_matrix[3, :]
 
-    parser = PDBParser(QUIET=True)
-    structure = parser.get_structure("query", pdb_file)
-    assert len(structure) == 1, "PDB file must contain exactly one model"
+    in_extension = os.path.splitext(structure_path)[1].lower()
+    out_extension = os.path.splitext(out_path)[1].lower()
+
+    if in_extension == ".cif":
+        parser = FastMMCIFParser(QUIET=True)
+    elif in_extension == ".pdb":
+        parser = PDBParser(QUIET=True)
+    else:
+        raise ValueError("Unsupported file format. Please provide a .cif or .pdb file.")
+
+    structure = parser.get_structure("query", structure_path)
+    assert len(structure) == 1, "Structure file must contain exactly one model"
 
     for atom in structure.get_atoms():
         transformed_coord = (
@@ -38,7 +65,11 @@ def transform_pdb(
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-    io = PDBIO()
+    if out_extension == ".cif":
+        io = MMCIFIO()
+    elif out_extension == ".pdb":
+        io = PDBIO()
+
     io.set_structure(structure)
     io.save(out_path, write_end=True, preserve_atom_numbering=True)
 
@@ -72,7 +103,19 @@ def split_structure_by_chain(
 
     return chain_structures
 
-def get_per_chain_residues(structure: Structure):
+def get_per_chain_residues(structure: Structure) -> dict[str, list[int]]:
+    """ Get residue numbers for each chain in the structure object as a dictionary.
+
+    ## Arguments:
+
+    - **structure (Structure)**:<br />
+        Biopython Structure object to extract residue numbers from.
+
+    ## Returns:
+
+    - **dict**:<br />
+        A dictionary mapping chain IDs to lists of residue numbers.
+    """
 
     chain_ranges = {
         chain.get_id(): [

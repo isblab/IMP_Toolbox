@@ -123,6 +123,18 @@
 
             </li>
             <li>
+                    <a class="class" href="#ResidueDepthType">ResidueDepthType</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#ResidueDepthType.MEAN">MEAN</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#ResidueDepthType.REPRESENTATIVE">REPRESENTATIVE</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
                     <a class="variable" href="#RES_COLOR_MAP">RES_COLOR_MAP</a>
             </li>
     </ul>
@@ -168,12 +180,16 @@
 </span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>    <span class="n">rsa_threshold</span> <span class="o">=</span> <span class="mf">0.2</span>
 </span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>    <span class="n">residue_depth_threshold</span> <span class="o">=</span> <span class="mf">4.0</span>
 </span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="n">RES_COLOR_MAP</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>    <span class="s2">&quot;interface&quot;</span><span class="p">:</span> <span class="s2">&quot;magenta&quot;</span><span class="p">,</span>
-</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>    <span class="s2">&quot;core&quot;</span><span class="p">:</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span>
-</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>    <span class="s2">&quot;exposed&quot;</span><span class="p">:</span> <span class="s2">&quot;limegreen&quot;</span><span class="p">,</span>
-</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>    <span class="s2">&quot;ptm&quot;</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
-</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="p">}</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="k">class</span><span class="w"> </span><span class="nc">ResidueDepthType</span><span class="p">(</span><span class="n">StrEnum</span><span class="p">):</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>    <span class="n">MEAN</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>    <span class="n">REPRESENTATIVE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="n">RES_COLOR_MAP</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>    <span class="s2">&quot;interface&quot;</span><span class="p">:</span> <span class="s2">&quot;magenta&quot;</span><span class="p">,</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>    <span class="s2">&quot;core&quot;</span><span class="p">:</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>    <span class="s2">&quot;exposed&quot;</span><span class="p">:</span> <span class="s2">&quot;limegreen&quot;</span><span class="p">,</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>    <span class="s2">&quot;ptm&quot;</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a><span class="p">}</span>
 </span></pre></div>
 
 
@@ -396,6 +412,50 @@
         
     </div>
     <a class="headerlink" href="#ProteinCoreCriteria.residue_depth_threshold"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="ResidueDepthType">
+                            <input id="ResidueDepthType-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">ResidueDepthType</span><wbr>(<span class="base">enum.StrEnum</span>):
+
+                <label class="view-source-button" for="ResidueDepthType-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#ResidueDepthType"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ResidueDepthType-25"><a href="#ResidueDepthType-25"><span class="linenos">25</span></a><span class="k">class</span><span class="w"> </span><span class="nc">ResidueDepthType</span><span class="p">(</span><span class="n">StrEnum</span><span class="p">):</span>
+</span><span id="ResidueDepthType-26"><a href="#ResidueDepthType-26"><span class="linenos">26</span></a>    <span class="n">MEAN</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+</span><span id="ResidueDepthType-27"><a href="#ResidueDepthType-27"><span class="linenos">27</span></a>    <span class="n">REPRESENTATIVE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+</span></pre></div>
+
+
+    
+
+                            <div id="ResidueDepthType.MEAN" class="classattr">
+                                <div class="attr variable">
+            <span class="name">MEAN</span>        =
+<span class="default_value">&lt;<a href="#ResidueDepthType.MEAN">ResidueDepthType.MEAN</a>: &#39;mean&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ResidueDepthType.MEAN"></a>
+    
+    
+
+                            </div>
+                            <div id="ResidueDepthType.REPRESENTATIVE" class="classattr">
+                                <div class="attr variable">
+            <span class="name">REPRESENTATIVE</span>        =
+<span class="default_value">&lt;<a href="#ResidueDepthType.REPRESENTATIVE">ResidueDepthType.REPRESENTATIVE</a>: &#39;representative&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ResidueDepthType.REPRESENTATIVE"></a>
     
     
 

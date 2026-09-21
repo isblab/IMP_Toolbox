@@ -21,6 +21,10 @@ class ProteinCoreCriteria:
     rsa_threshold = 0.2
     residue_depth_threshold = 4.0
 
+class ResidueDepthType(StrEnum):
+    MEAN = auto()
+    REPRESENTATIVE = auto()
+
 RES_COLOR_MAP = {
     "interface": "magenta",
     "core": "blue",

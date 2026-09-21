@@ -1,23 +1,44 @@
 import os
 import argparse
+import numpy as np
 import pandas as pd
-import Bio.PDB.Structure
 import Bio.PDB.Residue
+import Bio.PDB.Structure
 from Bio.PDB import FastMMCIFParser, PDBParser
 from Bio.PDB.DSSP import DSSP
 from scipy.spatial import KDTree
 from Bio.PDB.ResidueDepth import get_surface
-import numpy as np
+from IMP_Toolbox.constants.structure_constants import ResidueDepthType as DepthType
 
 def get_residue_depth(
     residue: Bio.PDB.Residue.Residue,
     kdtree: KDTree,
-    depth_type: str = "mean", # or "representative"
-):
+    depth_type: DepthType = DepthType.MEAN,
+) -> float | None:
+    """ Calculate residue depth
 
-    assert depth_type in ["mean", "representative"], "depth_type must be 'mean' or 'representative'"
+    ## Arguments:
 
-    if depth_type == "representative":
+    - **residue (Bio.PDB.Residue.Residue)**:<br />
+        A Bio.PDB.Residue.Residue object representing the residue for which
+        the depth is to be calculated.
+
+    - **kdtree (KDTree)**:<br />
+        A KDTree object constructed from the surface points of the structure.
+
+    - **depth_type (DepthType, optional):**:<br />
+        The type of depth calculation to perform. Can be either "mean" or
+        "representative". Default is "mean".
+
+    ## Returns:
+
+    - **float | None**:<br />
+        The depth of the residue from the surface, or None if it cannot be calculated.
+    """
+
+    assert depth_type in list(DepthType), f"depth_type must be one of {list(DepthType)}"
+
+    if depth_type == DepthType.REPRESENTATIVE:
         if residue.has_id("CB"):
             target_atom = residue["CB"]
         elif residue.has_id("CA"):
@@ -28,7 +49,7 @@ def get_residue_depth(
         depth, _ = kdtree.query(coord)
         return depth
 
-    elif depth_type == "mean":
+    elif depth_type == DepthType.MEAN:
         atom_coords = [atom.get_coord() for atom in residue.get_atoms()]
         min_dists = [kdtree.query(atom_coord)[0] for atom_coord in atom_coords]
         return np.mean(min_dists)
@@ -42,6 +63,57 @@ def get_burial_info(
     msms_executable: str | None = None,
     entity_chain_map: dict | None = None,
 ) -> pd.DataFrame:
+    """ Obtain buried residue information in a give structure.
+
+    The information includes:
+    - chain_id: Chain identifier
+    - res_num: Residue number
+    - amino_acid: Amino acid type
+    - secondary_structure: Secondary structure type (H: alpha helix, E: beta strand, C: coil)
+    - rsa_val: Relative solvent accessibility (RSA) value
+
+    (Optionally)
+    - residue_depth: Depth of the residue from the surface
+    - residue_cab_depth: Depth of the residue's C-alpha atom from the surface
+    - entity: Entity name if entity_chain_map is provided
+
+    ## Arguments:
+
+    - **structure_path (str)**:<br />
+        Path to the input mmCIF or PDB file.
+
+    - **structure (Bio.PDB.Structure.Structure | None)**:<br />
+        A Bio.PDB.Structure.Structure object. If provided, the function will use
+        this structure instead of reading from the file at `structure_path`.
+        Default is None.
+
+    - **ignore_chains (list | None, optional):**:<br />
+        List of chain IDs to ignore. Default is None.
+
+    - **include_residue_depth (bool, optional):**:<br />
+        Whether to include residue depth information in the output.
+        Default is False.
+
+    - **residue_selector (dict | None, optional):**:<br />
+        A dictionary specifying which residues to include for each chain.
+        Keys are chain IDs and values are lists of residue numbers.
+        Default is None, which includes all residues.
+
+    - **msms_executable (str | None, optional):**:<br />
+        Path to the MSMS executable for calculating residue depth.
+        Required if `include_residue_depth` is True.
+
+    - **entity_chain_map (dict | None, optional):**:<br />
+        A dictionary mapping chain IDs to entity names. If provided, the output
+        DataFrame will include an "entity" column. Default is None.
+
+    ## Returns:
+
+    - **pd.DataFrame**:<br />
+        A DataFrame containing buried residue information, including chain ID,
+        residue number, amino acid type, secondary structure, relative solvent
+        accessibility (RSA), and optionally residue depth information.
+    """
 
     if structure is None:
         file_extension = os.path.splitext(structure_path)[1].lower()
