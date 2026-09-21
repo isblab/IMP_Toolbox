@@ -4,6 +4,8 @@
 > If you can not find any of the scripts you have previously used from IMP_Toolbox in the `main` branch
 > , please check in the [`archive`](https://github.com/isblab/IMP_Toolbox/tree/archive) branch.
 
+- A toolbox to aid integrative modeling with [IMP](https://github.com/salilab/imp).
+
 - See [Modeling with IMP](https://docs.google.com/document/d/1gaG83RsEBQNemuWwhra0TP0c0jg_WwdeZI1yD_S3RPQ/edit?usp=sharing) for helpful tips while starting.
 
 ## Installation
@@ -19,12 +21,25 @@
   export PYTHONPATH=/path/to/IMP_Toolbox:$PYTHONPATH
   ```
 
-- Install the required packages from `requirements.txt`. You need `Python >=3.12`.
+- If you want to install IMP, follow the instructions given in [IMP installation](#imp-installation) and activate the conda environment.
   ```bash
-  conda install --file requirements.txt
+  conda activate imp_omg
   ```
 
-- If you plan to use `sequence` module, you need to install `EMBOSS` package as follows:
+- Alternatively, if you only want to use [IMP_Toolbox](./) without installing IMP, create a new conda environment. You need `Python >=3.12`.
+  ```bash
+  conda create -n imp_toolbox python=3.12
+  conda activate imp_toolbox
+  ```
+
+- Install the required packages from [`requirements.txt`](./requirements.txt).
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+### Optional
+
+- If you plan to use [`sequence`](./IMP_Toolbox/sequence/) module, you need to install `EMBOSS` package as follows:
   ```bash
   sudo dnf install EMBOSS
   ```
@@ -40,7 +55,9 @@
 
 ## IMP Installation
 
-- Use the following command in terminal. (change the installation path and conda environment)
+- Go to [`IMP_installation`](./IMP_Toolbox/IMP_installation/) directory
+
+- Run the following command in terminal. (change the installation path and conda environment)
   ```bash
   bash install_imp_conda.sh \
     -e imp_omg \
