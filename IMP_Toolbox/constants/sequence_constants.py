@@ -1,7 +1,11 @@
 
+from string import Template
 from enum import StrEnum, auto
 
 UNIPROT_ISOFORM_SEPARATOR = "-"
+
+QHEAD = Template("query 1-${end}")
+SHEAD = Template("subject 1-${end}")
 
 class MolType(StrEnum):
     PROT = auto()
