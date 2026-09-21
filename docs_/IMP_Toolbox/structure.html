@@ -112,7 +112,7 @@
 
 <hr>
 
-<h4 id="1-fetch-best-structures-for-given-uniprot-ids-and-save-them-in-csv-format">1. Fetch best structures for given uniprot ids and save them in csv format</h4>
+<h4 id="1-find-best-structures-for-given-uniprot-ids">1. Find best structures for given uniprot ids</h4>
 
 <div class="pdoc-code codehilite">
 <pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn"><a href="structure/best_structure.html">IMP_Toolbox.structure.best_structure</a></span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
@@ -250,6 +250,82 @@ only for a subset of residues in a specific chain, you can use the <code>residue
 <span class="p">)</span>
 </code></pre>
 </div>
+
+<h4 id="7-renumber-and-save-structure-objects">7. Renumber and save structure objects</h4>
+
+<div class="pdoc-code codehilite">
+<pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">Bio.PDB.mmtf</span><span class="w"> </span><span class="kn">import</span> <span class="n">MMTFParser</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn"><a href="structure/tools.html">IMP_Toolbox.structure.tools</a></span><span class="w"> </span><span class="kn">import</span> <span class="n">RenumberResidues</span><span class="p">,</span> <span class="n">save_structure_obj</span>
+
+<span class="n">structure</span> <span class="o">=</span> <span class="n">MMTFParser</span><span class="o">.</span><span class="n">get_structure_from_url</span><span class="p">(</span><span class="s2">&quot;1J6Z&quot;</span><span class="p">)</span>
+<span class="n">renumber</span> <span class="o">=</span> <span class="n">RenumberResidues</span><span class="p">(</span><span class="n">offset</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;A&quot;</span><span class="p">:</span> <span class="mi">101</span><span class="p">})</span>
+<span class="n">renumbered_structure</span> <span class="o">=</span> <span class="n">renumber</span><span class="o">.</span><span class="n">renumber_structure</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)</span>
+<span class="n">save_structure_obj</span><span class="p">(</span>
+    <span class="n">structure</span><span class="o">=</span><span class="n">renumbered_structure</span><span class="p">,</span>
+    <span class="n">out_file</span><span class="o">=</span><span class="s2">&quot;./path/to/renumbered.pdb&quot;</span><span class="p">,</span>
+    <span class="n">save_type</span><span class="o">=</span><span class="s2">&quot;pdb&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre>
+</div>
+
+<ul>
+<li><code>res_select_obj</code> is an optional parameter that allows you to specify a selection
+of residues to save. If provided, only the selected residues will be saved in the
+output file. You can use the <code>Bio.PDB.Select</code> class to create a custom selection
+object based on your criteria.</li>
+</ul>
+
+<h4 id="8-fetch-emdb-data-for-a-given-emdb-id">8. Fetch EMDB data for a given EMDB id</h4>
+
+<div class="pdoc-code codehilite">
+<pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn"><a href="structure/density_map.html">IMP_Toolbox.structure.density_map</a></span><span class="w"> </span><span class="kn">import</span> <span class="n">fetch_emdb_map</span><span class="p">,</span> <span class="n">fetch_emdb_mask</span>
+
+<span class="n">emdb_id</span> <span class="o">=</span> <span class="s2">&quot;EMD-1703&quot;</span>
+<span class="n">savepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;./output&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">emdb_id</span><span class="si">}</span><span class="s2">.map.gz&quot;</span><span class="p">)</span>
+<span class="n">extracted_savepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;./output&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">emdb_id</span><span class="si">}</span><span class="s2">.map&quot;</span><span class="p">)</span>
+<span class="n">emdb_map</span> <span class="o">=</span> <span class="n">fetch_emdb_map</span><span class="p">(</span><span class="n">emdb_id</span><span class="o">=</span><span class="n">emdb_id</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">savepath</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">emdb_map</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">savepath</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_in</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">extracted_savepath</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_out</span><span class="p">:</span>
+        <span class="n">f_out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f_in</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted EMDB map saved in </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">extracted_savepath</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="s2">&quot;emd_1703_msk_1&quot;</span>
+<span class="n">mask_savepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;./output&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mask</span><span class="si">}</span><span class="s2">.map&quot;</span><span class="p">)</span>
+<span class="n">emdb_mask</span> <span class="o">=</span> <span class="n">fetch_emdb_mask</span><span class="p">(</span><span class="n">emdb_id</span><span class="o">=</span><span class="n">emdb_id</span><span class="p">,</span> <span class="n">mask_name</span><span class="o">=</span><span class="n">mask_name</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">mask_savepath</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">emdb_mask</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;EMDB mask saved in </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">mask_savepath</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h4 id="9-compare-two-density-maps-and-get-correlation-metrics">9. Compare two density maps and get correlation metrics</h4>
+
+<div class="pdoc-code codehilite">
+<pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn"><a href="structure/density_map.html">IMP_Toolbox.structure.density_map</a></span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">extract_voxel_data</span><span class="p">,</span>
+    <span class="n">get_correlation_metrics</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">mrc_file1</span> <span class="o">=</span> <span class="s2">&quot;./path/to/map1.mrc&quot;</span>
+<span class="n">mrc_file2</span> <span class="o">=</span> <span class="s2">&quot;./path/to/map2.mrc&quot;</span>
+
+<span class="n">voxel_data1</span> <span class="o">=</span> <span class="n">extract_voxel_data</span><span class="p">(</span><span class="n">mrc_files</span><span class="o">=</span><span class="p">[</span><span class="n">mrc_file1</span><span class="p">])</span>
+<span class="n">voxel_data2</span> <span class="o">=</span> <span class="n">extract_voxel_data</span><span class="p">(</span><span class="n">mrc_files</span><span class="o">=</span><span class="p">[</span><span class="n">mrc_file2</span><span class="p">])</span>
+<span class="n">overlap</span><span class="p">,</span> <span class="n">corr</span><span class="p">,</span> <span class="n">corr_over_mean</span><span class="p">,</span> <span class="n">pts</span> <span class="o">=</span> <span class="n">get_correlation_metrics</span><span class="p">(</span>
+    <span class="n">voxel_data1</span><span class="o">=</span><span class="n">voxel_data1</span><span class="p">,</span>
+    <span class="n">voxel_data2</span><span class="o">=</span><span class="n">voxel_data2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">    Overlap: </span><span class="si">{</span><span class="n">overlap</span><span class="si">}</span><span class="s1">,</span>
+<span class="s1">    Correlation: </span><span class="si">{</span><span class="n">corr</span><span class="si">}</span><span class="s1">,</span>
+<span class="s1">    Correlation over mean: </span><span class="si">{</span><span class="n">corr_over_mean</span><span class="si">}</span><span class="s1">,</span>
+<span class="s1">    Number of points: </span><span class="si">{</span><span class="n">pts</span><span class="si">}</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="p">)</span>
+</code></pre>
+</div>
 </div>
 
                 <input id="mod-structure-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
@@ -275,7 +351,7 @@ only for a subset of residues in a specific chain, you can use the <code>residue
 </span><span id="L-17"><a href="#L-17"><span class="linenos"> 17</span></a>
 </span><span id="L-18"><a href="#L-18"><span class="linenos"> 18</span></a><span class="sd">&lt;hr&gt;</span>
 </span><span id="L-19"><a href="#L-19"><span class="linenos"> 19</span></a>
-</span><span id="L-20"><a href="#L-20"><span class="linenos"> 20</span></a><span class="sd">#### 1. Fetch best structures for given uniprot ids and save them in csv format</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos"> 20</span></a><span class="sd">#### 1. Find best structures for given uniprot ids</span>
 </span><span id="L-21"><a href="#L-21"><span class="linenos"> 21</span></a>
 </span><span id="L-22"><a href="#L-22"><span class="linenos"> 22</span></a><span class="sd">```python</span>
 </span><span id="L-23"><a href="#L-23"><span class="linenos"> 23</span></a><span class="sd">from IMP_Toolbox.structure.best_structure import (</span>
@@ -401,27 +477,98 @@ only for a subset of residues in a specific chain, you can use the <code>residue
 </span><span id="L-143"><a href="#L-143"><span class="linenos">143</span></a><span class="sd">    transform_matrix=transform_matrix,</span>
 </span><span id="L-144"><a href="#L-144"><span class="linenos">144</span></a><span class="sd">)</span>
 </span><span id="L-145"><a href="#L-145"><span class="linenos">145</span></a><span class="sd">```</span>
-</span><span id="L-146"><a href="#L-146"><span class="linenos">146</span></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-147"><a href="#L-147"><span class="linenos">147</span></a>
-</span><span id="L-148"><a href="#L-148"><span class="linenos">148</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.burial</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="L-149"><a href="#L-149"><span class="linenos">149</span></a>    <span class="n">get_burial_info</span><span class="p">,</span>
-</span><span id="L-150"><a href="#L-150"><span class="linenos">150</span></a>    <span class="n">get_residue_depth</span><span class="p">,</span>
-</span><span id="L-151"><a href="#L-151"><span class="linenos">151</span></a><span class="p">)</span>
+</span><span id="L-146"><a href="#L-146"><span class="linenos">146</span></a>
+</span><span id="L-147"><a href="#L-147"><span class="linenos">147</span></a><span class="sd">#### 7. Renumber and save structure objects</span>
+</span><span id="L-148"><a href="#L-148"><span class="linenos">148</span></a>
+</span><span id="L-149"><a href="#L-149"><span class="linenos">149</span></a><span class="sd">```python</span>
+</span><span id="L-150"><a href="#L-150"><span class="linenos">150</span></a><span class="sd">from Bio.PDB.mmtf import MMTFParser</span>
+</span><span id="L-151"><a href="#L-151"><span class="linenos">151</span></a><span class="sd">from IMP_Toolbox.structure.tools import RenumberResidues, save_structure_obj</span>
 </span><span id="L-152"><a href="#L-152"><span class="linenos">152</span></a>
-</span><span id="L-153"><a href="#L-153"><span class="linenos">153</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.best_structure</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="L-154"><a href="#L-154"><span class="linenos">154</span></a>    <span class="n">get_best_structures</span><span class="p">,</span>
-</span><span id="L-155"><a href="#L-155"><span class="linenos">155</span></a>    <span class="n">fetch_best_structures</span><span class="p">,</span>
-</span><span id="L-156"><a href="#L-156"><span class="linenos">156</span></a>    <span class="n">make_best_structures_df</span><span class="p">,</span>
-</span><span id="L-157"><a href="#L-157"><span class="linenos">157</span></a><span class="p">)</span>
-</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a>
-</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.tools</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a>    <span class="n">split_structure_by_chain</span><span class="p">,</span>
-</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a>    <span class="n">get_per_chain_residues</span><span class="p">,</span>
-</span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a>    <span class="n">pdb_to_mmcif</span><span class="p">,</span>
-</span><span id="L-163"><a href="#L-163"><span class="linenos">163</span></a>    <span class="n">mmcif_to_pdb</span><span class="p">,</span>
-</span><span id="L-164"><a href="#L-164"><span class="linenos">164</span></a>    <span class="n">transform_pdb</span><span class="p">,</span>
-</span><span id="L-165"><a href="#L-165"><span class="linenos">165</span></a>    <span class="n">save_structure_obj</span><span class="p">,</span>
-</span><span id="L-166"><a href="#L-166"><span class="linenos">166</span></a><span class="p">)</span>
+</span><span id="L-153"><a href="#L-153"><span class="linenos">153</span></a><span class="sd">structure = MMTFParser.get_structure_from_url(&quot;1J6Z&quot;)</span>
+</span><span id="L-154"><a href="#L-154"><span class="linenos">154</span></a><span class="sd">renumber = RenumberResidues(offset={&quot;A&quot;: 101})</span>
+</span><span id="L-155"><a href="#L-155"><span class="linenos">155</span></a><span class="sd">renumbered_structure = renumber.renumber_structure(structure=structure)</span>
+</span><span id="L-156"><a href="#L-156"><span class="linenos">156</span></a><span class="sd">save_structure_obj(</span>
+</span><span id="L-157"><a href="#L-157"><span class="linenos">157</span></a><span class="sd">    structure=renumbered_structure,</span>
+</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a><span class="sd">    out_file=&quot;./path/to/renumbered.pdb&quot;,</span>
+</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a><span class="sd">    save_type=&quot;pdb&quot;,</span>
+</span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a><span class="sd">)</span>
+</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a><span class="sd">```</span>
+</span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a>
+</span><span id="L-163"><a href="#L-163"><span class="linenos">163</span></a><span class="sd">- `res_select_obj` is an optional parameter that allows you to specify a selection</span>
+</span><span id="L-164"><a href="#L-164"><span class="linenos">164</span></a><span class="sd">of residues to save. If provided, only the selected residues will be saved in the</span>
+</span><span id="L-165"><a href="#L-165"><span class="linenos">165</span></a><span class="sd">output file. You can use the `Bio.PDB.Select` class to create a custom selection</span>
+</span><span id="L-166"><a href="#L-166"><span class="linenos">166</span></a><span class="sd">object based on your criteria.</span>
+</span><span id="L-167"><a href="#L-167"><span class="linenos">167</span></a>
+</span><span id="L-168"><a href="#L-168"><span class="linenos">168</span></a><span class="sd">#### 8. Fetch EMDB data for a given EMDB id</span>
+</span><span id="L-169"><a href="#L-169"><span class="linenos">169</span></a>
+</span><span id="L-170"><a href="#L-170"><span class="linenos">170</span></a><span class="sd">```python</span>
+</span><span id="L-171"><a href="#L-171"><span class="linenos">171</span></a><span class="sd">from IMP_Toolbox.structure.density_map import fetch_emdb_map, fetch_emdb_mask</span>
+</span><span id="L-172"><a href="#L-172"><span class="linenos">172</span></a>
+</span><span id="L-173"><a href="#L-173"><span class="linenos">173</span></a><span class="sd">emdb_id = &quot;EMD-1703&quot;</span>
+</span><span id="L-174"><a href="#L-174"><span class="linenos">174</span></a><span class="sd">savepath = os.path.join(&quot;./output&quot;, f&quot;{emdb_id}.map.gz&quot;)</span>
+</span><span id="L-175"><a href="#L-175"><span class="linenos">175</span></a><span class="sd">extracted_savepath = os.path.join(&quot;./output&quot;, f&quot;{emdb_id}.map&quot;)</span>
+</span><span id="L-176"><a href="#L-176"><span class="linenos">176</span></a><span class="sd">emdb_map = fetch_emdb_map(emdb_id=emdb_id, max_retries=3)</span>
+</span><span id="L-177"><a href="#L-177"><span class="linenos">177</span></a><span class="sd">with open(savepath, &quot;wb&quot;) as f:</span>
+</span><span id="L-178"><a href="#L-178"><span class="linenos">178</span></a><span class="sd">    f.write(emdb_map)</span>
+</span><span id="L-179"><a href="#L-179"><span class="linenos">179</span></a><span class="sd">with gzip.open(savepath, &quot;rb&quot;) as f_in:</span>
+</span><span id="L-180"><a href="#L-180"><span class="linenos">180</span></a><span class="sd">    with open(extracted_savepath, &quot;wb&quot;) as f_out:</span>
+</span><span id="L-181"><a href="#L-181"><span class="linenos">181</span></a><span class="sd">        f_out.write(f_in.read())</span>
+</span><span id="L-182"><a href="#L-182"><span class="linenos">182</span></a>
+</span><span id="L-183"><a href="#L-183"><span class="linenos">183</span></a><span class="sd">print(f&quot;Extracted EMDB map saved in {os.path.abspath(extracted_savepath)}&quot;)</span>
+</span><span id="L-184"><a href="#L-184"><span class="linenos">184</span></a>
+</span><span id="L-185"><a href="#L-185"><span class="linenos">185</span></a><span class="sd">mask = &quot;emd_1703_msk_1&quot;</span>
+</span><span id="L-186"><a href="#L-186"><span class="linenos">186</span></a><span class="sd">mask_savepath = os.path.join(&quot;./output&quot;, f&quot;{mask}.map&quot;)</span>
+</span><span id="L-187"><a href="#L-187"><span class="linenos">187</span></a><span class="sd">emdb_mask = fetch_emdb_mask(emdb_id=emdb_id, mask_name=mask_name)</span>
+</span><span id="L-188"><a href="#L-188"><span class="linenos">188</span></a><span class="sd">with open(mask_savepath, &quot;wb&quot;) as f:</span>
+</span><span id="L-189"><a href="#L-189"><span class="linenos">189</span></a><span class="sd">    f.write(emdb_mask)</span>
+</span><span id="L-190"><a href="#L-190"><span class="linenos">190</span></a><span class="sd">print(f&quot;EMDB mask saved in {os.path.abspath(mask_savepath)}&quot;)</span>
+</span><span id="L-191"><a href="#L-191"><span class="linenos">191</span></a><span class="sd">```</span>
+</span><span id="L-192"><a href="#L-192"><span class="linenos">192</span></a>
+</span><span id="L-193"><a href="#L-193"><span class="linenos">193</span></a><span class="sd">#### 9. Compare two density maps and get correlation metrics</span>
+</span><span id="L-194"><a href="#L-194"><span class="linenos">194</span></a>
+</span><span id="L-195"><a href="#L-195"><span class="linenos">195</span></a><span class="sd">```python</span>
+</span><span id="L-196"><a href="#L-196"><span class="linenos">196</span></a><span class="sd">from IMP_Toolbox.structure.density_map import (</span>
+</span><span id="L-197"><a href="#L-197"><span class="linenos">197</span></a><span class="sd">    extract_voxel_data,</span>
+</span><span id="L-198"><a href="#L-198"><span class="linenos">198</span></a><span class="sd">    get_correlation_metrics,</span>
+</span><span id="L-199"><a href="#L-199"><span class="linenos">199</span></a><span class="sd">)</span>
+</span><span id="L-200"><a href="#L-200"><span class="linenos">200</span></a>
+</span><span id="L-201"><a href="#L-201"><span class="linenos">201</span></a><span class="sd">mrc_file1 = &quot;./path/to/map1.mrc&quot;</span>
+</span><span id="L-202"><a href="#L-202"><span class="linenos">202</span></a><span class="sd">mrc_file2 = &quot;./path/to/map2.mrc&quot;</span>
+</span><span id="L-203"><a href="#L-203"><span class="linenos">203</span></a>
+</span><span id="L-204"><a href="#L-204"><span class="linenos">204</span></a><span class="sd">voxel_data1 = extract_voxel_data(mrc_files=[mrc_file1])</span>
+</span><span id="L-205"><a href="#L-205"><span class="linenos">205</span></a><span class="sd">voxel_data2 = extract_voxel_data(mrc_files=[mrc_file2])</span>
+</span><span id="L-206"><a href="#L-206"><span class="linenos">206</span></a><span class="sd">overlap, corr, corr_over_mean, pts = get_correlation_metrics(</span>
+</span><span id="L-207"><a href="#L-207"><span class="linenos">207</span></a><span class="sd">    voxel_data1=voxel_data1,</span>
+</span><span id="L-208"><a href="#L-208"><span class="linenos">208</span></a><span class="sd">    voxel_data2=voxel_data2,</span>
+</span><span id="L-209"><a href="#L-209"><span class="linenos">209</span></a><span class="sd">)</span>
+</span><span id="L-210"><a href="#L-210"><span class="linenos">210</span></a><span class="sd">print(f&#39;&#39;&#39;</span>
+</span><span id="L-211"><a href="#L-211"><span class="linenos">211</span></a><span class="sd">    Overlap: {overlap},</span>
+</span><span id="L-212"><a href="#L-212"><span class="linenos">212</span></a><span class="sd">    Correlation: {corr},</span>
+</span><span id="L-213"><a href="#L-213"><span class="linenos">213</span></a><span class="sd">    Correlation over mean: {corr_over_mean},</span>
+</span><span id="L-214"><a href="#L-214"><span class="linenos">214</span></a><span class="sd">    Number of points: {pts}&#39;&#39;&#39;</span>
+</span><span id="L-215"><a href="#L-215"><span class="linenos">215</span></a><span class="sd">)</span>
+</span><span id="L-216"><a href="#L-216"><span class="linenos">216</span></a><span class="sd">```</span>
+</span><span id="L-217"><a href="#L-217"><span class="linenos">217</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-218"><a href="#L-218"><span class="linenos">218</span></a>
+</span><span id="L-219"><a href="#L-219"><span class="linenos">219</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.burial</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="L-220"><a href="#L-220"><span class="linenos">220</span></a>    <span class="n">get_burial_info</span><span class="p">,</span>
+</span><span id="L-221"><a href="#L-221"><span class="linenos">221</span></a>    <span class="n">get_residue_depth</span><span class="p">,</span>
+</span><span id="L-222"><a href="#L-222"><span class="linenos">222</span></a><span class="p">)</span>
+</span><span id="L-223"><a href="#L-223"><span class="linenos">223</span></a>
+</span><span id="L-224"><a href="#L-224"><span class="linenos">224</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.best_structure</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="L-225"><a href="#L-225"><span class="linenos">225</span></a>    <span class="n">get_best_structures</span><span class="p">,</span>
+</span><span id="L-226"><a href="#L-226"><span class="linenos">226</span></a>    <span class="n">fetch_best_structures</span><span class="p">,</span>
+</span><span id="L-227"><a href="#L-227"><span class="linenos">227</span></a>    <span class="n">make_best_structures_df</span><span class="p">,</span>
+</span><span id="L-228"><a href="#L-228"><span class="linenos">228</span></a><span class="p">)</span>
+</span><span id="L-229"><a href="#L-229"><span class="linenos">229</span></a>
+</span><span id="L-230"><a href="#L-230"><span class="linenos">230</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.tools</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="L-231"><a href="#L-231"><span class="linenos">231</span></a>    <span class="n">split_structure_by_chain</span><span class="p">,</span>
+</span><span id="L-232"><a href="#L-232"><span class="linenos">232</span></a>    <span class="n">get_per_chain_residues</span><span class="p">,</span>
+</span><span id="L-233"><a href="#L-233"><span class="linenos">233</span></a>    <span class="n">pdb_to_mmcif</span><span class="p">,</span>
+</span><span id="L-234"><a href="#L-234"><span class="linenos">234</span></a>    <span class="n">mmcif_to_pdb</span><span class="p">,</span>
+</span><span id="L-235"><a href="#L-235"><span class="linenos">235</span></a>    <span class="n">transform_pdb</span><span class="p">,</span>
+</span><span id="L-236"><a href="#L-236"><span class="linenos">236</span></a>    <span class="n">save_structure_obj</span><span class="p">,</span>
+</span><span id="L-237"><a href="#L-237"><span class="linenos">237</span></a><span class="p">)</span>
 </span></pre></div>
 
 

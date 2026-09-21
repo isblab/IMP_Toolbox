@@ -30,20 +30,20 @@ def get_voxel_correlation(
     voxel_data_b = extract_voxel_data(mrc_files=exp_maps)
 
     overlap, corr, corr_over_mean, pts = get_correlation_metrics(
-            voxel_data1=voxel_data_a,
-            voxel_data2=voxel_data_b,
-            voxel_size=6.0,
-            zeros=False,
-        )
+        voxel_data1=voxel_data_a,
+        voxel_data2=voxel_data_b,
+        voxel_size=6.0,
+        zeros=False,
+    )
 
     correlation_list = [{
-            MiscStrEnum.MODEL_MRC: key,
-            MiscStrEnum.REF_MRC: key.replace("_lpd", "_exp"),
-            CorrelationMetric.OVERLAP: overlap,
-            CorrelationMetric.CORRELATION: corr,
-            CorrelationMetric.CAM: corr_over_mean,
-            MiscStrEnum.NUM_PTS: pts,
-        }]
+        MiscStrEnum.MODEL_MRC: key,
+        MiscStrEnum.REF_MRC: key.replace("_lpd", "_exp"),
+        CorrelationMetric.OVERLAP: overlap,
+        CorrelationMetric.CORRELATION: corr,
+        CorrelationMetric.CAM: corr_over_mean,
+        MiscStrEnum.NUM_PTS: pts,
+    }]
 
     df = pd.DataFrame(correlation_list)
 
