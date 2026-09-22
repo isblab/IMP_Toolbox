@@ -12,7 +12,6 @@ _user = getpass.getuser()
 here = os.path.dirname(os.path.abspath(__file__))
 
 logging.basicConfig(
-    filename=os.path.join(here, 'end_to_end_analysis.log'),
     filemode="a+",
     format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO
