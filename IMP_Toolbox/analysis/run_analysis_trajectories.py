@@ -163,7 +163,7 @@ if __name__ == "__main__":
         nproc=args.nproc,
         nskip=args.nskip,
         number_models_out=29999,
-        plot_fmt="pdf",
+        plot_fmt="svg",
     )
 
     # Usual restraints
