@@ -3,7 +3,7 @@ import yaml
 import argparse
 import subprocess
 import pandas as pd
-from IMP_Toolbox.structure.density_map import (
+from IMP_Toolbox.density.compare import (
     extract_voxel_data,
     get_correlation_metrics,
 )
