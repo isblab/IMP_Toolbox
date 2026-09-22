@@ -10,7 +10,4 @@ analysis
   - Assessing the sampling and model precision
   - Aligning rigid body pdbs to cluster center model
   - Contact map analysis
-  - Fit to data
-    - Protein-protein binding data
-    - Correlate LPDs with electron density maps
 """
