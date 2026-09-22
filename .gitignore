@@ -1,4 +1,7 @@
 # docs/
+examples/output/mutations
+examples/input/AlphaMissense_aa_substitutions.tsv.gz
+examples/output/polymer_coverage
 docs/mermaid_diagrams/
 .vscode
 Diagrams/

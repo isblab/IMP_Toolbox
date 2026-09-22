@@ -5,13 +5,14 @@ import random
 import argparse
 import logging
 import getpass
+import subprocess
 from pathlib import Path
 _user = getpass.getuser()
 
 here = os.path.dirname(os.path.abspath(__file__))
 
 logging.basicConfig(
-    filename=os.path.join(here, 'end_to_end_analysis.log'),
+    filename=os.path.join(here, 'end_to_end_validation.log'),
     filemode="a+",
     format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO
@@ -79,7 +80,7 @@ def fit_to_binding_data(
         logger.info("Running fit_to_binding_data with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def fit_to_em_data(
     input_config: str,
@@ -117,7 +118,7 @@ def fit_to_em_data(
         logger.info("Running fit_to_em_data with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 if __name__ == "__main__":
 

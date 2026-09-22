@@ -5,6 +5,7 @@ import random
 import argparse
 import logging
 import getpass
+import subprocess
 from pathlib import Path
 _user = getpass.getuser()
 
@@ -205,7 +206,7 @@ def run_analysis_trajectories(
         logger.info("Running analysis of trajectories with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def variable_filter(
     pmi_clust_idx: int,
@@ -287,7 +288,7 @@ def variable_filter(
         logger.info("Running variable filter with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def run_extract_models(
     modeling_dir: str,
@@ -393,7 +394,7 @@ def run_extract_models(
 
     logger.info("Running extract models with command:")
     logger.info(" ".join(map(str, command)))
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def exhaust(
     pmi_analysis_dir: str,
@@ -529,7 +530,7 @@ def exhaust(
         logger.info("Running exhaust with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def correlate_cluster_sample_densities(
     sampcon_cluster_path: str,
@@ -588,7 +589,7 @@ def correlate_cluster_sample_densities(
         logger.info("Running correlation of cluster sample LPDs with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def fit_pdb_to_ccm(
     ccm_file: str,
@@ -629,7 +630,7 @@ def fit_pdb_to_ccm(
         logging.info("Running fit PDB to CCM with command:")
         logging.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def prism_annotate(
     input: str,
@@ -743,7 +744,7 @@ def prism_annotate(
         logger.info("Running prism annotate with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def prism_color(
     input: str,
@@ -810,7 +811,7 @@ def prism_color(
 
     logger.info("Running prism color with command:")
     logger.info(" ".join(map(str, command)))
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def extract_sampcon(
     rmf1: str,
@@ -868,7 +869,7 @@ def extract_sampcon(
         logger.info("Running extract_sampcon with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def rmf_to_xyzr(
     rmf_path: str,
@@ -934,7 +935,7 @@ def rmf_to_xyzr(
         logger.info("Running rmf_to_xyzr with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def interaction_map(
     xyzr_file: str,
@@ -1047,7 +1048,7 @@ def interaction_map(
         logger.info("Running interaction_map with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 def interaction_metapatches(
     interaction_map_dir: str,
@@ -1092,7 +1093,7 @@ def interaction_metapatches(
         logger.info("Running interacting_metapatches with command:")
         logger.info(" ".join(map(str, command)))
 
-    os.system(" ".join(map(str, command)))
+    subprocess.run(command, check=True)
 
 if __name__ == "__main__":
 
