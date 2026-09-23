@@ -6,7 +6,7 @@ from IMP_Toolbox.density.compare import (
     extract_voxel_data,
     get_correlation_metrics,
 )
-from IMP_Toolbox.chimerax.density_map import parse_chimerax_correlation_log
+from IMP_Toolbox.chimerax.density_correlation import parse_chimerax_correlation_log
 from IMP_Toolbox.constants.imp_toolbox_constants import (
     CLUSTER_MRC_PREFIX,
     CHIMERAX_RUN_CMD,
