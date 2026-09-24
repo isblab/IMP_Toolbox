@@ -5,6 +5,27 @@ mutations
 - Assisting with the mutation related tasks such as-
   - fetching and processing mutation data from alpha-missense, ClinVar, etc.
 
+### Use cases:
+
+#### 1. Obtain AlphaMissense data for given UniProt IDs
+
+```bash
+python af_missense.py \\
+  --uniprot_ids P60709,P68133 \\
+  --alpha_missense_dir /path/to/alpha_missense_dir \\
+  --mode online
+```
+
+- This command fetches AlphaMissense data for the specified UniProt IDs
+  (`P60709` and `P68133`) and saves the data in the specified directory
+  (`/path/to/alpha_missense_dir`).
+
+- The `--mode online` flag indicates that the data should be fetched from the
+  online AlphaMissense API. Alternatively, you can use `--mode offline` to fetch
+  data from a local tsv file. To obtain this file you only need to run the command
+  with `--mode offline --af_missense_tsv /path/to/AlphaMissense_aa_substitutions.tsv.gz`
+  once, and it will download the file to the specified path.
+
 ### Classes
 
 ```mermaid
@@ -43,4 +64,5 @@ classDiagram
         + add_to_variant_dict(self, key, value, overwrite)
     }
 ```
+
 """

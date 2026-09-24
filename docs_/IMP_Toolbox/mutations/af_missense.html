@@ -681,10 +681,10 @@
 </span><span id="L-564"><a href="#L-564"><span class="linenos">564</span></a>        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Fetch and save Alpha-Missense variants.&quot;</span>
 </span><span id="L-565"><a href="#L-565"><span class="linenos">565</span></a>    <span class="p">)</span>
 </span><span id="L-566"><a href="#L-566"><span class="linenos">566</span></a>    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
-</span><span id="L-567"><a href="#L-567"><span class="linenos">567</span></a>        <span class="s2">&quot;--config_file&quot;</span><span class="p">,</span>
+</span><span id="L-567"><a href="#L-567"><span class="linenos">567</span></a>        <span class="s2">&quot;--uniprot_ids&quot;</span><span class="p">,</span>
 </span><span id="L-568"><a href="#L-568"><span class="linenos">568</span></a>        <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-</span><span id="L-569"><a href="#L-569"><span class="linenos">569</span></a>        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;/home/omkar/Projects/cardiac_desmosome/input/config.yaml&quot;</span><span class="p">,</span>
-</span><span id="L-570"><a href="#L-570"><span class="linenos">570</span></a>        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Path to configuration YAML file.&quot;</span><span class="p">,</span>
+</span><span id="L-569"><a href="#L-569"><span class="linenos">569</span></a>        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;P60709,P68133&quot;</span><span class="p">,</span>
+</span><span id="L-570"><a href="#L-570"><span class="linenos">570</span></a>        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Comma-separated list of UniProt IDs.&quot;</span><span class="p">,</span>
 </span><span id="L-571"><a href="#L-571"><span class="linenos">571</span></a>    <span class="p">)</span>
 </span><span id="L-572"><a href="#L-572"><span class="linenos">572</span></a>    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
 </span><span id="L-573"><a href="#L-573"><span class="linenos">573</span></a>        <span class="s2">&quot;--alpha_missense_dir&quot;</span><span class="p">,</span>
@@ -726,74 +726,72 @@
 </span><span id="L-609"><a href="#L-609"><span class="linenos">609</span></a>
 </span><span id="L-610"><a href="#L-610"><span class="linenos">610</span></a>    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
 </span><span id="L-611"><a href="#L-611"><span class="linenos">611</span></a>
-</span><span id="L-612"><a href="#L-612"><span class="linenos">612</span></a>    <span class="n">config_yaml</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">config_file</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">),</span> <span class="n">Loader</span><span class="o">=</span><span class="n">yaml</span><span class="o">.</span><span class="n">FullLoader</span><span class="p">)</span>
-</span><span id="L-613"><a href="#L-613"><span class="linenos">613</span></a>    <span class="n">protein_uniprot_map</span> <span class="o">=</span> <span class="n">config_yaml</span><span class="p">[</span><span class="s2">&quot;cardiac_odp_protein_uniprot_map&quot;</span><span class="p">]</span>
-</span><span id="L-614"><a href="#L-614"><span class="linenos">614</span></a>    <span class="n">uniprot_bases</span> <span class="o">=</span> <span class="p">[</span><span class="n">uid</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">protein_uniprot_map</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
-</span><span id="L-615"><a href="#L-615"><span class="linenos">615</span></a>
-</span><span id="L-616"><a href="#L-616"><span class="linenos">616</span></a>    <span class="n">af_missense_df_gen</span> <span class="o">=</span> <span class="n">fetch_af_missense_data</span><span class="p">(</span>
-</span><span id="L-617"><a href="#L-617"><span class="linenos">617</span></a>        <span class="n">args</span><span class="o">.</span><span class="n">alpha_missense_dir</span><span class="p">,</span>
-</span><span id="L-618"><a href="#L-618"><span class="linenos">618</span></a>        <span class="n">uniprot_bases</span><span class="p">,</span>
-</span><span id="L-619"><a href="#L-619"><span class="linenos">619</span></a>        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;offline&quot;</span><span class="p">,</span>
-</span><span id="L-620"><a href="#L-620"><span class="linenos">620</span></a>        <span class="n">overwrite</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">overwrite</span><span class="p">,</span>
-</span><span id="L-621"><a href="#L-621"><span class="linenos">621</span></a>        <span class="n">af_missense_tsv</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">af_missense_tsv</span><span class="p">,</span>
-</span><span id="L-622"><a href="#L-622"><span class="linenos">622</span></a>    <span class="p">)</span>
-</span><span id="L-623"><a href="#L-623"><span class="linenos">623</span></a>
-</span><span id="L-624"><a href="#L-624"><span class="linenos">624</span></a>    <span class="n">export_af_missense_data</span><span class="p">(</span>
-</span><span id="L-625"><a href="#L-625"><span class="linenos">625</span></a>        <span class="n">alpha_missense_dir</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">alpha_missense_dir</span><span class="p">,</span>
-</span><span id="L-626"><a href="#L-626"><span class="linenos">626</span></a>        <span class="n">af_missense_df_gen</span><span class="o">=</span><span class="n">af_missense_df_gen</span><span class="p">,</span>
-</span><span id="L-627"><a href="#L-627"><span class="linenos">627</span></a>        <span class="n">overwrite</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">overwrite</span><span class="p">,</span>
-</span><span id="L-628"><a href="#L-628"><span class="linenos">628</span></a>    <span class="p">)</span>
-</span><span id="L-629"><a href="#L-629"><span class="linenos">629</span></a>
-</span><span id="L-630"><a href="#L-630"><span class="linenos">630</span></a>    <span class="c1"># afm_fasta_dict = get_fasta_dict_for_af_missense(protein_uniprot_map)</span>
-</span><span id="L-631"><a href="#L-631"><span class="linenos">631</span></a>    <span class="c1"># odp_sequences = read_fasta(args.odp_sequences_fasta)</span>
-</span><span id="L-632"><a href="#L-632"><span class="linenos">632</span></a>    <span class="c1"># af_missense_dict = {}</span>
-</span><span id="L-633"><a href="#L-633"><span class="linenos">633</span></a>    <span class="c1"># for p_name, uniprot_id in protein_uniprot_map.items():</span>
+</span><span id="L-612"><a href="#L-612"><span class="linenos">612</span></a>    <span class="n">uniprot_bases</span> <span class="o">=</span> <span class="p">[</span><span class="n">uid</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">uniprot_ids</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)]</span>
+</span><span id="L-613"><a href="#L-613"><span class="linenos">613</span></a>
+</span><span id="L-614"><a href="#L-614"><span class="linenos">614</span></a>    <span class="n">af_missense_df_gen</span> <span class="o">=</span> <span class="n">fetch_af_missense_data</span><span class="p">(</span>
+</span><span id="L-615"><a href="#L-615"><span class="linenos">615</span></a>        <span class="n">args</span><span class="o">.</span><span class="n">alpha_missense_dir</span><span class="p">,</span>
+</span><span id="L-616"><a href="#L-616"><span class="linenos">616</span></a>        <span class="n">uniprot_bases</span><span class="p">,</span>
+</span><span id="L-617"><a href="#L-617"><span class="linenos">617</span></a>        <span class="n">mode</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
+</span><span id="L-618"><a href="#L-618"><span class="linenos">618</span></a>        <span class="n">overwrite</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">overwrite</span><span class="p">,</span>
+</span><span id="L-619"><a href="#L-619"><span class="linenos">619</span></a>        <span class="n">af_missense_tsv</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">af_missense_tsv</span><span class="p">,</span>
+</span><span id="L-620"><a href="#L-620"><span class="linenos">620</span></a>    <span class="p">)</span>
+</span><span id="L-621"><a href="#L-621"><span class="linenos">621</span></a>
+</span><span id="L-622"><a href="#L-622"><span class="linenos">622</span></a>    <span class="n">export_af_missense_data</span><span class="p">(</span>
+</span><span id="L-623"><a href="#L-623"><span class="linenos">623</span></a>        <span class="n">alpha_missense_dir</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">alpha_missense_dir</span><span class="p">,</span>
+</span><span id="L-624"><a href="#L-624"><span class="linenos">624</span></a>        <span class="n">af_missense_df_gen</span><span class="o">=</span><span class="n">af_missense_df_gen</span><span class="p">,</span>
+</span><span id="L-625"><a href="#L-625"><span class="linenos">625</span></a>        <span class="n">overwrite</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">overwrite</span><span class="p">,</span>
+</span><span id="L-626"><a href="#L-626"><span class="linenos">626</span></a>    <span class="p">)</span>
+</span><span id="L-627"><a href="#L-627"><span class="linenos">627</span></a>
+</span><span id="L-628"><a href="#L-628"><span class="linenos">628</span></a>    <span class="c1"># afm_fasta_dict = get_fasta_dict_for_af_missense(protein_uniprot_map)</span>
+</span><span id="L-629"><a href="#L-629"><span class="linenos">629</span></a>    <span class="c1"># odp_sequences = read_fasta(args.odp_sequences_fasta)</span>
+</span><span id="L-630"><a href="#L-630"><span class="linenos">630</span></a>    <span class="c1"># af_missense_dict = {}</span>
+</span><span id="L-631"><a href="#L-631"><span class="linenos">631</span></a>    <span class="c1"># for p_name, uniprot_id in protein_uniprot_map.items():</span>
+</span><span id="L-632"><a href="#L-632"><span class="linenos">632</span></a>
+</span><span id="L-633"><a href="#L-633"><span class="linenos">633</span></a>    <span class="c1">#     print(f&quot;\nProcessing {p_name} ({uniprot_id})...&quot;)</span>
 </span><span id="L-634"><a href="#L-634"><span class="linenos">634</span></a>
-</span><span id="L-635"><a href="#L-635"><span class="linenos">635</span></a>    <span class="c1">#     print(f&quot;\nProcessing {p_name} ({uniprot_id})...&quot;)</span>
-</span><span id="L-636"><a href="#L-636"><span class="linenos">636</span></a>
-</span><span id="L-637"><a href="#L-637"><span class="linenos">637</span></a>    <span class="c1">#     modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)</span>
-</span><span id="L-638"><a href="#L-638"><span class="linenos">638</span></a>    <span class="c1">#     if modeled_seq is None:</span>
-</span><span id="L-639"><a href="#L-639"><span class="linenos">639</span></a>    <span class="c1">#         warnings.warn(</span>
-</span><span id="L-640"><a href="#L-640"><span class="linenos">640</span></a>    <span class="c1">#             f&quot;&quot;&quot;</span>
-</span><span id="L-641"><a href="#L-641"><span class="linenos">641</span></a>    <span class="c1">#             Modeled sequence not found for {p_name} ({uniprot_id}). Got:</span>
-</span><span id="L-642"><a href="#L-642"><span class="linenos">642</span></a>    <span class="c1">#             {modeled_seq=}</span>
-</span><span id="L-643"><a href="#L-643"><span class="linenos">643</span></a>
-</span><span id="L-644"><a href="#L-644"><span class="linenos">644</span></a>    <span class="c1">#             Skipping...</span>
-</span><span id="L-645"><a href="#L-645"><span class="linenos">645</span></a>    <span class="c1">#             &quot;&quot;&quot;</span>
-</span><span id="L-646"><a href="#L-646"><span class="linenos">646</span></a>    <span class="c1">#         )</span>
-</span><span id="L-647"><a href="#L-647"><span class="linenos">647</span></a>    <span class="c1">#         continue</span>
-</span><span id="L-648"><a href="#L-648"><span class="linenos">648</span></a>
+</span><span id="L-635"><a href="#L-635"><span class="linenos">635</span></a>    <span class="c1">#     modeled_seq = odp_sequences.get(protein_uniprot_map[p_name], None)</span>
+</span><span id="L-636"><a href="#L-636"><span class="linenos">636</span></a>    <span class="c1">#     if modeled_seq is None:</span>
+</span><span id="L-637"><a href="#L-637"><span class="linenos">637</span></a>    <span class="c1">#         warnings.warn(</span>
+</span><span id="L-638"><a href="#L-638"><span class="linenos">638</span></a>    <span class="c1">#             f&quot;&quot;&quot;</span>
+</span><span id="L-639"><a href="#L-639"><span class="linenos">639</span></a>    <span class="c1">#             Modeled sequence not found for {p_name} ({uniprot_id}). Got:</span>
+</span><span id="L-640"><a href="#L-640"><span class="linenos">640</span></a>    <span class="c1">#             {modeled_seq=}</span>
+</span><span id="L-641"><a href="#L-641"><span class="linenos">641</span></a>
+</span><span id="L-642"><a href="#L-642"><span class="linenos">642</span></a>    <span class="c1">#             Skipping...</span>
+</span><span id="L-643"><a href="#L-643"><span class="linenos">643</span></a>    <span class="c1">#             &quot;&quot;&quot;</span>
+</span><span id="L-644"><a href="#L-644"><span class="linenos">644</span></a>    <span class="c1">#         )</span>
+</span><span id="L-645"><a href="#L-645"><span class="linenos">645</span></a>    <span class="c1">#         continue</span>
+</span><span id="L-646"><a href="#L-646"><span class="linenos">646</span></a>
+</span><span id="L-647"><a href="#L-647"><span class="linenos">647</span></a>    <span class="c1">###########################################################################</span>
+</span><span id="L-648"><a href="#L-648"><span class="linenos">648</span></a>    <span class="c1"># Get AlphaMissense scores for variants in the protein</span>
 </span><span id="L-649"><a href="#L-649"><span class="linenos">649</span></a>    <span class="c1">###########################################################################</span>
-</span><span id="L-650"><a href="#L-650"><span class="linenos">650</span></a>    <span class="c1"># Get AlphaMissense scores for variants in the protein</span>
-</span><span id="L-651"><a href="#L-651"><span class="linenos">651</span></a>    <span class="c1">###########################################################################</span>
-</span><span id="L-652"><a href="#L-652"><span class="linenos">652</span></a>
-</span><span id="L-653"><a href="#L-653"><span class="linenos">653</span></a>
-</span><span id="L-654"><a href="#L-654"><span class="linenos">654</span></a>        <span class="c1"># afm_pairwise_alignment_file = os.path.join(</span>
-</span><span id="L-655"><a href="#L-655"><span class="linenos">655</span></a>        <span class="c1">#     args.pairwise_alignments_dir, f&quot;{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta&quot;</span>
-</span><span id="L-656"><a href="#L-656"><span class="linenos">656</span></a>        <span class="c1"># )</span>
-</span><span id="L-657"><a href="#L-657"><span class="linenos">657</span></a>        <span class="c1"># uniprot_base = uniprot_id.split(&quot;-&quot;)[0]</span>
+</span><span id="L-650"><a href="#L-650"><span class="linenos">650</span></a>
+</span><span id="L-651"><a href="#L-651"><span class="linenos">651</span></a>
+</span><span id="L-652"><a href="#L-652"><span class="linenos">652</span></a>        <span class="c1"># afm_pairwise_alignment_file = os.path.join(</span>
+</span><span id="L-653"><a href="#L-653"><span class="linenos">653</span></a>        <span class="c1">#     args.pairwise_alignments_dir, f&quot;{p_name}{AF_MISSENSE_PAIR_ALN_SUFFIX}.fasta&quot;</span>
+</span><span id="L-654"><a href="#L-654"><span class="linenos">654</span></a>        <span class="c1"># )</span>
+</span><span id="L-655"><a href="#L-655"><span class="linenos">655</span></a>        <span class="c1"># uniprot_base = uniprot_id.split(&quot;-&quot;)[0]</span>
+</span><span id="L-656"><a href="#L-656"><span class="linenos">656</span></a>
+</span><span id="L-657"><a href="#L-657"><span class="linenos">657</span></a>        <span class="c1"># af_missense_ref_seq = afm_fasta_dict.get(uniprot_base, None)</span>
 </span><span id="L-658"><a href="#L-658"><span class="linenos">658</span></a>
-</span><span id="L-659"><a href="#L-659"><span class="linenos">659</span></a>        <span class="c1"># af_missense_ref_seq = afm_fasta_dict.get(uniprot_base, None)</span>
-</span><span id="L-660"><a href="#L-660"><span class="linenos">660</span></a>
-</span><span id="L-661"><a href="#L-661"><span class="linenos">661</span></a>        <span class="c1"># if af_missense_ref_seq is None:</span>
-</span><span id="L-662"><a href="#L-662"><span class="linenos">662</span></a>        <span class="c1">#     warnings.warn(</span>
-</span><span id="L-663"><a href="#L-663"><span class="linenos">663</span></a>        <span class="c1">#         f&quot;&quot;&quot;</span>
-</span><span id="L-664"><a href="#L-664"><span class="linenos">664</span></a>        <span class="c1">#         Reference sequence not found for {p_name}. Got:</span>
-</span><span id="L-665"><a href="#L-665"><span class="linenos">665</span></a>        <span class="c1">#         {af_missense_ref_seq=}</span>
-</span><span id="L-666"><a href="#L-666"><span class="linenos">666</span></a>
-</span><span id="L-667"><a href="#L-667"><span class="linenos">667</span></a>        <span class="c1">#         Skipping...</span>
-</span><span id="L-668"><a href="#L-668"><span class="linenos">668</span></a>        <span class="c1">#         &quot;&quot;&quot;</span>
-</span><span id="L-669"><a href="#L-669"><span class="linenos">669</span></a>        <span class="c1">#     )</span>
-</span><span id="L-670"><a href="#L-670"><span class="linenos">670</span></a>        <span class="c1">#     continue</span>
-</span><span id="L-671"><a href="#L-671"><span class="linenos">671</span></a>
-</span><span id="L-672"><a href="#L-672"><span class="linenos">672</span></a>        <span class="c1"># won&#39;t align if sequences are identical</span>
-</span><span id="L-673"><a href="#L-673"><span class="linenos">673</span></a>        <span class="c1"># afm_psa_map = handle_pairwise_alignment(</span>
-</span><span id="L-674"><a href="#L-674"><span class="linenos">674</span></a>        <span class="c1">#     p_name=p_name,</span>
-</span><span id="L-675"><a href="#L-675"><span class="linenos">675</span></a>        <span class="c1">#     sseq=af_missense_ref_seq,</span>
-</span><span id="L-676"><a href="#L-676"><span class="linenos">676</span></a>        <span class="c1">#     qseq=modeled_seq,</span>
-</span><span id="L-677"><a href="#L-677"><span class="linenos">677</span></a>        <span class="c1">#     pairwise_alignment_file=afm_pairwise_alignment_file,</span>
-</span><span id="L-678"><a href="#L-678"><span class="linenos">678</span></a>        <span class="c1">#     ignore_warnings=True</span>
-</span><span id="L-679"><a href="#L-679"><span class="linenos">679</span></a>        <span class="c1"># )</span>
+</span><span id="L-659"><a href="#L-659"><span class="linenos">659</span></a>        <span class="c1"># if af_missense_ref_seq is None:</span>
+</span><span id="L-660"><a href="#L-660"><span class="linenos">660</span></a>        <span class="c1">#     warnings.warn(</span>
+</span><span id="L-661"><a href="#L-661"><span class="linenos">661</span></a>        <span class="c1">#         f&quot;&quot;&quot;</span>
+</span><span id="L-662"><a href="#L-662"><span class="linenos">662</span></a>        <span class="c1">#         Reference sequence not found for {p_name}. Got:</span>
+</span><span id="L-663"><a href="#L-663"><span class="linenos">663</span></a>        <span class="c1">#         {af_missense_ref_seq=}</span>
+</span><span id="L-664"><a href="#L-664"><span class="linenos">664</span></a>
+</span><span id="L-665"><a href="#L-665"><span class="linenos">665</span></a>        <span class="c1">#         Skipping...</span>
+</span><span id="L-666"><a href="#L-666"><span class="linenos">666</span></a>        <span class="c1">#         &quot;&quot;&quot;</span>
+</span><span id="L-667"><a href="#L-667"><span class="linenos">667</span></a>        <span class="c1">#     )</span>
+</span><span id="L-668"><a href="#L-668"><span class="linenos">668</span></a>        <span class="c1">#     continue</span>
+</span><span id="L-669"><a href="#L-669"><span class="linenos">669</span></a>
+</span><span id="L-670"><a href="#L-670"><span class="linenos">670</span></a>        <span class="c1"># won&#39;t align if sequences are identical</span>
+</span><span id="L-671"><a href="#L-671"><span class="linenos">671</span></a>        <span class="c1"># afm_psa_map = handle_pairwise_alignment(</span>
+</span><span id="L-672"><a href="#L-672"><span class="linenos">672</span></a>        <span class="c1">#     p_name=p_name,</span>
+</span><span id="L-673"><a href="#L-673"><span class="linenos">673</span></a>        <span class="c1">#     sseq=af_missense_ref_seq,</span>
+</span><span id="L-674"><a href="#L-674"><span class="linenos">674</span></a>        <span class="c1">#     qseq=modeled_seq,</span>
+</span><span id="L-675"><a href="#L-675"><span class="linenos">675</span></a>        <span class="c1">#     pairwise_alignment_file=afm_pairwise_alignment_file,</span>
+</span><span id="L-676"><a href="#L-676"><span class="linenos">676</span></a>        <span class="c1">#     ignore_warnings=True</span>
+</span><span id="L-677"><a href="#L-677"><span class="linenos">677</span></a>        <span class="c1"># )</span>
 </span></pre></div>
 
 

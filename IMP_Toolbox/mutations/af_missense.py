@@ -564,10 +564,10 @@ if __name__ == "__main__":
         description="Fetch and save Alpha-Missense variants."
     )
     parser.add_argument(
-        "--config_file",
+        "--uniprot_ids",
         type=str,
-        default="/home/omkar/Projects/cardiac_desmosome/input/config.yaml",
-        help="Path to configuration YAML file.",
+        default="P60709,P68133",
+        help="Comma-separated list of UniProt IDs.",
     )
     parser.add_argument(
         "--alpha_missense_dir",
@@ -609,14 +609,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    config_yaml = yaml.load(open(args.config_file, "r"), Loader=yaml.FullLoader)
-    protein_uniprot_map = config_yaml["cardiac_odp_protein_uniprot_map"]
-    uniprot_bases = [uid.split("-")[0] for uid in protein_uniprot_map.values()]
+    uniprot_bases = [uid.split("-")[0] for uid in args.uniprot_ids.split(",")]
 
     af_missense_df_gen = fetch_af_missense_data(
         args.alpha_missense_dir,
         uniprot_bases,
-        mode="offline",
+        mode=args.mode,
         overwrite=args.overwrite,
         af_missense_tsv=args.af_missense_tsv,
     )
