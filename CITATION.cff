@@ -1,0 +1,32 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: IMP_Toolbox
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors: # not in any particular order
+  - given-names: Omkar
+    family-names: Golatkar
+    orcid: 'https://orcid.org/0009-0004-1925-1480'
+  - given-names: Kartik
+    family-names: Majila
+    orcid: 'https://orcid.org/0009-0006-3190-7977'
+  - given-names: Shreyas
+    family-names: Arvindekar
+    orcid: 'https://orcid.org/0000-0002-9945-8534'
+  - given-names: Muskaan
+    family-names: Jindal
+    orcid: 'https://orcid.org/0009-0005-2945-5345'
+  - given-names: Shruthi
+    family-names: Viswanath
+    orcid: 'https://orcid.org/0000-0002-9061-8407'
+repository-code: 'https://github.com/isblab/IMP_Toolbox'
+url: 'https://isblab.github.io/IMP_Toolbox/'
+abstract: A toolbox to aid integrative modeling with IMP.
+keywords:
+  - integrative-modeling
+  - structural-biology
+license: GPL-3.0
